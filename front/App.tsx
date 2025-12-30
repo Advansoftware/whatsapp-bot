@@ -14,7 +14,8 @@ import LandingPage from './components/LandingPage';
 import LoginView from './components/LoginView';
 import { View } from './types';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+// Fallback to placeholder if env var missing to prevent crash
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -60,42 +61,44 @@ const AppContent: React.FC = () => {
   }
 
   // Auth Flow
-  if (!isAuthenticated) {
-    if (showLogin) {
-      return (
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <LoginView />
-        </ThemeProvider>
-      );
-    }
+  if (isAuthenticated) {
     return (
-      <LandingPage 
-        onLoginClick={() => setShowLogin(true)} 
-      />
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box display="flex" minHeight="100vh" bgcolor="background.default">
+          <Sidebar 
+            open={true} 
+            onClose={() => {}} 
+            currentView={currentView}
+            onNavigate={setCurrentView}
+          />
+          
+          <Box flex={1} display="flex" flexDirection="column" overflow="hidden">
+            <Header toggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />
+            
+            <Box flex={1} overflow="auto" p={{ xs: 2, md: 4 }}>
+              {renderView()}
+            </Box>
+          </Box>
+        </Box>
+      </ThemeProvider>
     );
   }
 
-  // Dashboard Flow
+  // Login/Landing Flow
+  if (showLogin) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <LoginView />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box display="flex" minHeight="100vh" bgcolor="background.default">
-        <Sidebar 
-          open={true} 
-          onClose={() => {}} 
-          currentView={currentView}
-          onNavigate={setCurrentView}
-        />
-        
-        <Box flex={1} display="flex" flexDirection="column" overflow="hidden">
-          <Header toggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />
-          
-          <Box flex={1} overflow="auto" p={{ xs: 2, md: 4 }}>
-            {renderView()}
-          </Box>
-        </Box>
-      </Box>
+      <LandingPage onLoginClick={() => setShowLogin(true)} />
     </ThemeProvider>
   );
 };
