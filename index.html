@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WA Automator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              // Landing Page Colors
+              primary: "#00a884", // Normalized to WhatsApp Green
+              "primary-hover": "#008f6f",
+              background: "#111b21",
+              surface: "#202c33",
+              "surface-hover": "#2a3942",
+              text: {
+                main: "#e9edef",
+                secondary: "#8696a0",
+              },
+              wa: {
+                outgoing: "#005c4b",
+                incoming: "#202c33",
+                chatbg: "#0b141a"
+              },
+              // Login / App Colors
+              "wa-bg": "#111b21",
+              "wa-surface": "#202c33",
+              "wa-primary": "#00a884",
+              "wa-secondary": "#8696a0",
+              "wa-border": "#2a3942",
+              "wa-text": "#e9edef",
+              "background-light": "#f0f2f5",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              body: ["Inter", "sans-serif"],
+            },
+            spacing: {
+              '18': '4.5rem',
+            }
+          },
+        },
+      }
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@mui/material": "https://esm.sh/@mui/material@^7.3.6",
+    "@mui/material/": "https://esm.sh/@mui/material@^7.3.6/",
+    "@mui/icons-material": "https://esm.sh/@mui/icons-material@^7.3.6"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
