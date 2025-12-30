@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  picture   String?
+  googleId  String?  @unique @map("google_id")
+  companyId String   @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+  instances Instance[]
+  messages  Message[]
+
+  @@map("companies")
+}
+
+model Instance {
+  id          String   @id @default(cuid())
+  name        String
+  instanceKey String   @unique @map("instance_key")
+  companyId   String   @map("company_id")
+  status      String   @default("disconnected")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("instances")
+}
+
+model Message {
+  id           String   @id @default(cuid())
+  remoteJid    String   @map("remote_jid")
+  messageId    String   @map("message_id")
+  content      String   @db.Text
+  response     String?  @db.Text
+  direction    String   // 'incoming' | 'outgoing'
+  status       String   @default("pending") // 'pending' | 'processed' | 'failed'
+  processedAt  DateTime? @map("processed_at")
+  companyId    String   @map("company_id")
+  instanceId   String   @map("instance_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([instanceId])
+  @@index([remoteJid])
+  @@map("messages")
+}

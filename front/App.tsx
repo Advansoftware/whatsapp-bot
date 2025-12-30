@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { ThemeProvider, CssBaseline, Box } from '@mui/material';
+import React, { useMemo } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { getTheme } from './theme';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -12,11 +14,13 @@ import LandingPage from './components/LandingPage';
 import LoginView from './components/LoginView';
 import { View } from './types';
 
-const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [mode, setMode] = useState<'light' | 'dark'>('dark');
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [mode, setMode] = React.useState<'light' | 'dark'>('dark');
+  const [currentView, setCurrentView] = React.useState<View>('dashboard');
 
   const theme = useMemo(() => getTheme(mode), [mode]);
 
@@ -37,13 +41,32 @@ const App: React.FC = () => {
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box 
+          display="flex" 
+          minHeight="100vh" 
+          bgcolor="background.default"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   // Auth Flow
   if (!isAuthenticated) {
     if (showLogin) {
       return (
-        <LoginView 
-          onLoginSuccess={() => setIsAuthenticated(true)} 
-        />
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <LoginView />
+        </ThemeProvider>
       );
     }
     return (
@@ -74,6 +97,16 @@ const App: React.FC = () => {
         </Box>
       </Box>
     </ThemeProvider>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 };
 
