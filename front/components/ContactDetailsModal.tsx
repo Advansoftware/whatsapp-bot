@@ -50,6 +50,7 @@ interface ContactDetails {
   totalMessages: number;
   firstContactAt?: string;
   createdAt: string;
+  profilePicUrl?: string;
   memoriesByType: {
     fact: Array<{ key: string; value: string; confidence: number }>;
     preference: Array<{ key: string; value: string; confidence: number }>;
@@ -214,7 +215,25 @@ export default function ContactDetailsModal({
           {/* Header */}
           <div className="p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-pink-500/10">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
+              {contact?.profilePicUrl ? (
+                <img
+                  src={contact.profilePicUrl}
+                  alt={contact.name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-purple-500/50"
+                  onError={(e) => {
+                    // Fallback para inicial se a imagem falhar
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove(
+                      "hidden"
+                    );
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold ${
+                  contact?.profilePicUrl ? "hidden" : ""
+                }`}
+              >
                 {contact?.name?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <div>

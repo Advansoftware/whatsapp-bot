@@ -173,17 +173,19 @@ export class MessagesController {
     const isVideo = mimeType.startsWith('video/');
     const isAudio = mimeType.startsWith('audio/');
 
+    // Log para debug
+    console.log('Sending media to:', remoteJid, 'type:', isImage ? 'image' : isVideo ? 'video' : 'document');
+
     try {
       const response = await axios.post(
         `${evolutionUrl}/message/sendMedia/${instanceKey}`,
         {
-          number: remoteJid.replace(/\D/g, ''),
+          number: remoteJid, // Usar remoteJid completo (funciona com @lid e @s.whatsapp.net)
           mediatype: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'document',
           mimetype: mimeType,
           caption: caption || '',
-          media: `data:${mimeType};base64,${base64}`,
+          media: base64, // Base64 puro, sem data URI prefix
           fileName: fileName,
-          delay: 1200,
         },
         { headers: { 'apikey': evolutionApiKey } }
       );

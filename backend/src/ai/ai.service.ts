@@ -1360,11 +1360,11 @@ Se não encontrar nada relevante, retorne: []`;
         throw new Error('Contact not found');
       }
 
-      // Buscar últimas 100 mensagens para análise
+      // Buscar últimas 500 mensagens para análise mais completa
       const messages = await this.prisma.message.findMany({
         where: { remoteJid: contact.remoteJid, companyId },
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: 500,
       });
 
       // Resumo das memórias
@@ -1372,36 +1372,45 @@ Se não encontrar nada relevante, retorne: []`;
 
       const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
+      // Usar mais mensagens com texto mais completo
       const conversationSummary = messages
         .reverse()
-        .slice(0, 50) // Últimas 50 para o prompt
-        .map(m => `[${m.direction}] ${m.content?.substring(0, 100)}`)
+        .slice(0, 200) // Últimas 200 mensagens para análise mais detalhada
+        .map(m => `[${m.direction === 'incoming' ? 'Cliente' : 'Você'}] ${m.content?.substring(0, 300) || '[mídia]'}`)
         .join('\n');
 
-      const prompt = `Você é um analista de vendas. Analise este lead e forneça uma qualificação detalhada.
+      const prompt = `Você é um analista de vendas experiente. Analise este lead DETALHADAMENTE com base em TODA a conversa.
 
 DADOS DO CONTATO:
 - Nome: ${contact.pushName || 'Desconhecido'}
-- Total de mensagens: ${messages.length}
+- Total de mensagens na conversa: ${messages.length}
 - Cidade: ${contact.city || 'Desconhecido'}
+- Estado: ${contact.state || 'Desconhecido'}
 - Ocupação: ${contact.occupation || 'Desconhecido'}
+- Universidade: ${contact.university || 'N/A'}
+- Curso: ${contact.course || 'N/A'}
 
-MEMÓRIAS EXTRAÍDAS:
-${memoryContext || 'Nenhuma memória salva'}
+MEMÓRIAS EXTRAÍDAS SOBRE O CLIENTE:
+${memoryContext || 'Nenhuma memória salva ainda'}
 
-RESUMO DAS CONVERSAS:
+HISTÓRICO COMPLETO DA CONVERSA (${messages.length} mensagens):
 ${conversationSummary}
 
-ANALISE E RETORNE JSON:
+FAÇA UMA ANÁLISE PROFUNDA E RETORNE JSON:
 {
   "score": 0-100,
-  "status": "cold|warm|hot|customer",
-  "analysis": "Análise detalhada de 2-3 parágrafos sobre:
-    - Perfil do cliente
-    - Interesses identificados
-    - Objeções/preocupações
-    - Probabilidade de conversão
-    - Recomendações de abordagem"
+  "status": "cold|warm|hot|qualified|customer",
+  "analysis": "Escreva uma análise DETALHADA de 4-5 parágrafos cobrindo:
+    
+    1. PERFIL DO CLIENTE: Quem é essa pessoa? O que sabemos sobre ela? Qual seu contexto de vida?
+    
+    2. INTERESSES E NECESSIDADES: O que ela busca? Quais produtos/serviços demonstrou interesse? Por que entrou em contato?
+    
+    3. OBJEÇÕES E PREOCUPAÇÕES: Quais dúvidas ou resistências foram identificadas? Houve negociação de preço?
+    
+    4. HISTÓRICO DE INTERAÇÃO: Como foi a evolução da conversa? Houve compras anteriores? Quanto tempo de relacionamento?
+    
+    5. RECOMENDAÇÕES: Como abordar esse cliente? Qual a melhor estratégia de venda? O que oferecer?"
 }`;
 
       const result = await model.generateContent(prompt);
