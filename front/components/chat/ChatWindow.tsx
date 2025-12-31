@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Box,
   CircularProgress,
@@ -49,6 +55,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const prevMessagesLengthRef = useRef(0);
+  const isLoadingMoreRef = useRef(false); // Track if we're loading older messages
 
   // Inventory Modal State
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -68,26 +75,41 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   } = useChatMessages(chatId, 50);
   const { socket } = useSocket();
 
-  const messages = messagesData?.data || [];
-  const sortedMessages = [...messages].reverse();
+  // Memoize messages to prevent unnecessary recalculations
+  const messages = useMemo(
+    () => messagesData?.data || [],
+    [messagesData?.data]
+  );
+  const sortedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  // Theme Colors
-  const colors = {
-    bg: isDark ? "#0b141a" : "#efeae2",
-    headerBg: isDark ? "#202c33" : "#f0f2f5",
-    inputBg: isDark ? "#2a3942" : "#ffffff",
-    inputText: isDark ? "#d1d7db" : "#54656f",
-    incomingBubble: isDark ? "#202c33" : "#ffffff",
-    outgoingBubble: isDark ? "#005c4b" : "#d9fdd3",
-    incomingText: isDark ? "#e9edef" : "#111b21",
-    outgoingText: isDark ? "#e9edef" : "#111b21",
-    timeText: isDark ? "#8696a0" : "#667781",
-    iconColor: isDark ? "#aebac1" : "#54656f",
-    divider: isDark ? theme.palette.divider : "#d1d7db",
-    bgImage: isDark
-      ? "none"
-      : 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
-  };
+  // Memoize theme colors to prevent object recreation
+  const colors = useMemo(
+    () => ({
+      bg: isDark ? "#0b141a" : "#efeae2",
+      headerBg: isDark ? "#202c33" : "#f0f2f5",
+      inputBg: isDark ? "#2a3942" : "#ffffff",
+      inputText: isDark ? "#d1d7db" : "#54656f",
+      incomingBubble: isDark ? "#202c33" : "#ffffff",
+      outgoingBubble: isDark ? "#005c4b" : "#d9fdd3",
+      incomingText: isDark ? "#e9edef" : "#111b21",
+      outgoingText: isDark ? "#e9edef" : "#111b21",
+      timeText: isDark ? "#8696a0" : "#667781",
+      iconColor: isDark ? "#aebac1" : "#54656f",
+      divider: isDark ? theme.palette.divider : "#d1d7db",
+      bgImage: isDark
+        ? "none"
+        : 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+    }),
+    [isDark, theme.palette.divider]
+  );
+
+  // Memoize getMediaSrc to prevent recreation
+  const getMediaSrc = useCallback((msg: any): string => {
+    if (msg.mediaUrl && msg.mediaUrl.includes("whatsapp.net")) {
+      return api.getMediaUrl(msg.id);
+    }
+    return msg.mediaUrl || msg.content;
+  }, []);
 
   // Fetch products when inventory modal opens
   useEffect(() => {
@@ -99,7 +121,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         .catch((err) => console.error("Failed to fetch products:", err))
         .finally(() => setProductsLoading(false));
     }
-  }, [inventoryOpen]);
+  }, [inventoryOpen, products.length]);
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -107,29 +129,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const { scrollTop, scrollHeight, clientHeight } =
         messagesContainerRef.current;
 
-      // Check if at bottom (for auto-scroll on new messages)
       isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 50;
-
-      // Show/hide scroll to bottom button
       setShowScrollButton(scrollHeight - scrollTop - clientHeight > 200);
 
-      // Check if at top - load more older messages
       if (scrollTop < 100 && hasMore && !isLoadingMore) {
         const previousScrollHeight = scrollHeight;
+        isLoadingMoreRef.current = true; // Mark that we're loading older messages
 
         loadMore().then(() => {
-          // Restore scroll position after loading
           if (messagesContainerRef.current) {
             const newScrollHeight = messagesContainerRef.current.scrollHeight;
             messagesContainerRef.current.scrollTop =
               newScrollHeight - previousScrollHeight;
           }
+          // Reset after a short delay to allow render
+          setTimeout(() => {
+            isLoadingMoreRef.current = false;
+          }, 100);
         });
       }
     }
   }, [hasMore, isLoadingMore, loadMore]);
 
-  // Scroll to bottom functions
+  // Scroll functions
   const scrollToBottomSmooth = useCallback((force = false) => {
     if ((force || isAtBottomRef.current) && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -144,15 +166,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, []);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages (NOT on pagination)
   useEffect(() => {
+    // Skip if we're loading older messages (pagination)
+    if (isLoadingMoreRef.current) {
+      prevMessagesLengthRef.current = sortedMessages.length;
+      return;
+    }
+    
     if (sortedMessages.length > prevMessagesLengthRef.current) {
       const lastMsg = sortedMessages[sortedMessages.length - 1];
       const isOurMessage = lastMsg?.direction === "outgoing";
       scrollToBottomSmooth(isOurMessage);
     }
     prevMessagesLengthRef.current = sortedMessages.length;
-  }, [sortedMessages.length, sortedMessages, scrollToBottomSmooth]);
+  }, [sortedMessages.length, scrollToBottomSmooth]);
 
   // Force scroll on chat change
   useEffect(() => {
@@ -252,130 +280,106 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setPresenceStatus(null);
   }, [chatId]);
 
-  // Send message handler
-  const handleSendMessage = async (content?: string) => {
-    const textToSend = content || newMessage;
-    if (!textToSend.trim()) return;
+  // Send message handler - memoized
+  const handleSendMessage = useCallback(
+    async (content?: string) => {
+      const textToSend = content || newMessage;
+      if (!textToSend.trim()) return;
 
-    setNewMessage("");
+      setNewMessage("");
 
-    const tempId = `temp-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+      const tempId = `temp-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
-    const optimisticMessage = {
-      id: tempId,
-      remoteJid: chatId,
-      content: textToSend,
-      direction: "outgoing",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      pushName: null,
-      mediaUrl: null,
-      mediaType: null,
-    };
+      const optimisticMessage = {
+        id: tempId,
+        remoteJid: chatId,
+        content: textToSend,
+        direction: "outgoing",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        pushName: null,
+        mediaUrl: null,
+        mediaType: null,
+      };
 
-    addMessage(optimisticMessage);
+      addMessage(optimisticMessage);
 
-    setTimeout(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-      }
-    }, 50);
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 50);
 
-    try {
-      const result = await api.sendMessage(instanceKey, chatId, textToSend);
-      if (result?.messageId) {
-        replaceMessageId(tempId, result.messageId, "sent");
-      } else {
-        updateMessageStatus(tempId, "sent");
-      }
-    } catch (err) {
-      console.error("Error sending message:", err);
-      updateMessageStatus(tempId, "error");
-      setSnackbar({
-        open: true,
-        message: "Erro ao enviar mensagem",
-        severity: "error",
-      });
-    }
-  };
-
-  // File upload handler
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadingMedia(true);
       try {
-        await api.sendMedia(instanceKey, chatId, file);
-        setSnackbar({
-          open: true,
-          message: "Mídia enviada com sucesso!",
-          severity: "success",
-        });
-        refetch();
+        const result = await api.sendMessage(instanceKey, chatId, textToSend);
+        if (result?.messageId) {
+          replaceMessageId(tempId, result.messageId, "sent");
+        } else {
+          updateMessageStatus(tempId, "sent");
+        }
       } catch (err) {
-        console.error("Error sending media:", err);
+        console.error("Error sending message:", err);
+        updateMessageStatus(tempId, "error");
         setSnackbar({
           open: true,
-          message: "Erro ao enviar mídia",
+          message: "Erro ao enviar mensagem",
           severity: "error",
         });
-      } finally {
-        setUploadingMedia(false);
       }
-    }
-  };
+    },
+    [
+      newMessage,
+      chatId,
+      instanceKey,
+      addMessage,
+      replaceMessageId,
+      updateMessageStatus,
+    ]
+  );
 
-  // Product selection handler
-  const handleSendProduct = (productName: string, price: string) => {
-    const message = `*Produto:* ${productName}\n*Preço:* ${price}\n\nTenho interesse!`;
-    handleSendMessage(message);
-    setInventoryOpen(false);
-  };
-
-  // Media URL helper
-  const getMediaSrc = (msg: any): string => {
-    if (msg.mediaUrl && msg.mediaUrl.includes("whatsapp.net")) {
-      return api.getMediaUrl(msg.id);
-    }
-    return msg.mediaUrl || msg.content;
-  };
-
-  // Render message content with links
-  const renderMessageContent = (content: string) => {
-    if (!content) return null;
-
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-
-    return parts.map((part, index) => {
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: "#53bdeb",
-              textDecoration: "underline",
-              wordBreak: "break-all",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {part}
-          </a>
-        );
+  // File upload handler - memoized
+  const handleFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        setUploadingMedia(true);
+        try {
+          await api.sendMedia(instanceKey, chatId, file);
+          setSnackbar({
+            open: true,
+            message: "Mídia enviada com sucesso!",
+            severity: "success",
+          });
+          refetch();
+        } catch (err) {
+          console.error("Error sending media:", err);
+          setSnackbar({
+            open: true,
+            message: "Erro ao enviar mídia",
+            severity: "error",
+          });
+        } finally {
+          setUploadingMedia(false);
+        }
       }
-      return <span key={index}>{part}</span>;
-    });
-  };
+    },
+    [instanceKey, chatId, refetch]
+  );
 
-  // Presence text helper
-  const getPresenceText = () => {
+  // Product selection handler - memoized
+  const handleSendProduct = useCallback(
+    (productName: string, price: string) => {
+      const message = `*Produto:* ${productName}\n*Preço:* ${price}\n\nTenho interesse!`;
+      handleSendMessage(message);
+      setInventoryOpen(false);
+    },
+    [handleSendMessage]
+  );
+
+  // Presence text helper - memoized
+  const presenceText = useMemo(() => {
     switch (presenceStatus) {
       case "available":
         return "online";
@@ -390,7 +394,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       default:
         return null;
     }
-  };
+  }, [presenceStatus]);
+
+  // Memoize inventory handlers
+  const openInventory = useCallback(() => setInventoryOpen(true), []);
+  const closeInventory = useCallback(() => setInventoryOpen(false), []);
+  const closeSnackbar = useCallback(
+    () => setSnackbar((prev) => ({ ...prev, open: false })),
+    []
+  );
 
   return (
     <Box
@@ -409,7 +421,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <ChatHeader
         contactName={contactName}
         profilePicUrl={profilePicUrl}
-        presenceText={getPresenceText()}
+        presenceText={presenceText}
         isSyncing={isSyncing}
         colors={colors}
       />
@@ -475,7 +487,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 message={msg}
                 colors={colors}
                 getMediaSrc={getMediaSrc}
-                renderMessageContent={renderMessageContent}
               />
             ))}
           </>
@@ -495,7 +506,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         setNewMessage={setNewMessage}
         onSendMessage={handleSendMessage}
         onFileChange={handleFileChange}
-        onOpenInventory={() => setInventoryOpen(true)}
+        onOpenInventory={openInventory}
         colors={colors}
         isDark={isDark}
       />
@@ -503,7 +514,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Inventory Modal */}
       <InventoryModal
         open={inventoryOpen}
-        onClose={() => setInventoryOpen(false)}
+        onClose={closeInventory}
         products={products}
         loading={productsLoading}
         onSelectProduct={handleSendProduct}
@@ -515,11 +526,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          onClose={closeSnackbar}
           severity={snackbar.severity}
           sx={{ width: "100%" }}
         >
@@ -555,4 +566,4 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
 };
 
-export default ChatWindow;
+export default React.memo(ChatWindow);
