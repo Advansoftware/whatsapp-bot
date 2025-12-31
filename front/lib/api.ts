@@ -354,6 +354,7 @@ class ApiClient {
       businessHours: string | null;
       escalationWords: string | null;
       personality: string;
+      testMode: boolean;
     }>('/api/ai-secretary/config');
   }
 
@@ -367,6 +368,7 @@ class ApiClient {
     businessHours: string;
     escalationWords: string;
     personality: string;
+    testMode: boolean;
   }>) {
     return this.request<any>('/api/ai-secretary/config', {
       method: 'PUT',
@@ -375,16 +377,54 @@ class ApiClient {
   }
 
   async getAIConversations() {
-    return this.request<Array<{
-      id: string;
-      remoteJid: string;
-      status: string;
-      priority: string;
+    const response = await this.request<{
+      data: Array<{
+        id: string;
+        remoteJid: string;
+        status: string;
+        priority: string;
+        assignedTo: string | null;
+        aiEnabled: boolean;
+        summary: string | null;
+        lastMessageAt: string;
+        instanceName: string;
+        instanceKey: string;
+        contact: {
+          id?: string;
+          name: string;
+          profilePicUrl: string | null;
+        };
+        recentMessages: Array<{
+          id: string;
+          content: string;
+          direction: string;
+          createdAt: string;
+          response: string | null;
+        }>;
+      }>;
+    }>('/api/messages/conversations');
+    return response.data;
+  }
+
+  async toggleConversationAI(conversationId: string, aiEnabled: boolean) {
+    return this.request<{ success: boolean; aiEnabled: boolean; assignedTo: string }>(
+      `/api/messages/conversations/${conversationId}/toggle-ai`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ aiEnabled }),
+      }
+    );
+  }
+
+  async getConversationByJid(remoteJid: string) {
+    return this.request<{
+      exists: boolean;
+      id?: string;
+      aiEnabled: boolean;
       assignedTo: string | null;
-      summary: string | null;
-      lastMessageAt: string;
-      lastMessage: string;
-    }>>('/api/ai-secretary/conversations');
+      status?: string;
+      priority?: string;
+    }>(`/api/messages/conversations/by-jid/${encodeURIComponent(remoteJid)}`);
   }
 
   async getAISuggestions(remoteJid: string) {

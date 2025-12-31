@@ -5,14 +5,19 @@ import {
   Typography,
   IconButton,
   CircularProgress,
+  Tooltip,
+  Chip,
 } from "@mui/material";
-import { MoreVert } from "@mui/icons-material";
+import { MoreVert, SmartToy, Person } from "@mui/icons-material";
 
 interface ChatHeaderProps {
   contactName: string;
   profilePicUrl?: string | null;
   presenceText: string | null;
   isSyncing: boolean;
+  aiEnabled?: boolean;
+  onToggleAI?: () => void;
+  isTogglingAI?: boolean;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -27,6 +32,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   profilePicUrl,
   presenceText,
   isSyncing,
+  aiEnabled,
+  onToggleAI,
+  isTogglingAI,
   colors,
 }) => {
   return (
@@ -103,9 +111,39 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </Typography>
         </Box>
       </Box>
-      <IconButton sx={{ color: colors.iconColor }}>
-        <MoreVert />
-      </IconButton>
+      <Box display="flex" alignItems="center" gap={1}>
+        {/* AI Toggle */}
+        {onToggleAI && (
+          <Tooltip
+            title={
+              aiEnabled
+                ? "IA ativa - Clique para desativar"
+                : "IA desativada - Clique para ativar"
+            }
+          >
+            <Chip
+              icon={
+                isTogglingAI ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : aiEnabled ? (
+                  <SmartToy />
+                ) : (
+                  <Person />
+                )
+              }
+              label={aiEnabled ? "IA" : "Manual"}
+              color={aiEnabled ? "success" : "warning"}
+              size="small"
+              onClick={onToggleAI}
+              disabled={isTogglingAI}
+              sx={{ cursor: "pointer" }}
+            />
+          </Tooltip>
+        )}
+        <IconButton sx={{ color: colors.iconColor }}>
+          <MoreVert />
+        </IconButton>
+      </Box>
     </Box>
   );
 };

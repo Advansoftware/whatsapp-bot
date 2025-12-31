@@ -491,4 +491,152 @@ export class MessagesController {
 
     return number;
   }
+
+  /**
+   * Retorna conversas ativas com últimas mensagens para monitoramento
+   */
+  @Get('conversations')
+  async getConversations(
+    @Request() req: any,
+    @Query('status') status?: string,
+    @Query('limit') limit: string = '20',
+  ) {
+    const companyId = req.user.companyId;
+    const limitNum = parseInt(limit, 10);
+
+    const where: any = { companyId };
+    if (status) {
+      where.status = status;
+    }
+
+    const conversations = await this.prisma.conversation.findMany({
+      where,
+      orderBy: { lastMessageAt: 'desc' },
+      take: limitNum,
+      include: {
+        instance: { select: { name: true, instanceKey: true } },
+      },
+    });
+
+    // Buscar contato e últimas mensagens para cada conversa
+    const enrichedConversations = await Promise.all(
+      conversations.map(async (conv) => {
+        const [contact, messages] = await Promise.all([
+          this.prisma.contact.findFirst({
+            where: { companyId, remoteJid: conv.remoteJid },
+            select: { id: true, pushName: true, profilePicUrl: true },
+          }),
+          this.prisma.message.findMany({
+            where: { companyId, remoteJid: conv.remoteJid },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              content: true,
+              direction: true,
+              createdAt: true,
+              response: true,
+            },
+          }),
+        ]);
+
+        return {
+          id: conv.id,
+          remoteJid: conv.remoteJid,
+          status: conv.status,
+          priority: conv.priority,
+          assignedTo: conv.assignedTo,
+          aiEnabled: conv.aiEnabled,
+          lastMessageAt: conv.lastMessageAt,
+          summary: conv.summary,
+          instanceName: conv.instance.name,
+          instanceKey: conv.instance.instanceKey,
+          contact: contact
+            ? {
+              id: contact.id,
+              name: contact.pushName || this.formatPhoneNumber(conv.remoteJid),
+              profilePicUrl: contact.profilePicUrl,
+            }
+            : {
+              name: this.formatPhoneNumber(conv.remoteJid),
+              profilePicUrl: null,
+            },
+          recentMessages: messages.reverse(),
+        };
+      }),
+    );
+
+    return { data: enrichedConversations };
+  }
+
+  /**
+   * Alterna o status de aiEnabled para uma conversa
+   */
+  @Post('conversations/:id/toggle-ai')
+  async toggleConversationAI(
+    @Request() req: any,
+    @Param('id') conversationId: string,
+    @Body() body: { aiEnabled?: boolean },
+  ) {
+    const companyId = req.user.companyId;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, companyId },
+    });
+
+    if (!conversation) {
+      throw new HttpException('Conversation not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Se aiEnabled foi passado, usa o valor; senão, inverte o atual
+    const newAiEnabled = body.aiEnabled !== undefined ? body.aiEnabled : !conversation.aiEnabled;
+
+    const updated = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        aiEnabled: newAiEnabled,
+        // Se desabilitando IA, marca como atendimento humano
+        assignedTo: newAiEnabled ? 'ai' : 'human',
+      },
+    });
+
+    return {
+      success: true,
+      aiEnabled: updated.aiEnabled,
+      assignedTo: updated.assignedTo,
+    };
+  }
+
+  /**
+   * Busca conversa por remoteJid (para uso no chat ao vivo)
+   */
+  @Get('conversations/by-jid/:remoteJid')
+  async getConversationByJid(
+    @Request() req: any,
+    @Param('remoteJid') remoteJid: string,
+  ) {
+    const companyId = req.user.companyId;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { companyId, remoteJid },
+    });
+
+    if (!conversation) {
+      // Retorna valores padrão se conversa ainda não existe
+      return {
+        exists: false,
+        aiEnabled: true,
+        assignedTo: null,
+      };
+    }
+
+    return {
+      exists: true,
+      id: conversation.id,
+      aiEnabled: conversation.aiEnabled,
+      assignedTo: conversation.assignedTo,
+      status: conversation.status,
+      priority: conversation.priority,
+    };
+  }
 }

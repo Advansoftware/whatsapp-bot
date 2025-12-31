@@ -161,8 +161,18 @@ export class WhatsappProcessor extends WorkerHost {
         },
       });
 
-      // 4. Atualizar ou criar conversa
-      await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
+      // 4. Atualizar ou criar conversa e verificar se IA está habilitada
+      const conversation = await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
+
+      // Se a IA está desabilitada para esta conversa, apenas salvar
+      if (conversation && !conversation.aiEnabled) {
+        this.logger.log(`AI disabled for conversation ${conversation.id}, skipping AI processing`);
+        await this.prisma.message.update({
+          where: { id: message.id },
+          data: { status: 'processed', processedAt: new Date() },
+        });
+        return { status: 'ai_disabled', messageId: message.id };
+      }
 
       // ========================================
       // MODO SECRETÁRIA PESSOAL - Comandos do dono
@@ -346,14 +356,16 @@ export class WhatsappProcessor extends WorkerHost {
 
   /**
    * Atualiza ou cria uma conversa para rastreamento
+   * Retorna a conversa para verificar aiEnabled
    */
   private async updateOrCreateConversation(
     companyId: string,
     instanceId: string,
     remoteJid: string,
-  ): Promise<void> {
+  ): Promise<{ id: string; aiEnabled: boolean }> {
     const existingConversation = await this.prisma.conversation.findFirst({
       where: { companyId, remoteJid },
+      select: { id: true, aiEnabled: true },
     });
 
     if (existingConversation) {
@@ -364,8 +376,9 @@ export class WhatsappProcessor extends WorkerHost {
           status: 'active',
         },
       });
+      return existingConversation;
     } else {
-      await this.prisma.conversation.create({
+      const newConversation = await this.prisma.conversation.create({
         data: {
           companyId,
           instanceId,
@@ -374,7 +387,9 @@ export class WhatsappProcessor extends WorkerHost {
           priority: 'normal',
           lastMessageAt: new Date(),
         },
+        select: { id: true, aiEnabled: true },
       });
+      return newConversation;
     }
   }
 

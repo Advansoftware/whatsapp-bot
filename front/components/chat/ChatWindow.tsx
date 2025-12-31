@@ -45,6 +45,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState<boolean | undefined>(undefined);
+  const [conversationId, setConversationId] = useState<string | undefined>(
+    undefined
+  );
+  const [isTogglingAI, setIsTogglingAI] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -188,6 +193,50 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowScrollButton(false);
     setTimeout(scrollToBottomForce, 100);
   }, [chatId, scrollToBottomForce]);
+
+  // Fetch conversation AI status on chat change
+  useEffect(() => {
+    const fetchConversationStatus = async () => {
+      try {
+        const result = await api.getConversationByJid(chatId);
+        setAiEnabled(result.aiEnabled);
+        setConversationId(result.id);
+      } catch (err) {
+        console.error("Failed to fetch conversation status:", err);
+        // Default to undefined so we don't show the toggle
+        setAiEnabled(undefined);
+        setConversationId(undefined);
+      }
+    };
+    fetchConversationStatus();
+  }, [chatId]);
+
+  // Toggle AI for this conversation
+  const handleToggleAI = useCallback(async () => {
+    if (!conversationId) return;
+
+    setIsTogglingAI(true);
+    try {
+      const result = await api.toggleConversationAI(conversationId, !aiEnabled);
+      setAiEnabled(result.aiEnabled);
+      setSnackbar({
+        open: true,
+        message: result.aiEnabled
+          ? "IA ativada para esta conversa"
+          : "IA desativada - você está no controle",
+        severity: "success",
+      });
+    } catch (err) {
+      console.error("Failed to toggle AI:", err);
+      setSnackbar({
+        open: true,
+        message: "Erro ao alterar status da IA",
+        severity: "error",
+      });
+    } finally {
+      setIsTogglingAI(false);
+    }
+  }, [conversationId, aiEnabled]);
 
   // Socket handlers for new messages
   useEffect(() => {
@@ -423,6 +472,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         profilePicUrl={profilePicUrl}
         presenceText={presenceText}
         isSyncing={isSyncing}
+        aiEnabled={aiEnabled}
+        onToggleAI={conversationId ? handleToggleAI : undefined}
+        isTogglingAI={isTogglingAI}
         colors={colors}
       />
 
