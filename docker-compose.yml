@@ -39,7 +39,7 @@ services:
       retries: 5
 
   evolution:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.5
     container_name: whatsapp-evolution
     restart: unless-stopped
     ports:
@@ -56,11 +56,21 @@ services:
       - DATABASE_SAVE_DATA_CHATS=true
       - REDIS_ENABLED=true
       - REDIS_URI=redis://redis:6379
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379
+      - 'CACHE_REDIS_PREFIX=evolution:'
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_URL=http://host.docker.internal:3000/webhook/evolution
-      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=true
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      - WEBHOOK_EVENTS_QRCODE_UPDATED=true
+      - WEBHOOK_EVENTS_CONNECTION_UPDATE=true
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - CONFIG_SESSION_PHONE_VERSION=2.3000.1028716292
+      - CONFIG_SESSION_PHONE_CLIENT=Evolution API
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - WEBSOCKET_ENABLED=true
+      - WEBSOCKET_GLOBAL_EVENTS=true
     depends_on:
       postgres:
         condition: service_healthy

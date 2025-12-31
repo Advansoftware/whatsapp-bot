@@ -12,10 +12,10 @@ async function bootstrap() {
   });
 
   // Global validation pipe for DTOs
+  // IMPORTANT: Do NOT use forbidNonWhitelisted as webhooks may have extra fields
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
     }),
   );

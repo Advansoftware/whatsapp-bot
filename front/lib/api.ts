@@ -149,9 +149,10 @@ class ApiClient {
   }
 
   // Messages endpoints
-  async getMessages(page = 1, limit = 20, instanceId?: string) {
+  async getMessages(page = 1, limit = 20, instanceId?: string, remoteJid?: string) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (instanceId) params.append('instanceId', instanceId);
+    if (remoteJid) params.append('remoteJid', remoteJid);
 
     return this.request<{
       data: Array<{
@@ -173,6 +174,13 @@ class ApiClient {
         totalPages: number;
       };
     }>(`/api/messages?${params}`);
+  }
+
+  async sendMessage(instanceKey: string, remoteJid: string, content: string) {
+    return this.request<{ success: boolean; messageId?: string }>(`/api/messages/send`, {
+      method: 'POST',
+      body: JSON.stringify({ instanceKey, remoteJid, content }),
+    });
   }
 
   async getRecentConversations() {

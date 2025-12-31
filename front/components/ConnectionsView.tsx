@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -32,9 +32,11 @@ import {
   QrCodeScanner,
   Refresh,
   Add,
-  Delete
+  Delete,
+  Sync
 } from '@mui/icons-material';
 import { useConnections } from '../hooks/useApi';
+import { useSocket } from '../hooks/useSocket';
 import api from '../lib/api';
 
 const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
@@ -99,12 +101,70 @@ function ColorlibStepIcon(props: any) {
 const ConnectionsView: React.FC = () => {
   const theme = useTheme();
   const { data: connections, isLoading, error, refetch } = useConnections();
+  const { socket } = useSocket();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState('');
   const [creating, setCreating] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<any>(null);
+  const [syncingInstances, setSyncingInstances] = useState<Record<string, string>>({});
 
   const steps = ['Inicializando Cliente', 'Gerando QR Code', 'Conectado'];
+
+  // Listen for real-time WebSocket updates from Evolution API webhooks
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (data: any) => {
+      console.log('[WebSocket] Received:', data);
+      
+      // Handle QR Code updates
+      if (data.type === 'qrcode_update' && data.instanceKey) {
+        console.log('[WebSocket] QR Code update for:', data.instanceKey);
+        setSelectedInstance((prev: any) => {
+          if (prev?.instanceKey === data.instanceKey || prev?.name === data.instanceKey) {
+            return { ...prev, qrCodeUrl: data.qrcode, status: 'qr_ready' };
+          }
+          return prev;
+        });
+        setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'qr_ready'}));
+      }
+      
+      // Handle connection state updates
+      if (data.type === 'connection_update' && data.instanceKey) {
+        console.log('[WebSocket] Connection update for:', data.instanceKey, 'state:', data.state);
+        const state = data.state;
+        
+        // Always update the selected instance status if it matches, regardless of state
+        setSelectedInstance((prev: any) => {
+          if (prev?.instanceKey === data.instanceKey || prev?.name === data.instanceKey) {
+             // Map evolution states to our internal status
+             let newStatus = 'disconnected';
+             if (state === 'open' || state === 'connected') newStatus = 'connected';
+             else if (state === 'connecting') newStatus = 'syncing'; // temporary internal state
+             
+             return { ...prev, status: newStatus };
+          }
+          return prev;
+        });
+
+        if (state === 'open' || state === 'connected') {
+          setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'connected'}));
+          refetch();
+        } else if (state === 'close' || state === 'closed') {
+          setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'disconnected'}));
+          refetch();
+        } else if (state === 'connecting') {
+          setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'syncing'}));
+        }
+      }
+    };
+
+    socket.on('new_message', handleMessage);
+
+    return () => {
+      socket.off('new_message', handleMessage);
+    };
+  }, [socket, refetch]);
 
   const handleCreateConnection = async () => {
     if (!newInstanceName.trim()) return;
@@ -113,6 +173,7 @@ const ConnectionsView: React.FC = () => {
     try {
       const result = await api.createConnection(newInstanceName);
       setSelectedInstance(result);
+      setSyncingInstances(prev => ({...prev, [result.instanceKey]: 'initializing'}));
       setCreateDialogOpen(false);
       setNewInstanceName('');
       refetch();
@@ -123,14 +184,29 @@ const ConnectionsView: React.FC = () => {
     }
   };
 
-  const handleDeleteConnection = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta conexão?')) return;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [instanceToDelete, setInstanceToDelete] = useState<string | null>(null);
+
+  const confirmDeleteConnection = (id: string) => {
+    setInstanceToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConnection = async () => {
+    if (!instanceToDelete) return;
     
     try {
-      await api.deleteConnection(id);
+      await api.deleteConnection(instanceToDelete);
+      // Immediately clear selection if we deleted the active one
+      if (selectedInstance?.id === instanceToDelete) {
+        setSelectedInstance(null);
+      }
       refetch();
     } catch (err) {
       console.error('Error deleting connection:', err);
+    } finally {
+        setDeleteDialogOpen(false);
+        setInstanceToDelete(null);
     }
   };
 
@@ -224,14 +300,23 @@ const ConnectionsView: React.FC = () => {
                   </Box>
                 </Box>
                 <Box display="flex" alignItems="center" gap={2}>
-                  <Chip
-                    label={conn.status === 'connected' ? 'Conectado' : 'Desconectado'}
-                    color={getStatusColor(conn.status) as any}
-                    size="small"
-                  />
+                  {syncingInstances[conn.instanceKey] === 'syncing' ? (
+                    <Chip
+                      icon={<Sync sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} />}
+                      label="Sincronizando..."
+                      color="info"
+                      size="small"
+                    />
+                  ) : (
+                    <Chip
+                      label={conn.status === 'connected' ? 'Conectado' : 'Desconectado'}
+                      color={getStatusColor(conn.status) as any}
+                      size="small"
+                    />
+                  )}
                   <IconButton
                     size="small"
-                    onClick={() => handleDeleteConnection(conn.id)}
+                    onClick={() => confirmDeleteConnection(conn.id)}
                     color="error"
                   >
                     <Delete fontSize="small" />
@@ -285,30 +370,64 @@ const ConnectionsView: React.FC = () => {
             }}>
               {selectedInstance ? (
                 <>
-                  <Box sx={{ bgcolor: 'white', p: 2, borderRadius: 2, boxShadow: 3, position: 'relative' }}>
-                    <Box 
-                      sx={{ 
-                        width: 250, 
-                        height: 250, 
-                        backgroundImage: `url('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(selectedInstance.qrCodeUrl || 'Example')}')`,
-                        backgroundSize: 'contain',
-                      }} 
-                    />
-
-                  </Box>
-                  <Box mt={3} textAlign="center">
-                     <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={1}>
-                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', animation: 'pulse 2s infinite' }} />
-                       <Typography variant="body2" color="text.secondary">Aguardando leitura...</Typography>
-                     </Box>
-                     <Button
-                       startIcon={<Refresh />}
-                       size="small"
-                       onClick={() => api.refreshQrCode(selectedInstance.id)}
-                     >
-                       Recarregar Código QR
-                     </Button>
-                  </Box>
+                    {/* Show success when connected */}
+                    {selectedInstance.status === 'connected' ? (
+                      <Box sx={{ textAlign: 'center', p: 4 }}>
+                        <Check sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
+                        <Typography variant="h6" color="success.main" gutterBottom>
+                          WhatsApp Conectado!
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Sua instância está pronta para enviar e receber mensagens.
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        <Box sx={{ bgcolor: 'white', p: 2, borderRadius: 2, boxShadow: 3, position: 'relative' }}>
+                          {(!selectedInstance.qrCodeUrl || selectedInstance.qrCodeUrl.length < 50) ? (
+                             <Box sx={{ width: 250, height: 250, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                               <CircularProgress />
+                               <Typography variant="body2" color="text.secondary">Gerando código...</Typography>
+                             </Box>
+                          ) : (
+                            <Box 
+                              sx={{ 
+                                width: 250, 
+                                height: 250, 
+                                backgroundImage: selectedInstance.qrCodeUrl?.startsWith('data:image') 
+                                  ? `url('${selectedInstance.qrCodeUrl}')`
+                                  : `url('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(selectedInstance.qrCodeUrl)}')`,
+                                backgroundSize: 'contain',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center',
+                              }} 
+                            />
+                          )}
+                        </Box>
+                        <Box mt={3} textAlign="center">
+                          <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={1}>
+                            {syncingInstances[selectedInstance.instanceKey] === 'syncing' ? (
+                              <>
+                                <Sync sx={{ fontSize: 16, color: 'info.main', animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} />
+                                <Typography variant="body2" color="info.main">Sincronizando contatos...</Typography>
+                              </>
+                            ) : (
+                              <>
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', animation: 'pulse 2s infinite' }} />
+                                <Typography variant="body2" color="text.secondary">Aguardando leitura...</Typography>
+                              </>
+                            )}
+                          </Box>
+                          <Button
+                            startIcon={<Refresh />}
+                            size="small"
+                            onClick={() => api.refreshQrCode(selectedInstance.id)}
+                          >
+                            Recarregar Código QR
+                          </Button>
+                        </Box>
+                      </>
+                    )}
                 </>
               ) : (
                 <Box textAlign="center" py={4}>
@@ -363,6 +482,22 @@ const ConnectionsView: React.FC = () => {
           </Button>
           <Button onClick={handleCreateConnection} variant="contained" disabled={creating || !newInstanceName.trim()}>
             {creating ? <CircularProgress size={24} /> : 'Criar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Excluir Conexão?</DialogTitle>
+        <DialogContent>
+            <Typography>
+                Tem certeza que deseja excluir esta conexão? Esta ação irá desconectar o WhatsApp e parar o bot para esta instância.
+            </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleDeleteConnection} color="error" variant="contained">
+            Excluir
           </Button>
         </DialogActions>
       </Dialog>

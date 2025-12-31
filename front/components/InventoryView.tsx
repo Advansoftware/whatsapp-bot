@@ -45,7 +45,69 @@ const InventoryView: React.FC = () => {
   const theme = useTheme();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [openDialog, setOpenDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [aiSync, setAiSync] = useState(true);
+  
+  // Form State
+  const [currentProductId, setCurrentProductId] = useState<string | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formVariant, setFormVariant] = useState('');
+  const [formQuantity, setFormQuantity] = useState('');
+  const [formPrice, setFormPrice] = useState('');
+  const [formSku, setFormSku] = useState('');
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
+  const handleOpenAdd = () => {
+    setCurrentProductId(null);
+    setFormName('');
+    setFormVariant('');
+    setFormQuantity('');
+    setFormPrice('');
+    setFormSku('');
+    setOpenDialog(true);
+  };
+
+  const handleOpenEdit = (product: Product) => {
+    setCurrentProductId(product.id);
+    setFormName(product.name);
+    setFormVariant(product.variant);
+    setFormQuantity(String(product.quantity));
+    setFormPrice(product.price);
+    setFormSku(product.sku);
+    setOpenDialog(true);
+  };
+
+  const handleSaveProduct = () => {
+    const newProduct: Product = {
+      id: currentProductId || Date.now().toString(),
+      name: formName,
+      variant: formVariant,
+      quantity: Number(formQuantity),
+      price: formPrice,
+      sku: formSku,
+      status: Number(formQuantity) === 0 ? 'Out of Stock' : Number(formQuantity) < 10 ? 'Low Stock' : 'In Stock'
+    };
+
+    if (currentProductId) {
+      setProducts(products.map(p => p.id === currentProductId ? newProduct : p));
+    } else {
+      setProducts([...products, newProduct]);
+    }
+    setOpenDialog(false);
+  };
+
+  const confirmDeleteProduct = (id: string) => {
+    setProductToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteProduct = () => {
+    if (productToDelete) {
+      setProducts(products.filter(p => p.id !== productToDelete));
+      setProductToDelete(null);
+      setDeleteDialogOpen(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,13 +142,15 @@ const InventoryView: React.FC = () => {
           variant="contained" 
           startIcon={<Add />} 
           size="large"
-          onClick={() => setOpenDialog(true)}
+          onClick={handleOpenAdd}
         >
           Adicionar Produto
         </Button>
       </Box>
 
-      {/* AI Context Card */}
+      {/* ... (AI Context Card and Search skipped for brevity, keeping file structure) ... */}
+      
+      {/* Search Box - Update to just show context, replacing previous if needed or relying on existing structure */}
       <Paper 
         elevation={0} 
         sx={{ 
@@ -204,8 +268,12 @@ const InventoryView: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" color="primary"><Edit fontSize="small" /></IconButton>
-                    <IconButton size="small" color="error"><Delete fontSize="small" /></IconButton>
+                    <IconButton size="small" color="primary" onClick={() => handleOpenEdit(product)}>
+                        <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => confirmDeleteProduct(product.id)}>
+                        <Delete fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -214,23 +282,67 @@ const InventoryView: React.FC = () => {
         </TableContainer>
       </Paper>
 
-      {/* Add Product Modal (Visual only) */}
+      {/* Add/Edit Product Modal */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Adicionar Novo Produto</DialogTitle>
+        <DialogTitle>{currentProductId ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
         <DialogContent dividers>
           <Box display="flex" flexDirection="column" gap={3} pt={1}>
-            <TextField label="Nome do Produto" placeholder="Ex: Cerveja Bohemia" fullWidth />
-            <TextField label="Variação / Atributo" placeholder="Ex: Gelada, Natural, Lata, 600ml" fullWidth helperText="Isso ajuda a IA a diferenciar os tipos do mesmo produto." />
+            <TextField 
+                label="Nome do Produto" 
+                placeholder="Ex: Cerveja Bohemia" 
+                fullWidth 
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+            />
+            <TextField 
+                label="Variação / Atributo" 
+                placeholder="Ex: Gelada, Natural, Lata, 600ml" 
+                fullWidth 
+                helperText="Isso ajuda a IA a diferenciar os tipos do mesmo produto." 
+                value={formVariant}
+                onChange={(e) => setFormVariant(e.target.value)}
+            />
             <Box display="flex" gap={2}>
-              <TextField label="Quantidade" type="number" fullWidth />
-              <TextField label="Preço" placeholder="R$ 0,00" fullWidth />
+              <TextField 
+                label="Quantidade" 
+                type="number" 
+                fullWidth 
+                value={formQuantity}
+                onChange={(e) => setFormQuantity(e.target.value)}
+            />
+              <TextField 
+                label="Preço" 
+                placeholder="R$ 0,00" 
+                fullWidth 
+                value={formPrice}
+                onChange={(e) => setFormPrice(e.target.value)}
+            />
             </Box>
-            <TextField label="SKU (Opcional)" fullWidth />
+            <TextField 
+                label="SKU (Opcional)" 
+                fullWidth 
+                value={formSku}
+                onChange={(e) => setFormSku(e.target.value)}
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={() => setOpenDialog(false)} color="inherit">Cancelar</Button>
-          <Button variant="contained" onClick={() => setOpenDialog(false)}>Salvar Produto</Button>
+          <Button variant="contained" onClick={handleSaveProduct}>Salvar Produto</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Excluir Produto?</DialogTitle>
+        <DialogContent>
+            <Typography>
+                Tem certeza que deseja excluir <b>{products.find(p => p.id === productToDelete)?.name} - {products.find(p => p.id === productToDelete)?.variant}</b>?
+            </Typography>
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleDeleteProduct} color="error" variant="contained">Excluir</Button>
         </DialogActions>
       </Dialog>
     </Box>

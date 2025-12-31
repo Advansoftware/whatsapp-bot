@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus } from '@nestjs/common';
+import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -13,6 +14,7 @@ export class MessagesController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
     @Query('instanceId') instanceId?: string,
+    @Query('remoteJid') remoteJid?: string,
   ) {
     const companyId = req.user.companyId;
     const pageNum = parseInt(page, 10);
@@ -23,11 +25,14 @@ export class MessagesController {
     if (instanceId) {
       where.instanceId = instanceId;
     }
+    if (remoteJid) {
+      where.remoteJid = remoteJid;
+    }
 
     const [messages, total] = await Promise.all([
       this.prisma.message.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' }, // Latest first
         skip,
         take: limitNum,
         include: {
@@ -38,6 +43,9 @@ export class MessagesController {
       }),
       this.prisma.message.count({ where }),
     ]);
+
+    // Reverse for chat window if filtering by remoteJid (oldest first usually better for chat history, but UI might handle reverse)
+    // Keeping desc for now as general list API
 
     return {
       data: messages.map((msg) => ({
@@ -59,6 +67,44 @@ export class MessagesController {
         totalPages: Math.ceil(total / limitNum),
       },
     };
+  }
+
+  @Post('send')
+  async sendMessage(@Request() req: any, @Body() body: { instanceKey: string, remoteJid: string, content: string }) {
+    const companyId = req.user.companyId;
+    const { instanceKey, remoteJid, content } = body;
+
+    const instance = await this.prisma.instance.findFirst({
+      where: { instanceKey, companyId },
+    });
+
+    if (!instance) {
+      throw new HttpException('Instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+    try {
+      const response = await axios.post(
+        `${evolutionUrl}/message/sendText/${instanceKey}`,
+        {
+          number: remoteJid.replace(/\D/g, ''), // Evolution usually expects number or jid. If number, it formats.
+          text: content,
+          delay: 1200,
+          linkPreview: true
+        },
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+
+      // We don't save to DB here; we let the "messages.upsert" webhook handle the saving for consistency 
+      // and to avoid duplication logic. Evolution sends a webhook for the message sent by the bot too.
+
+      return { success: true, messageId: response.data?.key?.id };
+    } catch (error) {
+      console.error('Error sending message:', error.message);
+      throw new HttpException('Failed to send message', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Get('recent')

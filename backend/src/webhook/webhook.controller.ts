@@ -18,52 +18,93 @@ export class WebhookController {
    * Endpoint para receber eventos da Evolution API
    * PERFORMANCE: Este endpoint NÃO contém lógica pesada.
    * Apenas valida o DTO e injeta o job na fila imediatamente.
+   * Aceita tanto /webhook/evolution quanto /webhook/evolution/* paths
    */
   @Post('evolution')
-  @HttpCode(HttpStatus.ACCEPTED)
+  @HttpCode(HttpStatus.OK)  // Always return 200 to Evolution
   async handleEvolutionWebhook(@Body() payload: EvolutionWebhookDto) {
-    // Ignore non-message events
-    if (payload.event !== 'messages.upsert') {
-      return { status: 'ignored', reason: 'not_a_message_event' };
+    return this.processWebhook(payload);
+  }
+
+  /**
+   * Wildcard route for specific event paths like /webhook/evolution/connection-update
+   */
+  @Post('evolution/*')
+  @HttpCode(HttpStatus.OK)
+  async handleEvolutionWebhookWildcard(@Body() payload: EvolutionWebhookDto) {
+    return this.processWebhook(payload);
+  }
+
+  private async processWebhook(payload: EvolutionWebhookDto) {
+    this.logger.log(`Received webhook event: ${payload.event} from ${payload.instance}`);
+
+    // Handle connection updates
+    if (payload.event === 'connection.update') {
+      const state = payload.data?.state || payload.data?.status;
+      this.logger.log(`Connection update for ${payload.instance}: ${state}`);
+      // TODO: Update instance status in database
+      this.chatGateway.broadcastMessage({
+        type: 'connection_update',
+        instanceKey: payload.instance,
+        state: state,
+      });
+      return { status: 'processed', event: payload.event };
     }
 
-    // Ignore outgoing messages (from bot)
-    if (payload.data?.key?.fromMe) {
-      return { status: 'ignored', reason: 'outgoing_message' };
+    // Handle QR Code updates (for real-time QR display)
+    if (payload.event === 'qrcode.updated') {
+      this.logger.log(`QR Code updated for ${payload.instance}`);
+      this.chatGateway.broadcastMessage({
+        type: 'qrcode_update',
+        instanceKey: payload.instance,
+        qrcode: payload.data?.qrcode?.base64 || payload.data?.base64,
+      });
+      return { status: 'processed', event: payload.event };
     }
 
-    // Extract message content
-    const messageContent = this.extractMessageContent(payload);
+    // Handle messages
+    if (payload.event === 'messages.upsert') {
+      // Ignore outgoing messages (from bot)
+      if (payload.data?.key?.fromMe) {
+        return { status: 'ignored', reason: 'outgoing_message' };
+      }
 
-    if (!messageContent) {
-      return { status: 'ignored', reason: 'no_text_content' };
+      // Extract message content
+      const messageContent = this.extractMessageContent(payload);
+
+      if (!messageContent) {
+        return { status: 'ignored', reason: 'no_text_content' };
+      }
+
+      // Create job data
+      const data = payload.data!;
+      const jobData = {
+        instanceKey: payload.instance,
+        remoteJid: data.key.remoteJid,
+        messageId: data.key.id,
+        content: messageContent,
+        pushName: data.pushName,
+        timestamp: data.messageTimestamp,
+      };
+
+      // Broadcast Real-Time Message
+      this.chatGateway.broadcastMessage(jobData);
+
+      // Add to queue immediately
+      const job = await this.whatsappQueue.add('process-message', jobData, {
+        jobId: data.key.id,
+      });
+
+      this.logger.log(`Job ${job.id} added to queue from ${data.key.remoteJid}`);
+
+      return {
+        status: 'queued',
+        jobId: job.id,
+      };
     }
 
-    // Create job data - at this point we know data exists because extractMessageContent checked it
-    const data = payload.data!;
-    const jobData = {
-      instanceKey: payload.instance,
-      remoteJid: data.key.remoteJid,
-      messageId: data.key.id,
-      content: messageContent,
-      pushName: data.pushName,
-      timestamp: data.messageTimestamp,
-    };
-
-    // Broadcast Real-Time Message
-    this.chatGateway.broadcastMessage(jobData);
-
-    // Add to queue immediately (Producer pattern)
-    const job = await this.whatsappQueue.add('process-message', jobData, {
-      jobId: data.key.id, // Prevent duplicate processing
-    });
-
-    this.logger.log(`Job ${job.id} added to queue from ${data.key.remoteJid}`);
-
-    return {
-      status: 'queued',
-      jobId: job.id,
-    };
+    // For all other events (contacts.update, chats.update, etc), just acknowledge
+    return { status: 'acknowledged', event: payload.event };
   }
 
   /**

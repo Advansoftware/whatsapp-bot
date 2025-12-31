@@ -73,14 +73,40 @@ export class ConnectionsController {
 
       // 3. Construct QR Code URL (Evolution v2 returns it in response usually, or validates it)
       // For v2, we can fetch the connect QR directly if not returned
-      const qrCodeUrl = response.data?.qrcode?.base64 || `${evolutionUrl}/instance/connect/${instanceKey}`;
+      console.log('Evolution Create Response:', JSON.stringify(response.data, null, 2));
+
+      // 3. Construct QR Code URL
+      let qrCodeUrl: string | undefined;
+
+      const qrData = response.data?.qrcode;
+      if (qrData && (qrData.base64 || qrData.code || qrData.pairingCode)) {
+        qrCodeUrl = qrData.base64 || qrData.code || qrData.pairingCode;
+      } else {
+        // Fallback: If no QR returned immediately (common with Redis enabled), wait and fetch connect
+        console.log('QR Code not returned in create, attempting to fetch from connect endpoint...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+
+        try {
+          const connectResponse = await axios.get(
+            `${evolutionUrl}/instance/connect/${instanceKey}`,
+            { headers: { 'apikey': evolutionApiKey } }
+          );
+          const connectQrData = connectResponse.data?.qrcode || connectResponse.data;
+          qrCodeUrl = connectQrData?.base64 || connectQrData?.code || connectQrData?.pairingCode;
+          console.log('Fallback QR Fetch:', { found: !!qrCodeUrl });
+        } catch (connErr) {
+          console.error('Error fetching fallback QR:', connErr.message);
+        }
+      }
+
+      console.log('Final QR Data:', { qrCodeUrl: qrCodeUrl ? (qrCodeUrl.substring(0, 50) + '...') : 'null' });
 
       return {
         id: instance.id,
         name: instance.name,
         instanceKey: instance.instanceKey,
         status: instance.status,
-        qrCodeUrl, // This might need to be proxied or base64
+        qrCodeUrl: qrCodeUrl || 'Aguardando QR Code...',
       };
     } catch (error) {
       console.error('Error creating evolution instance:', error.response?.data || error.message);
@@ -113,6 +139,39 @@ export class ConnectionsController {
   async deleteConnection(@Request() req: any, @Param('id') id: string) {
     const companyId = req.user.companyId;
 
+    const instance = await this.prisma.instance.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!instance) {
+      throw new HttpException('Instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+    // 1. Try to Logout first (best practice to clear session on WA side if possible)
+    try {
+      await axios.delete(
+        `${evolutionUrl}/instance/logout/${instance.instanceKey}`,
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+    } catch (error) {
+      // Ignore logout errors (instance might be already closed)
+      console.log(`Logout failed for ${instance.instanceKey}, proceeding to delete. Error: ${error.message}`);
+    }
+
+    // 2. Delete from Evolution API
+    try {
+      await axios.delete(
+        `${evolutionUrl}/instance/delete/${instance.instanceKey}`,
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+    } catch (error) {
+      console.error('Error deleting evolution instance:', error.message);
+      // Continue to delete from DB even if Evolution fails (avoid inconsistent state)
+    }
+
     await this.prisma.instance.deleteMany({
       where: { id, companyId },
     });
@@ -133,9 +192,34 @@ export class ConnectionsController {
     }
 
     // TODO: Call Evolution API to refresh QR code
-    return {
-      instanceKey: instance.instanceKey,
-      qrCodeUrl: `${process.env.EVOLUTION_API_URL}/instance/connect/${instance.instanceKey}`,
-    };
+    try {
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+      // Call connect endpoint to get new QR
+      const response = await axios.get(
+        `${evolutionUrl}/instance/connect/${instance.instanceKey}`,
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+
+      console.log('Evolution Refresh Response:', JSON.stringify(response.data, null, 2));
+
+      const qrData = response.data?.qrcode || response.data;
+      // Some versions return directly the object, others inside qrcode property
+      const qrCodeUrl = qrData?.base64 || qrData?.code || qrData?.pairingCode;
+
+      console.log('Extracted Refresh QR:', { qrCodeUrl: qrCodeUrl ? (qrCodeUrl.substring(0, 50) + '...') : 'null' });
+
+      return {
+        instanceKey: instance.instanceKey,
+        qrCodeUrl: qrCodeUrl || 'Erro ao gerar novo QR',
+      };
+    } catch (error) {
+      console.error('Error refreshing QR:', error);
+      return {
+        instanceKey: instance.instanceKey,
+        qrCodeUrl: 'Erro de conexão com Evolution API',
+      };
+    }
   }
 }

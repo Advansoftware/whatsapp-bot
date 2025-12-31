@@ -13,6 +13,8 @@ import PlaceholderView from './components/PlaceholderView';
 import LandingPage from './components/LandingPage';
 import LoginView from './components/LoginView';
 import { View } from './types';
+import LiveChatView from './components/chat/LiveChatView';
+import ChatbotView from './components/chatbot/ChatbotView';
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id';
@@ -35,8 +37,8 @@ const AppContent: React.FC = () => {
       case 'connections': return <ConnectionsView />;
       case 'inventory': return <InventoryView />;
       case 'settings': return <SettingsView />;
-      case 'chatbot': return <PlaceholderView title="Fluxos de Chatbot" />;
-      case 'livechat': return <PlaceholderView title="Chat Ao Vivo" />;
+      case 'chatbot': return <ChatbotView />;
+      case 'livechat': return <LiveChatView />;
       case 'subscription': return <PlaceholderView title="Gerenciamento de Assinatura" />;
       default: return <DashboardView />;
     }

@@ -65,3 +65,13 @@ export function useRecentConversations() {
 export function useMessages(page = 1, limit = 20, instanceId?: string) {
   return useApi(() => api.getMessages(page, limit, instanceId));
 }
+
+export function useChatMessages(remoteJid: string | null, page = 1, limit = 50) {
+  // Use a specialized fetcher that depends on remoteJid
+  const fetcher = useCallback(() => {
+    if (!remoteJid) return Promise.resolve(null);
+    return api.getMessages(page, limit, undefined, remoteJid);
+  }, [remoteJid, page, limit]);
+
+  return useApi(fetcher, { autoFetch: !!remoteJid });
+}
