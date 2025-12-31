@@ -37,8 +37,7 @@ export class AIService {
   private genAI: GoogleGenerativeAI;
   private evolutionApiUrl: string;
   private evolutionApiKey: string;
-  // Usando o modelo mais recente e eficiente
-  private readonly MODEL_NAME = 'gemini-2.5-flash';
+  private readonly MODEL_NAME: string;
 
   constructor(
     private readonly config: ConfigService,
@@ -51,6 +50,7 @@ export class AIService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.evolutionApiUrl = this.config.get('EVOLUTION_API_URL') || '';
     this.evolutionApiKey = this.config.get('EVOLUTION_API_KEY') || '';
+    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.0-flash';
   }
 
   /**
@@ -61,7 +61,7 @@ export class AIService {
     context: MessageContext,
   ): Promise<AIAnalysis> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
       // Build context-aware prompt
       const systemPrompt = this.buildSystemPrompt(context);
@@ -90,7 +90,7 @@ export class AIService {
   ): Promise<string> {
     try {
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: this.MODEL_NAME,
         generationConfig: {
           temperature: aiConfig.temperature || 0.7,
           maxOutputTokens: 500,
@@ -126,7 +126,7 @@ Assistente:`;
    */
   async summarizeConversation(messages: any[]): Promise<string> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
       const conversationText = messages
         .map((m) => `${m.direction === 'incoming' ? 'Cliente' : 'Você'}: ${m.content}`)
@@ -155,7 +155,7 @@ Resumo:`;
     reasoning: string;
   }> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
       const productsList = products.map(p => `- ${p.name} (${p.variant}): ${p.price}`).join('\n');
 
@@ -535,7 +535,7 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     messageId: string,
   ): Promise<void> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
       const prompt = `Analise esta mensagem e extraia APENAS informações factuais importantes sobre o cliente.
 Retorne um JSON array com as informações encontradas. Se não houver informações úteis, retorne [].
@@ -746,7 +746,7 @@ Se não encontrar nada relevante, retorne: []`;
       // Resumo das memórias
       const memoryContext = contact.memories.map(m => `${m.type}: ${m.key}=${m.value}`).join('; ');
 
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
 
       const conversationSummary = messages
         .reverse()
