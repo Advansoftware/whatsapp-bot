@@ -60,30 +60,90 @@ export class AIService {
   // ========================================
 
   /**
+   * Converte objeto indexado (ex: {0: 1, 1: 2, ...}) para array
+   */
+  private objectToArray(obj: any): number[] | any {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj;
+
+    // Verifica se parece ser um objeto indexado (chaves são números sequenciais)
+    const keys = Object.keys(obj);
+    if (keys.length > 0 && keys.every((k, i) => k === String(i))) {
+      return keys.map(k => obj[k]);
+    }
+    return obj;
+  }
+
+  /**
+   * Converte recursivamente objetos indexados em arrays na mensagem
+   */
+  private convertMediaMessage(message: any): any {
+    if (!message || typeof message !== 'object') return message;
+
+    const result: any = {};
+    for (const [key, value] of Object.entries(message)) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Campos que devem ser arrays de bytes
+        const byteFields = ['mediaKey', 'fileSha256', 'fileEncSha256', 'waveform', 'messageSecret',
+          'senderKeyHash', 'recipientKeyHash', 'threadId', 'senderKeyIndexes', 'recipientKeyIndexes'];
+
+        if (byteFields.includes(key)) {
+          result[key] = this.objectToArray(value);
+        } else if (key === 'fileLength' || key === 'mediaKeyTimestamp' || key === 'senderTimestamp' || key === 'recipientTimestamp') {
+          // Campos de números long - pegar o valor low
+          result[key] = (value as any).low !== undefined ? (value as any).low : value;
+        } else {
+          result[key] = this.convertMediaMessage(value);
+        }
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
+  /**
    * Baixa mídia da Evolution API e retorna como base64
    */
   async downloadMediaFromEvolution(instanceKey: string, mediaData: any): Promise<string | null> {
     try {
+      this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
+      this.logger.debug(`Media data keys: ${Object.keys(mediaData).join(', ')}`);
+
+      // Converter a mensagem para formato correto (arrays ao invés de objetos indexados)
+      // A Evolution API espera: { message: { key: {...}, message: {...}, messageType: 'audioMessage' } }
+      const convertedData = this.convertMediaMessage(mediaData);
+
+      const requestBody = {
+        message: convertedData,
+        convertToMp4: false,
+      };
+
+      this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
       const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': this.evolutionApiKey,
         },
-        body: JSON.stringify({
-          message: mediaData.message,
-          convertToMp4: false,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const error = await response.text();
-        this.logger.error(`Failed to download media: ${error}`);
+        this.logger.error(`Failed to download media (${response.status}): ${error}`);
         return null;
       }
 
       const data = await response.json();
-      return data.base64 || null;
+
+      if (!data.base64) {
+        this.logger.error(`No base64 in response: ${JSON.stringify(data).substring(0, 200)}`);
+        return null;
+      }
+
+      this.logger.log(`✅ Media downloaded successfully, size: ${data.base64.length} chars`);
+      return data.base64;
     } catch (error) {
       this.logger.error(`Error downloading media: ${error.message}`);
       return null;
