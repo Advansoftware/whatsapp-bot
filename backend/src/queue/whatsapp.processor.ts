@@ -93,19 +93,21 @@ export class WhatsappProcessor extends WorkerHost {
       const senderNumber = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
       const ownerPhone = aiConfig?.ownerPhone?.replace(/\D/g, '') || ''; // Remove não-dígitos
 
-      // Verifica se é o proprietário falando consigo mesmo (via instância)
-      const isOwnerMessage = fromMe && aiConfig?.testMode === true && aiConfig?.enabled === true;
-      // OU se é uma mensagem recebida do número do proprietário (ele mandando do celular pessoal)
-      const isOwnerSendingToBot = !fromMe && !!ownerPhone && senderNumber === ownerPhone && aiConfig?.testMode === true && aiConfig?.enabled === true;
-
-      const isPersonalAssistantMode = isOwnerMessage || isOwnerSendingToBot;
-
-      // ... Normal AI Flow for NEW INCOMING messages only ...
-      if (fromMe && !isPersonalAssistantMode) {
-        // If it's a new message but from ME (e.g. sent via phone), just save and ignore AI
-        // UNLESS personal assistant mode is enabled
-        await this.prisma.message.create({
-          data: {
+      // Mensagens fromMe (enviadas por você) NUNCA devem ser respondidas pela IA
+      // A IA só responde a mensagens RECEBIDAS (de clientes ou do dono via outro número)
+      if (fromMe) {
+        // Salvar mensagem outgoing e ignorar IA
+        await this.prisma.message.upsert({
+          where: { messageId },
+          update: {
+            content,
+            mediaUrl,
+            mediaType,
+            mediaData,
+            direction: 'outgoing',
+            status: 'processed',
+          },
+          create: {
             remoteJid,
             messageId,
             content,
@@ -120,6 +122,11 @@ export class WhatsappProcessor extends WorkerHost {
         });
         return { status: 'saved_outgoing' };
       }
+
+      // Verifica se é uma mensagem recebida do número do proprietário (ele mandando do celular pessoal)
+      const isOwnerSendingToBot = !!ownerPhone && senderNumber === ownerPhone && aiConfig?.testMode === true && aiConfig?.enabled === true;
+
+      const isPersonalAssistantMode = isOwnerSendingToBot;
 
       // Log se está em modo secretária pessoal
       if (isPersonalAssistantMode) {
@@ -182,6 +189,122 @@ export class WhatsappProcessor extends WorkerHost {
       // MODO SECRETÁRIA PESSOAL - Comandos do dono
       // ========================================
       if (isPersonalAssistantMode) {
+        // ========================================
+        // PROCESSAMENTO DE IMAGEM PARA INVENTÁRIO
+        // ========================================
+        if (mediaType === 'image' && mediaData) {
+          const lowerContent = (content || '').toLowerCase();
+          const isInventoryRequest = lowerContent.includes('adiciona') ||
+            lowerContent.includes('cadastra') ||
+            lowerContent.includes('inventário') ||
+            lowerContent.includes('inventario') ||
+            lowerContent.includes('estoque') ||
+            lowerContent.includes('produto') ||
+            lowerContent.match(/\d+\s*(unidade|item|peça|un|pç|desse)/i);
+
+          if (isInventoryRequest) {
+            this.logger.log(`📷 Processing image for inventory from owner`);
+
+            const imageResult = await this.aiService.processImageForInventory(
+              instanceKey,
+              mediaData,
+              content || '',
+              instance.companyId,
+            );
+
+            if (imageResult.identified && imageResult.awaitingConfirmation) {
+              // Salvar produto pendente no cache da conversa
+              await this.prisma.conversation.update({
+                where: { id: conversation.id },
+                data: {
+                  summary: JSON.stringify({
+                    type: 'pending_product',
+                    data: imageResult.pendingProduct,
+                    createdAt: new Date().toISOString(),
+                  }),
+                },
+              });
+            }
+
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, imageResult.response);
+
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                response: imageResult.response,
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+
+            return { status: 'processed_inventory_image', messageId: message.id };
+          }
+        }
+
+        // ========================================
+        // VERIFICAR SE É CONFIRMAÇÃO DE PRODUTO PENDENTE
+        // ========================================
+        if (conversation?.summary) {
+          try {
+            const pendingData = JSON.parse(conversation.summary);
+            if (pendingData.type === 'pending_product' && pendingData.data) {
+              const confirmResult = await this.aiService.parseProductConfirmation(
+                processedContent,
+                pendingData.data,
+              );
+
+              if (confirmResult.confirmed && confirmResult.productData) {
+                // Criar produto no inventário
+                const createResult = await this.aiService.createProductFromConversation(
+                  instance.companyId,
+                  confirmResult.productData,
+                );
+
+                // Limpar produto pendente
+                await this.prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: { summary: null },
+                });
+
+                await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, createResult.response);
+
+                await this.prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    response: createResult.response,
+                    status: 'processed',
+                    processedAt: new Date(),
+                  },
+                });
+
+                return { status: 'product_created', messageId: message.id };
+              } else if (confirmResult.needsMoreInfo) {
+                await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, confirmResult.needsMoreInfo);
+
+                await this.prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    response: confirmResult.needsMoreInfo,
+                    status: 'processed',
+                    processedAt: new Date(),
+                  },
+                });
+
+                return { status: 'awaiting_product_info', messageId: message.id };
+              }
+              // Se não confirmou, limpar e continuar fluxo normal
+              if (!confirmResult.confirmed && !confirmResult.needsMoreInfo) {
+                await this.prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: { summary: null },
+                });
+              }
+            }
+          } catch (e) {
+            // summary não é JSON de produto pendente, ignorar
+          }
+        }
+
         // Verificar se é um comando/instrução
         const commandResult = await this.aiService.parseOwnerCommand(processedContent, instance.companyId);
 
@@ -366,10 +489,10 @@ export class WhatsappProcessor extends WorkerHost {
     companyId: string,
     instanceId: string,
     remoteJid: string,
-  ): Promise<{ id: string; aiEnabled: boolean }> {
+  ): Promise<{ id: string; aiEnabled: boolean; summary: string | null }> {
     const existingConversation = await this.prisma.conversation.findFirst({
       where: { companyId, remoteJid },
-      select: { id: true, aiEnabled: true },
+      select: { id: true, aiEnabled: true, summary: true },
     });
 
     if (existingConversation) {
@@ -391,7 +514,7 @@ export class WhatsappProcessor extends WorkerHost {
           priority: 'normal',
           lastMessageAt: new Date(),
         },
-        select: { id: true, aiEnabled: true },
+        select: { id: true, aiEnabled: true, summary: true },
       });
       return newConversation;
     }

@@ -588,6 +588,331 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
   }
 
   /**
+   * Processa imagem enviada pelo dono e identifica produto
+   */
+  async processImageForInventory(
+    instanceKey: string,
+    mediaData: any,
+    textMessage: string,
+    companyId: string,
+  ): Promise<{
+    identified: boolean;
+    productInfo?: {
+      name: string;
+      description: string;
+      suggestedPrice?: string;
+      category?: string;
+    };
+    response: string;
+    awaitingConfirmation?: boolean;
+    pendingProduct?: any;
+  }> {
+    try {
+      this.logger.log(`📷 Processing image for inventory from owner`);
+
+      // Preparar payload para Evolution API - mesmo formato do áudio
+      const payload: any = {
+        message: {},
+        key: {},
+      };
+
+      // Extrair key
+      if (mediaData.key) {
+        payload.key = mediaData.key;
+      }
+
+      // Extrair message e garantir que contextInfo existe
+      if (mediaData.message) {
+        const messageType = Object.keys(mediaData.message).find(k => k.endsWith('Message'));
+        if (messageType && mediaData.message[messageType]) {
+          payload.message[messageType] = {
+            ...mediaData.message[messageType],
+          };
+          if (!payload.message[messageType].contextInfo) {
+            payload.message[messageType].contextInfo = {};
+          }
+        } else {
+          payload.message = mediaData.message;
+        }
+      }
+
+      const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.evolutionApiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Evolution API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      const base64Image = result.base64;
+
+      if (!base64Image) {
+        throw new Error('No base64 image data in response');
+      }
+
+      this.logger.log(`✅ Image downloaded successfully, size: ${base64Image.length} chars`);
+
+      // Usar Gemini para analisar a imagem
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        }
+      });
+
+      const mimeType = result.mimetype || 'image/jpeg';
+
+      // Extrair quantidade do texto se mencionado
+      const quantityMatch = textMessage.match(/(\d+)\s*(unidade|item|peça|produto|un|pç)/i)
+        || textMessage.match(/adiciona(?:r)?\s+(\d+)/i)
+        || textMessage.match(/(\d+)\s*desse/i);
+      const suggestedQuantity = quantityMatch ? parseInt(quantityMatch[1]) : null;
+
+      const analysisResult = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Image,
+          },
+        },
+        `Analise esta imagem de produto e identifique:
+
+1. O que é o produto (nome comercial provável)
+2. Uma descrição breve
+3. Categoria (eletrônicos, roupas, alimentos, cosméticos, etc)
+4. Se possível, sugira uma faixa de preço de mercado
+
+O usuário disse: "${textMessage}"
+${suggestedQuantity ? `Quantidade mencionada: ${suggestedQuantity} unidades` : ''}
+
+Responda em JSON:
+{
+  "name": "Nome do produto",
+  "description": "Descrição breve",
+  "category": "Categoria",
+  "suggestedPrice": "R$ XX,XX - R$ YY,YY (ou null se não souber)",
+  "confidence": 0.0-1.0
+}`
+      ]);
+
+      const analysisText = analysisResult.response.text();
+      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+
+      if (!jsonMatch) {
+        return {
+          identified: false,
+          response: 'Não consegui identificar bem o produto na imagem. Pode me enviar outra foto ou descrever o que é? 📸',
+        };
+      }
+
+      const productInfo = JSON.parse(jsonMatch[0]);
+
+      // Criar resposta pedindo confirmação
+      const confirmationMessage = `📦 **Identificado:** ${productInfo.name}
+
+📝 ${productInfo.description}
+📂 Categoria: ${productInfo.category || 'Geral'}
+${productInfo.suggestedPrice ? `💰 Preço sugerido: ${productInfo.suggestedPrice}` : ''}
+${suggestedQuantity ? `📊 Quantidade: ${suggestedQuantity} unidades` : ''}
+
+Para cadastrar no inventário, me informe:
+• Preço de venda (ex: 29.90)
+${!suggestedQuantity ? '• Quantidade em estoque' : ''}
+• Variante/tamanho (opcional)
+
+Ou diga "confirma" com o preço pra eu cadastrar! 😊`;
+
+      return {
+        identified: true,
+        productInfo: {
+          name: productInfo.name,
+          description: productInfo.description,
+          category: productInfo.category,
+          suggestedPrice: productInfo.suggestedPrice,
+        },
+        response: confirmationMessage,
+        awaitingConfirmation: true,
+        pendingProduct: {
+          name: productInfo.name,
+          description: productInfo.description,
+          category: productInfo.category,
+          quantity: suggestedQuantity || 0,
+          imageBase64: base64Image,
+          imageMimeType: mimeType,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Image processing failed: ${error.message}`);
+
+      if (this.isRateLimitError(error)) {
+        return {
+          identified: false,
+          response: 'Estou com muitas requisições no momento. Tenta de novo em alguns segundos! ⏳',
+        };
+      }
+
+      return {
+        identified: false,
+        response: 'Tive um probleminha pra processar a imagem. Pode tentar enviar de novo? 📸',
+      };
+    }
+  }
+
+  /**
+   * Cria produto no inventário a partir dos dados coletados
+   */
+  async createProductFromConversation(
+    companyId: string,
+    productData: {
+      name: string;
+      description?: string;
+      price: number;
+      quantity: number;
+      variant?: string;
+      category?: string;
+      imageBase64?: string;
+      imageMimeType?: string;
+    },
+  ): Promise<{
+    success: boolean;
+    product?: any;
+    response: string;
+  }> {
+    try {
+      this.logger.log(`📦 Creating product: ${productData.name} for company ${companyId}`);
+
+      // Criar produto no banco
+      const product = await this.prisma.product.create({
+        data: {
+          companyId,
+          name: productData.name,
+          price: productData.price,
+          quantity: productData.quantity,
+          variant: productData.variant || null,
+          isActive: true,
+        },
+      });
+
+      this.logger.log(`✅ Product created: ${product.id} - ${product.name}`);
+
+      const response = `✅ Produto cadastrado com sucesso!
+
+📦 **${product.name}**${product.variant ? ` (${product.variant})` : ''}
+💰 Preço: R$ ${product.price.toFixed(2)}
+📊 Estoque: ${product.quantity} unidades
+
+O produto já está disponível no seu inventário! 🎉`;
+
+      return {
+        success: true,
+        product,
+        response,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create product: ${error.message}`);
+
+      return {
+        success: false,
+        response: 'Ops, tive um problema ao cadastrar o produto. Tenta novamente? 😅',
+      };
+    }
+  }
+
+  /**
+   * Processa confirmação de cadastro de produto do dono
+   */
+  async parseProductConfirmation(
+    messageContent: string,
+    pendingProduct: any,
+  ): Promise<{
+    confirmed: boolean;
+    productData?: {
+      name: string;
+      description?: string;
+      price: number;
+      quantity: number;
+      variant?: string;
+    };
+    needsMoreInfo?: string;
+  }> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 512,
+        }
+      });
+
+      const prompt = `O usuário está confirmando o cadastro de um produto.
+
+Produto pendente:
+- Nome: ${pendingProduct.name}
+- Descrição: ${pendingProduct.description || 'N/A'}
+- Quantidade sugerida: ${pendingProduct.quantity || 'não informada'}
+
+Mensagem do usuário: "${messageContent}"
+
+Extraia as informações da mensagem:
+1. Se ele confirmou (disse sim, ok, confirma, etc)
+2. O preço mencionado (número decimal, ex: 29.90)
+3. Quantidade (se mencionou)
+4. Variante/tamanho (se mencionou)
+
+Responda em JSON:
+{
+  "confirmed": true/false,
+  "price": 29.90 (número ou null),
+  "quantity": 10 (número ou null),
+  "variant": "Tamanho M" (string ou null),
+  "needsMoreInfo": "O que falta" (string ou null se tudo ok)
+}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { confirmed: false, needsMoreInfo: 'Não entendi. Pode confirmar com o preço?' };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      if (!parsed.confirmed) {
+        return { confirmed: false };
+      }
+
+      if (!parsed.price) {
+        return { confirmed: false, needsMoreInfo: 'Qual o preço de venda? (ex: 29.90)' };
+      }
+
+      const quantity = parsed.quantity || pendingProduct.quantity || 1;
+
+      return {
+        confirmed: true,
+        productData: {
+          name: pendingProduct.name,
+          description: pendingProduct.description,
+          price: parseFloat(parsed.price),
+          quantity: quantity,
+          variant: parsed.variant || null,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Failed to parse product confirmation: ${error.message}`);
+      return { confirmed: false, needsMoreInfo: 'Tive um probleminha. Pode repetir?' };
+    }
+  }
+
+  /**
    * Analisa se a mensagem do dono é um comando/instrução para a secretária
    */
   async parseOwnerCommand(messageContent: string, companyId: string): Promise<{

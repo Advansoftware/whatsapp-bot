@@ -255,7 +255,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               data.message?.extendedTextMessage?.text ||
               "[Mídia]",
             direction:
-              data.direction || (data.key?.fromMe ? "outgoing" : "incoming"),
+              data.direction || (data.fromMe ? "outgoing" : "incoming"),
             status: data.status || "sent",
             createdAt: data.createdAt || new Date().toISOString(),
             pushName: data.pushName,
@@ -417,6 +417,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     [instanceKey, chatId, refetch]
   );
 
+  // Paste image handler - memoized
+  const handlePasteImage = useCallback(
+    async (file: File, caption?: string) => {
+      setUploadingMedia(true);
+      try {
+        await api.sendMedia(instanceKey, chatId, file, caption);
+        setSnackbar({
+          open: true,
+          message: "Imagem enviada com sucesso!",
+          severity: "success",
+        });
+        refetch();
+      } catch (err) {
+        console.error("Error sending pasted image:", err);
+        setSnackbar({
+          open: true,
+          message: "Erro ao enviar imagem",
+          severity: "error",
+        });
+      } finally {
+        setUploadingMedia(false);
+      }
+    },
+    [instanceKey, chatId, refetch]
+  );
+
   // Product selection handler - memoized
   const handleSendProduct = useCallback(
     (productName: string, price: string) => {
@@ -559,6 +585,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onSendMessage={handleSendMessage}
         onFileChange={handleFileChange}
         onOpenInventory={openInventory}
+        onPasteImage={handlePasteImage}
         colors={colors}
         isDark={isDark}
       />
