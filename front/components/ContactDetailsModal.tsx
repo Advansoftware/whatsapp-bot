@@ -80,6 +80,14 @@ const leadStatusColors: Record<string, string> = {
   unqualified: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
+const leadStatusLabels: Record<string, string> = {
+  cold: "Frio",
+  warm: "Morno",
+  hot: "Quente",
+  qualified: "Qualificado",
+  unqualified: "Não Qualificado",
+};
+
 export default function ContactDetailsModal({
   contactId,
   isOpen,
@@ -285,7 +293,8 @@ export default function ContactDetailsModal({
                             leadStatusColors.cold
                           }`}
                         >
-                          {contact.leadStatus.toUpperCase()}
+                          {leadStatusLabels[contact.leadStatus] ||
+                            contact.leadStatus.toUpperCase()}
                         </span>
                       ) : (
                         <p className="text-white/40">-</p>

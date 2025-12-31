@@ -916,14 +916,18 @@ const AISecretaryView: React.FC = () => {
                               mb: 1.5,
                               p: 1,
                               borderRadius: 1,
-                              bgcolor:
+                              bgcolor: (theme) =>
                                 msg.direction === "incoming"
-                                  ? "grey.100"
+                                  ? theme.palette.mode === "dark"
+                                    ? "rgba(255,255,255,0.05)"
+                                    : "grey.100"
+                                  : theme.palette.mode === "dark"
+                                  ? "rgba(0,168,132,0.15)"
                                   : "primary.50",
                               borderLeft: 3,
                               borderColor:
                                 msg.direction === "incoming"
-                                  ? "grey.400"
+                                  ? "grey.500"
                                   : "primary.main",
                             }}
                           >

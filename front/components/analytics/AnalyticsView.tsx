@@ -106,6 +106,14 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
   unqualified: "#9e9e9e",
 };
 
+const LEAD_STATUS_LABELS: Record<string, string> = {
+  cold: "Frio",
+  warm: "Morno",
+  hot: "Quente",
+  qualified: "Qualificado",
+  unqualified: "Não Qualificado",
+};
+
 const AnalyticsView: React.FC = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
@@ -743,7 +751,9 @@ const AnalyticsView: React.FC = () => {
                         dataKey="count"
                         nameKey="name"
                         label={({ name, percent }) =>
-                          `${name} (${(percent * 100).toFixed(0)}%)`
+                          `${LEAD_STATUS_LABELS[name] || name} (${(
+                            percent * 100
+                          ).toFixed(0)}%)`
                         }
                         labelLine={false}
                       >

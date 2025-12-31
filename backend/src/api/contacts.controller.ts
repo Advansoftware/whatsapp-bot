@@ -158,7 +158,14 @@ export class ContactsController {
     ]);
 
     // Agrupa memórias por tipo para exibição
-    const memoriesByType: Record<string, any[]> = {};
+    const memoriesByType: Record<string, any[]> = {
+      fact: [],
+      preference: [],
+      need: [],
+      objection: [],
+      interest: [],
+      context: [],
+    };
     for (const mem of contact.memories) {
       if (!memoriesByType[mem.type]) memoriesByType[mem.type] = [];
       memoriesByType[mem.type].push({
@@ -169,12 +176,34 @@ export class ContactsController {
       });
     }
 
+    // Formatar número de telefone
+    const phoneNumber = contact.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    const formattedPhone = phoneNumber.length >= 10
+      ? `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 4)}) ${phoneNumber.slice(4, 9)}-${phoneNumber.slice(9)}`
+      : phoneNumber;
+
     return {
-      ...contact,
-      displayName: contact.pushName || contact.remoteJid.replace('@s.whatsapp.net', ''),
-      messages,
+      id: contact.id,
+      name: contact.pushName || formattedPhone,
+      phone: formattedPhone,
+      email: null,
+      notes: contact.notes,
+      tags: contact.tags || [],
+      birthDate: contact.birthDate?.toISOString(),
+      gender: contact.gender,
+      city: contact.city,
+      state: contact.state,
+      university: contact.university,
+      course: contact.course,
+      occupation: contact.occupation,
+      leadScore: contact.leadScore,
+      leadStatus: contact.leadStatus,
+      aiAnalysis: contact.aiAnalysis,
+      aiAnalyzedAt: contact.aiAnalyzedAt?.toISOString(),
       totalMessages: messageStats._count.id,
-      firstContactAt: firstMessage?.createdAt || contact.createdAt,
+      firstContactAt: firstMessage?.createdAt?.toISOString() || contact.createdAt.toISOString(),
+      createdAt: contact.createdAt.toISOString(),
+      profilePicUrl: contact.profilePicUrl,
       memoriesByType,
     };
   }
