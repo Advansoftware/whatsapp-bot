@@ -37,6 +37,8 @@ export class AIService {
   private genAI: GoogleGenerativeAI;
   private evolutionApiUrl: string;
   private evolutionApiKey: string;
+  // Usando o modelo mais recente e eficiente
+  private readonly MODEL_NAME = 'gemini-2.5-flash';
 
   constructor(
     private readonly config: ConfigService,
@@ -88,7 +90,7 @@ export class AIService {
   ): Promise<string> {
     try {
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-pro',
+        model: 'gemini-1.5-flash',
         generationConfig: {
           temperature: aiConfig.temperature || 0.7,
           maxOutputTokens: 500,
@@ -124,7 +126,7 @@ Assistente:`;
    */
   async summarizeConversation(messages: any[]): Promise<string> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const conversationText = messages
         .map((m) => `${m.direction === 'incoming' ? 'Cliente' : 'Você'}: ${m.content}`)
@@ -153,7 +155,7 @@ Resumo:`;
     reasoning: string;
   }> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const productsList = products.map(p => `- ${p.name} (${p.variant}): ${p.price}`).join('\n');
 
@@ -517,5 +519,316 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
       shouldRespond: false,
       shouldNotifyOwner: false,
     };
+  }
+
+  // ========================================
+  // MEMORY SYSTEM - Extração e uso de memória
+  // ========================================
+
+  /**
+   * Extrai informações importantes da mensagem e salva na memória do contato
+   * Chamado após cada mensagem processada
+   */
+  async extractAndSaveMemory(
+    contactId: string,
+    messageContent: string,
+    messageId: string,
+  ): Promise<void> {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `Analise esta mensagem e extraia APENAS informações factuais importantes sobre o cliente.
+Retorne um JSON array com as informações encontradas. Se não houver informações úteis, retorne [].
+
+Mensagem: "${messageContent}"
+
+TIPOS de informação para extrair:
+- fact: fatos sobre a pessoa (nome, profissão, família, etc)
+- preference: preferências (gosta de X, prefere Y)
+- need: necessidades expressas (precisa de X, quer Y)
+- objection: objeções/reclamações (achou caro, não gostou de X)
+- interest: interesses em produtos/serviços
+- context: contexto importante (horário preferido, forma de pagamento)
+
+Retorne APENAS JSON array:
+[
+  {"type": "fact", "key": "nome_filho", "value": "Pedro", "confidence": 0.9},
+  {"type": "interest", "key": "produto", "value": "Interessado em camisetas", "confidence": 0.8}
+]
+
+Se não encontrar nada relevante, retorne: []`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+
+      // Parse response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return;
+
+      const memories = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(memories) || memories.length === 0) return;
+
+      // Save each memory
+      for (const mem of memories) {
+        if (!mem.type || !mem.key || !mem.value) continue;
+
+        await this.prisma.contactMemory.upsert({
+          where: {
+            contactId_type_key: {
+              contactId,
+              type: mem.type,
+              key: mem.key,
+            },
+          },
+          update: {
+            value: mem.value,
+            confidence: mem.confidence || 1.0,
+            source: messageId,
+          },
+          create: {
+            contactId,
+            type: mem.type,
+            key: mem.key,
+            value: mem.value,
+            confidence: mem.confidence || 1.0,
+            source: messageId,
+          },
+        });
+      }
+
+      this.logger.log(`Saved ${memories.length} memories for contact ${contactId}`);
+    } catch (error) {
+      this.logger.error(`Memory extraction failed: ${error.message}`);
+      // Não falhar silenciosamente, apenas logar
+    }
+  }
+
+  /**
+   * Busca memórias relevantes do contato para incluir no contexto
+   * Retorna um resumo compacto para economizar tokens
+   */
+  async getContactMemoryContext(contactId: string): Promise<string> {
+    try {
+      const memories = await this.prisma.contactMemory.findMany({
+        where: { contactId },
+        orderBy: [
+          { type: 'asc' },
+          { updatedAt: 'desc' },
+        ],
+      });
+
+      if (memories.length === 0) {
+        return '';
+      }
+
+      // Agrupa por tipo para formatação compacta
+      const grouped: Record<string, string[]> = {};
+      for (const mem of memories) {
+        if (!grouped[mem.type]) grouped[mem.type] = [];
+        grouped[mem.type].push(`${mem.key}: ${mem.value}`);
+      }
+
+      let context = '\n📝 MEMÓRIA DO CONTATO:\n';
+
+      if (grouped.fact) context += `Fatos: ${grouped.fact.join('; ')}\n`;
+      if (grouped.preference) context += `Preferências: ${grouped.preference.join('; ')}\n`;
+      if (grouped.need) context += `Necessidades: ${grouped.need.join('; ')}\n`;
+      if (grouped.interest) context += `Interesses: ${grouped.interest.join('; ')}\n`;
+      if (grouped.objection) context += `⚠️ Objeções anteriores: ${grouped.objection.join('; ')}\n`;
+      if (grouped.context) context += `Contexto: ${grouped.context.join('; ')}\n`;
+
+      return context;
+    } catch (error) {
+      this.logger.error(`Failed to get contact memory: ${error.message}`);
+      return '';
+    }
+  }
+
+  /**
+   * Busca correções de erros anteriores para evitar repetir
+   */
+  async getErrorCorrections(companyId: string): Promise<string> {
+    try {
+      const corrections = await this.prisma.companyKnowledge.findMany({
+        where: {
+          companyId,
+          category: 'error_correction',
+          isActive: true,
+        },
+        orderBy: { priority: 'desc' },
+        take: 10,
+      });
+
+      if (corrections.length === 0) return '';
+
+      let context = '\n⚠️ ERROS A EVITAR:\n';
+      for (const corr of corrections) {
+        context += `- NÃO diga: "${corr.wrongResponse}"\n`;
+        context += `  DIGA: "${corr.correctResponse}"\n`;
+      }
+
+      return context;
+    } catch (error) {
+      this.logger.error(`Failed to get error corrections: ${error.message}`);
+      return '';
+    }
+  }
+
+  /**
+   * Busca conhecimento relevante da empresa (FAQs, políticas, etc)
+   */
+  async getRelevantKnowledge(companyId: string, messageContent: string): Promise<string> {
+    try {
+      // Busca por keywords no conteúdo da mensagem
+      const knowledge = await this.prisma.companyKnowledge.findMany({
+        where: {
+          companyId,
+          isActive: true,
+          category: { in: ['faq', 'policy', 'product', 'script'] },
+        },
+        orderBy: { priority: 'desc' },
+      });
+
+      if (knowledge.length === 0) return '';
+
+      // Filtra por relevância (keywords match)
+      const lowerMessage = messageContent.toLowerCase();
+      const relevant = knowledge.filter(k => {
+        if (k.keywords.length === 0) return k.priority > 5; // Alta prioridade sempre incluir
+        return k.keywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
+      });
+
+      if (relevant.length === 0) return '';
+
+      let context = '\n📚 BASE DE CONHECIMENTO:\n';
+      for (const item of relevant.slice(0, 5)) {
+        context += `[${item.category.toUpperCase()}] ${item.title}: ${item.content}\n`;
+      }
+
+      return context;
+    } catch (error) {
+      this.logger.error(`Failed to get knowledge: ${error.message}`);
+      return '';
+    }
+  }
+
+  // ========================================
+  // LEAD SCORING - Qualificação automática
+  // ========================================
+
+  /**
+   * Analisa conversas e qualifica o lead
+   * Deve ser chamado quando contato atinge 300+ mensagens e nunca foi analisado
+   */
+  async analyzeAndQualifyLead(contactId: string, companyId: string): Promise<{
+    score: number;
+    status: string;
+    analysis: string;
+  }> {
+    try {
+      // Buscar contato
+      const contact = await this.prisma.contact.findUnique({
+        where: { id: contactId },
+        include: { memories: true },
+      });
+
+      if (!contact) {
+        throw new Error('Contact not found');
+      }
+
+      // Buscar últimas 100 mensagens para análise
+      const messages = await this.prisma.message.findMany({
+        where: { remoteJid: contact.remoteJid, companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+
+      // Resumo das memórias
+      const memoryContext = contact.memories.map(m => `${m.type}: ${m.key}=${m.value}`).join('; ');
+
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const conversationSummary = messages
+        .reverse()
+        .slice(0, 50) // Últimas 50 para o prompt
+        .map(m => `[${m.direction}] ${m.content?.substring(0, 100)}`)
+        .join('\n');
+
+      const prompt = `Você é um analista de vendas. Analise este lead e forneça uma qualificação detalhada.
+
+DADOS DO CONTATO:
+- Nome: ${contact.pushName || 'Desconhecido'}
+- Total de mensagens: ${messages.length}
+- Cidade: ${contact.city || 'Desconhecido'}
+- Ocupação: ${contact.occupation || 'Desconhecido'}
+
+MEMÓRIAS EXTRAÍDAS:
+${memoryContext || 'Nenhuma memória salva'}
+
+RESUMO DAS CONVERSAS:
+${conversationSummary}
+
+ANALISE E RETORNE JSON:
+{
+  "score": 0-100,
+  "status": "cold|warm|hot|customer",
+  "analysis": "Análise detalhada de 2-3 parágrafos sobre:
+    - Perfil do cliente
+    - Interesses identificados
+    - Objeções/preocupações
+    - Probabilidade de conversão
+    - Recomendações de abordagem"
+}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Could not parse lead analysis');
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+
+      // Salvar no contato
+      await this.prisma.contact.update({
+        where: { id: contactId },
+        data: {
+          leadScore: analysis.score,
+          leadStatus: analysis.status,
+          aiAnalysis: analysis.analysis,
+          aiAnalyzedAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Lead ${contactId} qualified: score=${analysis.score}, status=${analysis.status}`);
+
+      return analysis;
+    } catch (error) {
+      this.logger.error(`Lead qualification failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Registra uma correção de erro para evitar repetir
+   */
+  async saveErrorCorrection(
+    companyId: string,
+    wrongResponse: string,
+    correctResponse: string,
+    context: string,
+  ): Promise<void> {
+    await this.prisma.companyKnowledge.create({
+      data: {
+        companyId,
+        category: 'error_correction',
+        title: `Correção: ${context.substring(0, 50)}...`,
+        content: context,
+        wrongResponse,
+        correctResponse,
+        priority: 10,
+      },
+    });
   }
 }

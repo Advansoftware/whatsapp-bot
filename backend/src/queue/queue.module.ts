@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { WhatsappProcessor } from './whatsapp.processor';
 import { WHATSAPP_QUEUE } from './constants';
 import { AIModule } from '../ai/ai.module';
+import { ChatbotModule } from '../chatbot/chatbot.module';
 
 export { WHATSAPP_QUEUE } from './constants';
 
@@ -21,6 +22,7 @@ export { WHATSAPP_QUEUE } from './constants';
       },
     }),
     AIModule,
+    ChatbotModule,
   ],
   providers: [WhatsappProcessor],
   exports: [BullModule],

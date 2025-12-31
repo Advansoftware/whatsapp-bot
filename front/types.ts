@@ -34,4 +34,4 @@ export interface Product {
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
 }
 
-export type View = 'dashboard' | 'connections' | 'inventory' | 'chatbot' | 'livechat' | 'ai-secretary' | 'settings' | 'subscription';
+export type View = 'dashboard' | 'connections' | 'inventory' | 'chatbot' | 'livechat' | 'ai-secretary' | 'crm' | 'campaigns' | 'analytics' | 'settings' | 'subscription';

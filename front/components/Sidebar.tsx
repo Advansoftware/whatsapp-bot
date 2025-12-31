@@ -23,6 +23,9 @@ import {
   CreditCard,
   Logout,
   Psychology,
+  Contacts,
+  Campaign,
+  BarChart,
 } from "@mui/icons-material";
 import { View } from "../types";
 
@@ -41,6 +44,9 @@ const menuItems = [
   { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
   { id: "livechat" as View, label: "Chat ao Vivo", icon: <Chat /> },
   { id: "ai-secretary" as View, label: "Secretária IA", icon: <Psychology /> },
+  { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
+  { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },
+  { id: "analytics" as View, label: "Analytics", icon: <BarChart /> },
   { id: "inventory" as View, label: "Inventário", icon: <Inventory /> },
 ];
 

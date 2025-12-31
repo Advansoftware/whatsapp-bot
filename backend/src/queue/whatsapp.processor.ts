@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from '../ai/ai.service';
+import { ChatbotService } from '../chatbot/chatbot.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -32,6 +33,7 @@ export class WhatsappProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
+    private readonly chatbotService: ChatbotService,
   ) {
     super();
   }
@@ -128,7 +130,46 @@ export class WhatsappProcessor extends WorkerHost {
       // 4. Atualizar ou criar conversa
       await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
 
-      // 5. Processar com Secretária IA
+      // 5. PRIMEIRO: Tentar processar com Chatbot (fluxos baseados em keyword)
+      const chatbotResult = await this.chatbotService.processMessage(
+        instance.companyId,
+        content,
+        { customerName: job.data.pushName },
+      );
+
+      if (chatbotResult.matched && chatbotResult.responses.length > 0) {
+        this.logger.log(`Chatbot flow matched for ${remoteJid}, sending ${chatbotResult.responses.length} messages`);
+
+        // Enviar todas as respostas do fluxo
+        for (const response of chatbotResult.responses) {
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, response);
+          // Pequeno delay entre mensagens para parecer mais natural
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Atualizar mensagem com resposta do chatbot
+        await this.prisma.message.update({
+          where: { id: message.id },
+          data: {
+            response: chatbotResult.responses.join('\n---\n'),
+            status: 'processed',
+            processedAt: new Date(),
+          },
+        });
+
+        // Deduzir balance
+        await this.prisma.company.update({
+          where: { id: instance.companyId },
+          data: {
+            balance: { decrement: 0.01 * chatbotResult.responses.length },
+          },
+        });
+
+        this.logger.log(`Job ${job.id} completed via Chatbot flow`);
+        return { status: 'processed_chatbot', messageId: message.id };
+      }
+
+      // 6. Se chatbot não respondeu, processar com Secretária IA
       const secretaryResult = await this.aiService.processSecretaryMessage(
         content,
         instance.companyId,
@@ -137,7 +178,7 @@ export class WhatsappProcessor extends WorkerHost {
         job.data.pushName,
       );
 
-      // 6. Se deve responder, enviar resposta
+      // 7. Se deve responder, enviar resposta
       if (secretaryResult.shouldRespond && secretaryResult.response) {
         await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, secretaryResult.response);
 
@@ -169,7 +210,36 @@ export class WhatsappProcessor extends WorkerHost {
         });
       }
 
-      // 7. Se deve notificar o dono
+      // 8. SISTEMA DE MEMÓRIA: Extrair e salvar memórias da mensagem
+      try {
+        const contact = await this.prisma.contact.findFirst({
+          where: { companyId: instance.companyId, remoteJid },
+          select: { id: true, totalMessages: true, aiAnalyzedAt: true },
+        });
+
+        if (contact) {
+          // Extrair memórias da mensagem
+          await this.aiService.extractAndSaveMemory(contact.id, content, message.id);
+
+          // Atualizar contador de mensagens
+          const updatedContact = await this.prisma.contact.update({
+            where: { id: contact.id },
+            data: { totalMessages: { increment: 1 } },
+            select: { id: true, totalMessages: true, aiAnalyzedAt: true },
+          });
+
+          // Qualificação automática: dispara quando atingir 300 mensagens e ainda não foi analisado
+          if (updatedContact.totalMessages >= 300 && !updatedContact.aiAnalyzedAt) {
+            this.logger.log(`Auto-qualifying lead ${contact.id} with ${updatedContact.totalMessages} messages`);
+            await this.aiService.analyzeAndQualifyLead(contact.id, instance.companyId);
+          }
+        }
+      } catch (memoryError) {
+        // Não falhar a mensagem por erro de memória
+        this.logger.warn(`Memory extraction failed: ${memoryError.message}`);
+      }
+
+      // 9. Se deve notificar o dono
       if (secretaryResult.shouldNotifyOwner) {
         const aiConfig = await this.prisma.aISecretary.findUnique({
           where: { companyId: instance.companyId },

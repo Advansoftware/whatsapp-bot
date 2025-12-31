@@ -21,6 +21,9 @@ import { View } from "./types";
 import LiveChatView from "./components/chat/LiveChatView";
 import ChatbotView from "./components/chatbot/ChatbotView";
 import AISecretaryView from "./components/ai-secretary/AISecretaryView";
+import ContactsView from "./components/crm/ContactsView";
+import CampaignsView from "./components/campaigns/CampaignsView";
+import AnalyticsView from "./components/analytics/AnalyticsView";
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID =
@@ -73,6 +76,12 @@ const AppContent: React.FC = () => {
         return <LiveChatView initialChat={selectedChatFromDashboard} />;
       case "ai-secretary":
         return <AISecretaryView />;
+      case "crm":
+        return <ContactsView />;
+      case "campaigns":
+        return <CampaignsView />;
+      case "analytics":
+        return <AnalyticsView />;
       case "subscription":
         return <PlaceholderView title="Gerenciamento de Assinatura" />;
       default:

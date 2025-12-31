@@ -424,6 +424,271 @@ class ApiClient {
     }>('/api/ai-secretary/stats');
   }
 
+  // CRM Contacts endpoints
+  async getCRMContacts(page = 1, limit = 30, query?: string, tag?: string) {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (query) params.append('q', query);
+    if (tag) params.append('tag', tag);
+    return this.request<{
+      data: Array<{
+        id: string;
+        remoteJid: string;
+        pushName: string | null;
+        displayName: string;
+        profilePicUrl: string | null;
+        notes: string | null;
+        tags: string[];
+        lastMessage: string | null;
+        lastMessageAt: string | null;
+        messageCount: number;
+        createdAt: string;
+      }>;
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/contacts?${params.toString()}`);
+  }
+
+  async getCRMContact(id: string) {
+    return this.request<any>(`/api/contacts/${id}`);
+  }
+
+  async updateCRMContact(id: string, data: {
+    pushName?: string;
+    notes?: string;
+    tags?: string[];
+    cep?: string;
+    birthDate?: string;
+    gender?: string;
+    city?: string;
+    state?: string;
+    neighborhood?: string;
+    university?: string;
+    course?: string;
+    occupation?: string;
+  }) {
+    return this.request<any>(`/api/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ViaCEP integration
+  async fetchAddressByCep(cep: string): Promise<{
+    cep: string;
+    logradouro: string;
+    complemento: string;
+    bairro: string;
+    localidade: string;
+    uf: string;
+    erro?: boolean;
+  } | null> {
+    try {
+      const cleanCep = cep.replace(/\D/g, '');
+      if (cleanCep.length !== 8) return null;
+
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) return null;
+      return data;
+    } catch (error) {
+      console.error('Error fetching CEP:', error);
+      return null;
+    }
+  }
+
+  async deleteCRMContact(id: string) {
+    return this.request<{ success: boolean }>(`/api/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getContactDetails(id: string) {
+    return this.request<{
+      id: string;
+      name: string;
+      phone: string;
+      email?: string;
+      notes?: string;
+      tags: string[];
+      birthDate?: string;
+      gender?: string;
+      city?: string;
+      state?: string;
+      university?: string;
+      course?: string;
+      occupation?: string;
+      leadScore?: number;
+      leadStatus?: string;
+      aiAnalysis?: string;
+      aiAnalyzedAt?: string;
+      totalMessages: number;
+      firstContactAt?: string;
+      createdAt: string;
+      memoriesByType: {
+        fact: Array<{ key: string; value: string; confidence: number }>;
+        preference: Array<{ key: string; value: string; confidence: number }>;
+        need: Array<{ key: string; value: string; confidence: number }>;
+        objection: Array<{ key: string; value: string; confidence: number }>;
+        interest: Array<{ key: string; value: string; confidence: number }>;
+        context: Array<{ key: string; value: string; confidence: number }>;
+      };
+    }>(`/api/contacts/${id}`);
+  }
+
+  async qualifyContact(id: string) {
+    return this.request<{
+      success: boolean;
+      score: number;
+      status: string;
+      analysis: string;
+      error?: string;
+    }>(`/api/contacts/${id}/qualify`, {
+      method: 'POST',
+    });
+  }
+
+  async getContactStats() {
+    return this.request<{
+      totalContacts: number;
+      activeContacts: number;
+      newThisWeek: number;
+    }>('/api/contacts/meta/stats');
+  }
+
+  async getContactTags() {
+    return this.request<string[]>('/api/contacts/meta/tags');
+  }
+
+  async getSegmentOptions() {
+    return this.request<{
+      tags: string[];
+      genders: string[];
+      cities: string[];
+      states: string[];
+      universities: string[];
+      courses: string[];
+      occupations: string[];
+    }>('/api/contacts/meta/segments');
+  }
+
+  async getDemographicAnalytics() {
+    return this.request<{
+      totalContacts: number;
+      byCity: Array<{ name: string; count: number }>;
+      byState: Array<{ name: string; count: number }>;
+      byNeighborhood: Array<{ name: string; count: number }>;
+      byUniversity: Array<{ name: string; count: number }>;
+      byCourse: Array<{ name: string; count: number }>;
+      byOccupation: Array<{ name: string; count: number }>;
+      byGender: Array<{ name: string; count: number }>;
+      byAge: Array<{ range: string; count: number }>;
+      byLeadStatus: Array<{ name: string; count: number }>;
+    }>('/api/contacts/meta/analytics');
+  }
+
+  // Campaigns endpoints
+  async getCampaigns() {
+    return this.request<Array<{
+      id: string;
+      name: string;
+      message: string;
+      mediaUrl: string | null;
+      mediaType: string | null;
+      status: string;
+      scheduledAt: string | null;
+      startedAt: string | null;
+      completedAt: string | null;
+      targetAll: boolean;
+      targetTags: string[];
+      targetGenders: string[];
+      targetCities: string[];
+      targetStates: string[];
+      targetUniversities: string[];
+      targetCourses: string[];
+      targetMinAge: number | null;
+      targetMaxAge: number | null;
+      totalRecipients: number;
+      sentCount: number;
+      pendingCount: number;
+      failedCount: number;
+      createdAt: string;
+    }>>('/api/campaigns');
+  }
+
+  async getCampaign(id: string) {
+    return this.request<any>(`/api/campaigns/${id}`);
+  }
+
+  async createCampaign(data: {
+    name: string;
+    message: string;
+    mediaUrl?: string;
+    targetAll?: boolean;
+    targetTags?: string[];
+    targetGenders?: string[];
+    targetCities?: string[];
+    targetStates?: string[];
+    targetUniversities?: string[];
+    targetCourses?: string[];
+    targetMinAge?: number;
+    targetMaxAge?: number;
+    scheduledAt?: string;
+  }) {
+    return this.request<any>('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCampaign(id: string, data: {
+    name?: string;
+    message?: string;
+    mediaUrl?: string;
+    targetAll?: boolean;
+    targetTags?: string[];
+    targetGenders?: string[];
+    targetCities?: string[];
+    targetStates?: string[];
+    targetUniversities?: string[];
+    targetCourses?: string[];
+    targetMinAge?: number;
+    targetMaxAge?: number;
+    scheduledAt?: string;
+  }) {
+    return this.request<any>(`/api/campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCampaign(id: string) {
+    return this.request<{ success: boolean }>(`/api/campaigns/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async startCampaign(id: string) {
+    return this.request<{ message: string; recipientCount?: number; error?: string }>(`/api/campaigns/${id}/start`, {
+      method: 'POST',
+    });
+  }
+
+  async cancelCampaign(id: string) {
+    return this.request<{ message: string }>(`/api/campaigns/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  async getCampaignStats() {
+    return this.request<{
+      totalCampaigns: number;
+      runningCampaigns: number;
+      completedCampaigns: number;
+      scheduledCampaigns: number;
+      totalMessagesSent: number;
+    }>('/api/campaigns/meta/stats');
+  }
+
   // Get media URL for a message (proxy through backend)
   getMediaUrl(messageId: string): string {
     return `${API_URL}/api/messages/media/${messageId}?token=${this.token}`;

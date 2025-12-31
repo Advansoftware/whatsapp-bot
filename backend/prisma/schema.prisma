@@ -40,6 +40,7 @@ model Company {
   contacts      Contact[]
   aiSecretary   AISecretary?
   conversations Conversation[]
+  campaigns     Campaign[]
 
   @@map("companies")
 }
@@ -49,15 +50,82 @@ model Contact {
   remoteJid     String   @map("remote_jid")
   pushName      String?  @map("push_name")
   profilePicUrl String?  @map("profile_pic_url")
-  companyId     String   @map("company_id")
-  instanceId    String?  @map("instance_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  notes         String?  @db.Text
+  tags          String[] @default([])
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Campos demográficos para segmentação
+  cep          String? // CEP para auto-preencher cidade/estado via ViaCEP
+  birthDate    DateTime? @map("birth_date")
+  gender       String? // 'male' | 'female' | 'other'
+  city         String?
+  state        String?
+  neighborhood String? // Bairro (preenchido via ViaCEP)
+  university   String?
+  course       String?
+  occupation   String?
+
+  // Lead scoring e análise de IA
+  leadScore     Int?      @map("lead_score") // 0-100
+  leadStatus    String?   @map("lead_status") // 'cold' | 'warm' | 'hot' | 'customer'
+  aiAnalysis    String?   @map("ai_analysis") @db.Text // Análise detalhada da IA
+  aiAnalyzedAt  DateTime? @map("ai_analyzed_at")
+  totalMessages Int       @default(0) @map("total_messages")
+
+  companyId  String   @map("company_id")
+  instanceId String?  @map("instance_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  memories ContactMemory[]
 
   @@unique([remoteJid, companyId])
   @@map("contacts")
+}
+
+// Memória estruturada por contato - evita reprocessar todo histórico
+model ContactMemory {
+  id        String @id @default(cuid())
+  contactId String @map("contact_id")
+
+  // Tipo de memória
+  type       String // 'fact' | 'preference' | 'need' | 'objection' | 'interest' | 'context'
+  key        String // Ex: "nome_filho", "produto_interesse", "reclamacao"
+  value      String  @db.Text // O valor da informação
+  confidence Float   @default(1.0) // 0-1, confiança na informação
+  source     String? // messageId de onde veio a info
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, type, key])
+  @@index([contactId])
+  @@map("contact_memories")
+}
+
+// Base de conhecimento da empresa - treinamento específico
+model CompanyKnowledge {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  category String // 'product' | 'faq' | 'policy' | 'objection_handler' | 'script' | 'error_correction'
+  title    String
+  content  String   @db.Text
+  keywords String[] @default([]) // Para busca rápida
+  priority Int      @default(0) // Maior = mais importante
+  isActive Boolean  @default(true) @map("is_active")
+
+  // Para correção de erros
+  wrongResponse   String? @map("wrong_response") @db.Text
+  correctResponse String? @map("correct_response") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, category])
+  @@map("company_knowledge")
 }
 
 model Product {
@@ -200,4 +268,52 @@ model AIInteraction {
 
   @@index([conversationId])
   @@map("ai_interactions")
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  message     String    @db.Text
+  mediaUrl    String?   @map("media_url")
+  mediaType   String?   @map("media_type") // 'image' | 'video' | 'document'
+  status      String    @default("draft") // 'draft' | 'scheduled' | 'running' | 'completed' | 'cancelled'
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Segmentation filters
+  targetAll          Boolean  @default(false) @map("target_all") // Send to all contacts
+  targetTags         String[] @default([]) @map("target_tags")
+  targetGenders      String[] @default([]) @map("target_genders")
+  targetCities       String[] @default([]) @map("target_cities")
+  targetStates       String[] @default([]) @map("target_states")
+  targetUniversities String[] @default([]) @map("target_universities")
+  targetCourses      String[] @default([]) @map("target_courses")
+  targetMinAge       Int?     @map("target_min_age")
+  targetMaxAge       Int?     @map("target_max_age")
+
+  companyId  String   @map("company_id")
+  instanceId String?  @map("instance_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recipients CampaignRecipient[]
+
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  id         String    @id @default(cuid())
+  campaignId String    @map("campaign_id")
+  remoteJid  String    @map("remote_jid")
+  status     String    @default("pending") // 'pending' | 'sent' | 'failed'
+  sentAt     DateTime? @map("sent_at")
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_recipients")
 }
