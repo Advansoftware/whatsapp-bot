@@ -169,6 +169,8 @@ class ApiClient {
         instanceName: string;
         createdAt: string;
         processedAt: string | null;
+        mediaUrl?: string | null;
+        mediaType?: string | null;
       }>;
       pagination: {
         page: number;
@@ -210,16 +212,67 @@ class ApiClient {
     return response.json() as Promise<{ success: boolean; messageId?: string }>;
   }
 
-  async getRecentConversations() {
-    return this.request<Array<{
-      id: string;
-      contact: string;
-      remoteJid: string;
-      lastMessage: string;
-      status: string;
-      instanceName: string;
-      timestamp: string;
-    }>>('/api/messages/recent');
+  async getRecentConversations(page = 1, limit = 30) {
+    return this.request<{
+      data: Array<{
+        id: string;
+        contact: string;
+        remoteJid: string;
+        lastMessage: string;
+        status: string;
+        instanceName: string;
+        instanceKey: string;
+        timestamp: string;
+        profilePicUrl?: string | null;
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }>(`/api/messages/recent?page=${page}&limit=${limit}`);
+  }
+
+  async searchConversations(query: string, limit = 20) {
+    return this.request<{
+      data: Array<{
+        id: string;
+        contact: string;
+        remoteJid: string;
+        lastMessage: string | null;
+        instanceName: string | null;
+        instanceKey: string;
+        timestamp: string;
+        profilePicUrl?: string | null;
+      }>;
+    }>(`/api/messages/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+
+  async getContacts(page = 1, limit = 50, query?: string) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    if (query) {
+      params.append('q', query);
+    }
+    return this.request<{
+      data: Array<{
+        id: string;
+        remoteJid: string;
+        pushName: string | null;
+        displayName: string;
+        profilePicUrl?: string | null;
+        instanceId: string;
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }>(`/api/messages/contacts?${params.toString()}`);
   }
 
   // Chatbot endpoints
@@ -369,6 +422,11 @@ class ApiClient {
       approvalRate: string;
       activeConversations: number;
     }>('/api/ai-secretary/stats');
+  }
+
+  // Get media URL for a message (proxy through backend)
+  getMediaUrl(messageId: string): string {
+    return `${API_URL}/api/messages/media/${messageId}?token=${this.token}`;
   }
 
   // Logout

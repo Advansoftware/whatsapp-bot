@@ -12,6 +12,7 @@ export interface WhatsappJobData {
   content: string;
   mediaUrl?: string;
   mediaType?: string;
+  mediaData?: any; // JSON data for downloading media via Evolution API
   pushName?: string;
   timestamp: number;
   fromMe?: boolean;
@@ -36,7 +37,7 @@ export class WhatsappProcessor extends WorkerHost {
   }
 
   async process(job: Job<WhatsappJobData>): Promise<any> {
-    const { instanceKey, remoteJid, messageId, content, mediaUrl, mediaType, fromMe, isHistory } = job.data;
+    const { instanceKey, remoteJid, messageId, content, mediaUrl, mediaType, mediaData, fromMe, isHistory } = job.data;
     const direction = fromMe ? 'outgoing' : 'incoming';
 
     this.logger.log(`Processing job ${job.id} from ${remoteJid} (History: ${!!isHistory})`);
@@ -67,6 +68,7 @@ export class WhatsappProcessor extends WorkerHost {
               content,
               mediaUrl,
               mediaType,
+              mediaData,
               direction,
               status: 'processed', // History is already processed
               companyId: instance.companyId,
@@ -90,6 +92,7 @@ export class WhatsappProcessor extends WorkerHost {
             content,
             mediaUrl,
             mediaType,
+            mediaData,
             direction: 'outgoing',
             status: 'processed',
             companyId: instance.companyId,
@@ -113,6 +116,7 @@ export class WhatsappProcessor extends WorkerHost {
           content,
           mediaUrl,
           mediaType,
+          mediaData,
           direction: 'incoming',
           status: 'pending',
           companyId: instance.companyId,

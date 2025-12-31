@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from "react";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Box,
   Paper,
@@ -14,27 +14,55 @@ import {
   IconButton,
   InputAdornment,
   Snackbar,
-} from '@mui/material';
-import { Chat, Visibility, VisibilityOff } from '@mui/icons-material';
+} from "@mui/material";
+import {
+  Chat,
+  Visibility,
+  VisibilityOff,
+  CheckCircle,
+  Error as ErrorIcon,
+  WifiOff,
+} from "@mui/icons-material";
 
 interface LoginViewProps {
   onLoginSuccess?: () => void;
 }
 
+type ToastType = "success" | "error" | "warning";
+
+interface ToastState {
+  open: boolean;
+  message: string;
+  type: ToastType;
+}
+
 const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const { loginWithGoogle, login, register, isLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
+    name: "",
+    email: "",
+    password: "",
   });
 
-  const [success, setSuccess] = useState<string>('');
+  // Toast State
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (message: string, type: ToastType) => {
+    setToast({ open: true, message, type });
+  };
+
+  const handleCloseToast = () => {
+    setToast({ ...toast, open: false });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -42,94 +70,117 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
 
     try {
       if (isLogin) {
         await login({ email: formData.email, password: formData.password });
-        setSuccess('Login realizado com sucesso! Redirecionando...');
+        showToast("Login realizado com sucesso! Redirecionando...", "success");
       } else {
         await register(formData);
-        setSuccess('Cadastro realizado com sucesso! Redirecionando...');
+        showToast(
+          "Cadastro realizado com sucesso! Redirecionando...",
+          "success"
+        );
       }
-      
+
       // Delay redirection to show success message
       setTimeout(() => {
         onLoginSuccess?.();
       }, 1500);
     } catch (err: any) {
-      console.error('Auth error:', err);
-      // Format error message better if possible
+      console.error("Auth error:", err);
+      // Format error message and show appropriate toast
       let msg = err.message;
-      if (msg === 'Unauthorized' || msg === 'Request failed') {
-        msg = 'Credenciais inválidas. Verifique seu e-mail e senha.';
-      } else if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
-        msg = 'Erro de conexão: O servidor não está respondendo. Verifique se o backend está rodando.';
+      let toastType: ToastType = "error";
+
+      if (
+        msg === "Failed to fetch" ||
+        msg.includes("NetworkError") ||
+        msg.includes("ECONNREFUSED")
+      ) {
+        msg = "API fora do ar. O servidor não está respondendo.";
+        toastType = "warning";
+        showToast(msg, toastType);
+      } else if (msg === "Unauthorized" || msg === "Request failed") {
+        msg = "Credenciais inválidas. Verifique seu e-mail e senha.";
+        showToast(msg, "error");
+      } else {
+        showToast(msg || "Erro ao autenticar. Tente novamente.", "error");
       }
-      setError(msg || 'Erro ao autenticar. Tente novamente.');
+      setError(msg || "Erro ao autenticar. Tente novamente.");
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse
+  ) => {
     if (!credentialResponse.credential) {
-      setError('Falha na autenticação com Google');
+      showToast("Falha na autenticação com Google", "error");
+      setError("Falha na autenticação com Google");
       return;
     }
 
     try {
-      setError('');
-      setSuccess('');
+      setError("");
       await loginWithGoogle(credentialResponse.credential);
-      setSuccess('Login com Google realizado com sucesso!');
+      showToast("Login com Google realizado com sucesso!", "success");
       setTimeout(() => {
         onLoginSuccess?.();
       }, 1500);
-    } catch (err) {
-      setError('Erro ao fazer login com Google. Tente novamente.');
-      console.error('Google login error:', err);
+    } catch (err: any) {
+      let msg = err.message;
+      if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+        msg = "API fora do ar. O servidor não está respondendo.";
+        showToast(msg, "warning");
+      } else {
+        showToast("Erro ao fazer login com Google. Tente novamente.", "error");
+      }
+      setError("Erro ao fazer login com Google. Tente novamente.");
+      console.error("Google login error:", err);
     }
   };
 
   const handleGoogleError = () => {
-    setError('Falha na autenticação com Google. Tente novamente.');
+    showToast("Falha na autenticação com Google. Tente novamente.", "error");
+    setError("Falha na autenticação com Google. Tente novamente.");
   };
 
   return (
     <Box
       sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: '#111b21',
-        position: 'relative',
-        overflow: 'hidden',
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "#111b21",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
       {/* Background effects */}
       <Box
         sx={{
-          position: 'absolute',
-          top: '-10%',
-          left: '-5%',
+          position: "absolute",
+          top: "-10%",
+          left: "-5%",
           width: 500,
           height: 500,
-          bgcolor: 'rgba(0, 168, 132, 0.1)',
-          borderRadius: '50%',
-          filter: 'blur(100px)',
+          bgcolor: "rgba(0, 168, 132, 0.1)",
+          borderRadius: "50%",
+          filter: "blur(100px)",
         }}
       />
       <Box
         sx={{
-          position: 'absolute',
-          top: '20%',
-          right: '-5%',
+          position: "absolute",
+          top: "20%",
+          right: "-5%",
           width: 400,
           height: 400,
-          bgcolor: 'rgba(0, 168, 132, 0.05)',
-          borderRadius: '50%',
-          filter: 'blur(100px)',
+          bgcolor: "rgba(0, 168, 132, 0.05)",
+          borderRadius: "50%",
+          filter: "blur(100px)",
         }}
       />
 
@@ -137,42 +188,42 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         elevation={0}
         sx={{
           maxWidth: 480,
-          width: '100%',
+          width: "100%",
           mx: 2,
-          bgcolor: '#202c33',
+          bgcolor: "#202c33",
           borderRadius: 3,
-          border: '1px solid #2a3942',
-          overflow: 'hidden',
+          border: "1px solid #2a3942",
+          overflow: "hidden",
         }}
       >
         {/* Header */}
-        <Box sx={{ pt: 6, pb: 2, px: 4, textAlign: 'center' }}>
+        <Box sx={{ pt: 6, pb: 2, px: 4, textAlign: "center" }}>
           <Box
             sx={{
               width: 64,
               height: 64,
-              bgcolor: 'rgba(0, 168, 132, 0.1)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
+              bgcolor: "rgba(0, 168, 132, 0.1)",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
               mb: 3,
-              border: '1px solid rgba(0, 168, 132, 0.2)',
+              border: "1px solid rgba(0, 168, 132, 0.2)",
             }}
           >
-            <Chat sx={{ fontSize: 32, color: '#00a884' }} />
+            <Chat sx={{ fontSize: 32, color: "#00a884" }} />
           </Box>
           <Typography
             variant="h4"
-            sx={{ color: '#e9edef', fontWeight: 'bold', mb: 1 }}
+            sx={{ color: "#e9edef", fontWeight: "bold", mb: 1 }}
           >
-            {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
+            {isLogin ? "Bem-vindo de volta" : "Crie sua conta"}
           </Typography>
-          <Typography sx={{ color: '#8696a0', fontSize: 14 }}>
-            {isLogin 
-              ? 'Faça login para acessar seu painel' 
-              : 'Comece a automatizar seu WhatsApp hoje mesmo'}
+          <Typography sx={{ color: "#8696a0", fontSize: 14 }}>
+            {isLogin
+              ? "Faça login para acessar seu painel"
+              : "Comece a automatizar seu WhatsApp hoje mesmo"}
           </Typography>
         </Box>
 
@@ -185,7 +236,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           )}
 
           <form onSubmit={handleSubmit}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {!isLogin && (
                 <TextField
                   fullWidth
@@ -196,12 +247,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   variant="outlined"
                   required={!isLogin}
                   sx={{
-                    '& .MuiOutlinedInput-root': {
-                      color: '#e9edef',
-                      '& fieldset': { borderColor: '#2a3942' },
-                      '&:hover fieldset': { borderColor: '#00a884' },
+                    "& .MuiOutlinedInput-root": {
+                      color: "#e9edef",
+                      "& fieldset": { borderColor: "#2a3942" },
+                      "&:hover fieldset": { borderColor: "#00a884" },
                     },
-                    '& .MuiInputLabel-root': { color: '#8696a0' },
+                    "& .MuiInputLabel-root": { color: "#8696a0" },
                   }}
                 />
               )}
@@ -216,12 +267,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 variant="outlined"
                 required
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    color: '#e9edef',
-                    '& fieldset': { borderColor: '#2a3942' },
-                    '&:hover fieldset': { borderColor: '#00a884' },
+                  "& .MuiOutlinedInput-root": {
+                    color: "#e9edef",
+                    "& fieldset": { borderColor: "#2a3942" },
+                    "&:hover fieldset": { borderColor: "#00a884" },
                   },
-                  '& .MuiInputLabel-root': { color: '#8696a0' },
+                  "& .MuiInputLabel-root": { color: "#8696a0" },
                 }}
               />
 
@@ -229,7 +280,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 fullWidth
                 label="Senha"
                 name="password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleChange}
                 variant="outlined"
@@ -240,7 +291,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
-                        sx={{ color: '#8696a0' }}
+                        sx={{ color: "#8696a0" }}
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
@@ -248,12 +299,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   ),
                 }}
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    color: '#e9edef',
-                    '& fieldset': { borderColor: '#2a3942' },
-                    '&:hover fieldset': { borderColor: '#00a884' },
+                  "& .MuiOutlinedInput-root": {
+                    color: "#e9edef",
+                    "& fieldset": { borderColor: "#2a3942" },
+                    "&:hover fieldset": { borderColor: "#00a884" },
                   },
-                  '& .MuiInputLabel-root': { color: '#8696a0' },
+                  "& .MuiInputLabel-root": { color: "#8696a0" },
                 }}
               />
 
@@ -264,30 +315,32 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 disabled={isLoading}
                 sx={{
                   mt: 2,
-                  bgcolor: '#00a884',
-                  '&:hover': { bgcolor: '#008f6f' },
+                  bgcolor: "#00a884",
+                  "&:hover": { bgcolor: "#008f6f" },
                   height: 48,
-                  fontWeight: 'bold',
+                  fontWeight: "bold",
                 }}
               >
                 {isLoading ? (
                   <CircularProgress size={24} color="inherit" />
+                ) : isLogin ? (
+                  "Entrar"
                 ) : (
-                  isLogin ? 'Entrar' : 'Cadastrar'
+                  "Cadastrar"
                 )}
               </Button>
             </Box>
           </form>
 
-          <Box sx={{ my: 3, display: 'flex', alignItems: 'center' }}>
-            <Divider sx={{ flex: 1, borderColor: '#2a3942' }} />
-            <Typography sx={{ px: 2, color: '#8696a0', fontSize: 12 }}>
+          <Box sx={{ my: 3, display: "flex", alignItems: "center" }}>
+            <Divider sx={{ flex: 1, borderColor: "#2a3942" }} />
+            <Typography sx={{ px: 2, color: "#8696a0", fontSize: 12 }}>
               OU
             </Typography>
-            <Divider sx={{ flex: 1, borderColor: '#2a3942' }} />
+            <Divider sx={{ flex: 1, borderColor: "#2a3942" }} />
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
@@ -304,38 +357,74 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         {/* Footer */}
         <Box
           sx={{
-            bgcolor: '#182329',
+            bgcolor: "#182329",
             py: 2,
             px: 4,
-            textAlign: 'center',
-            borderTop: '1px solid #2a3942',
+            textAlign: "center",
+            borderTop: "1px solid #2a3942",
           }}
         >
-          <Typography sx={{ color: '#8696a0', fontSize: 14 }}>
-            {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}{' '}
+          <Typography sx={{ color: "#8696a0", fontSize: 14 }}>
+            {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}{" "}
             <Link
               component="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                setError('');
-                setFormData({ name: '', email: '', password: '' });
+                setError("");
+                setFormData({ name: "", email: "", password: "" });
               }}
               sx={{
-                color: '#00a884',
+                color: "#00a884",
                 fontWeight: 600,
-                textDecoration: 'none',
-                verticalAlign: 'baseline',
+                textDecoration: "none",
+                verticalAlign: "baseline",
               }}
             >
-              {isLogin ? 'Cadastre-se' : 'Faça Login'}
+              {isLogin ? "Cadastre-se" : "Faça Login"}
             </Link>
           </Typography>
         </Box>
       </Paper>
 
-      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-        <Alert onClose={() => setSuccess('')} severity="success" sx={{ width: '100%' }}>
-          {success}
+      {/* Toast centralizado para feedback */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ top: "24px !important" }}
+      >
+        <Alert
+          onClose={handleCloseToast}
+          severity={toast.type}
+          variant="filled"
+          icon={
+            toast.type === "success" ? (
+              <CheckCircle />
+            ) : toast.type === "warning" ? (
+              <WifiOff />
+            ) : (
+              <ErrorIcon />
+            )
+          }
+          sx={{
+            width: "100%",
+            minWidth: 320,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            fontSize: "0.95rem",
+            alignItems: "center",
+            ...(toast.type === "success" && {
+              bgcolor: "#00a884",
+            }),
+            ...(toast.type === "warning" && {
+              bgcolor: "#f59e0b",
+            }),
+            ...(toast.type === "error" && {
+              bgcolor: "#ef4444",
+            }),
+          }}
+        >
+          {toast.message}
         </Alert>
       </Snackbar>
     </Box>

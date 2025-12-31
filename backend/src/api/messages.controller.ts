@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus, UseInterceptors, UploadedFile, Param, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -102,10 +103,35 @@ export class MessagesController {
         { headers: { 'apikey': evolutionApiKey } }
       );
 
-      // We don't save to DB here; we let the "messages.upsert" webhook handle the saving for consistency 
-      // and to avoid duplication logic. Evolution sends a webhook for the message sent by the bot too.
+      const messageId = response.data?.key?.id;
 
-      return { success: true, messageId: response.data?.key?.id };
+      // Save message immediately to DB so it persists when switching chats
+      // The webhook may update it later with more info, but it will already exist
+      if (messageId) {
+        try {
+          await this.prisma.message.upsert({
+            where: { messageId },
+            create: {
+              messageId,
+              remoteJid,
+              content,
+              direction: 'outgoing',
+              status: 'sent',
+              companyId: instance.companyId,
+              instanceId: instance.id,
+            },
+            update: {
+              // If webhook already created it, just update status
+              status: 'sent',
+            },
+          });
+        } catch (dbError) {
+          // Log but don't fail - the webhook will handle it
+          console.warn('Could not save message to DB:', dbError.message);
+        }
+      }
+
+      return { success: true, messageId };
     } catch (error) {
       console.error('Error sending message:', error.message);
       throw new HttpException('Failed to send message', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -170,15 +196,30 @@ export class MessagesController {
   }
 
   @Get('recent')
-  async getRecentConversations(@Request() req: any) {
+  async getRecentConversations(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '30',
+  ) {
     const companyId = req.user.companyId;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count of unique remoteJids
+    const totalResult = await this.prisma.message.groupBy({
+      by: ['remoteJid'],
+      where: { companyId },
+    });
+    const total = totalResult.length;
 
     // Get unique contacts with their last message
     const conversations = await this.prisma.message.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
       distinct: ['remoteJid'],
-      take: 50,
+      skip,
+      take: limitNum,
       include: {
         instance: {
           select: { name: true, instanceKey: true },
@@ -197,21 +238,242 @@ export class MessagesController {
 
     const contactMap = new Map(contacts.map(c => [c.remoteJid, c]));
 
-    return conversations.map((msg) => {
-      const contact = contactMap.get(msg.remoteJid);
-      return {
-        id: msg.id,
-        contact: contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid),
-        remoteJid: msg.remoteJid,
-        lastMessage: msg.content.substring(0, 100),
-        status: msg.status,
-        instanceName: msg.instance.name,
-        instanceKey: msg.instance.instanceKey,
-        timestamp: msg.createdAt,
-        pushName: contact?.pushName || msg.pushName,
-        profilePicUrl: contact?.profilePicUrl || null,
-      };
+    return {
+      data: conversations.map((msg) => {
+        const contact = contactMap.get(msg.remoteJid);
+        return {
+          id: msg.id,
+          contact: contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid),
+          remoteJid: msg.remoteJid,
+          lastMessage: msg.content.substring(0, 100),
+          status: msg.status,
+          instanceName: msg.instance.name,
+          instanceKey: msg.instance.instanceKey,
+          timestamp: msg.createdAt,
+          pushName: contact?.pushName || msg.pushName,
+          profilePicUrl: contact?.profilePicUrl || null,
+        };
+      }),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  @Get('media/:messageId')
+  async getMedia(
+    @Request() req: any,
+    @Param('messageId') messageId: string,
+    @Res() res: Response
+  ) {
+    const companyId = req.user.companyId;
+
+    // Find message
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, companyId },
+      include: { instance: true }
     });
+
+    if (!message) {
+      throw new HttpException('Message not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (!message.mediaData && !message.mediaUrl) {
+      throw new HttpException('No media data available', HttpStatus.BAD_REQUEST);
+    }
+
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+    try {
+      // If we have mediaData, use Evolution API to download
+      if (message.mediaData) {
+        const response = await axios.post(
+          `${evolutionUrl}/chat/getBase64FromMediaMessage/${message.instance.instanceKey}`,
+          { message: message.mediaData },
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+
+        if (response.data?.base64) {
+          const base64 = response.data.base64;
+          const mimetype = response.data.mimetype || 'application/octet-stream';
+          const buffer = Buffer.from(base64, 'base64');
+
+          res.set({
+            'Content-Type': mimetype,
+            'Content-Length': buffer.length,
+            'Cache-Control': 'public, max-age=31536000',
+          });
+
+          return res.send(buffer);
+        }
+      }
+
+      // Fallback: try to proxy the mediaUrl directly
+      if (message.mediaUrl) {
+        const mediaResponse = await axios.get(message.mediaUrl, {
+          responseType: 'arraybuffer',
+          timeout: 30000,
+        });
+
+        const contentType = mediaResponse.headers['content-type'] || 'application/octet-stream';
+
+        res.set({
+          'Content-Type': contentType,
+          'Content-Length': mediaResponse.data.length,
+          'Cache-Control': 'public, max-age=31536000',
+        });
+
+        return res.send(Buffer.from(mediaResponse.data));
+      }
+
+      throw new HttpException('Unable to fetch media', HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (error) {
+      console.error('Error fetching media:', error.message);
+      throw new HttpException('Failed to fetch media', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('search')
+  async searchConversations(
+    @Request() req: any,
+    @Query('q') query: string,
+    @Query('limit') limit: string = '20',
+  ) {
+    if (!query || query.length < 2) {
+      return { data: [] };
+    }
+
+    const companyId = req.user.companyId;
+    const limitNum = parseInt(limit, 10);
+
+    // Search in messages and contacts
+    const [messageResults, contactResults] = await Promise.all([
+      // Search in messages
+      this.prisma.message.findMany({
+        where: {
+          companyId,
+          OR: [
+            { content: { contains: query, mode: 'insensitive' } },
+            { pushName: { contains: query, mode: 'insensitive' } },
+            { remoteJid: { contains: query } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['remoteJid'],
+        take: limitNum,
+        include: {
+          instance: {
+            select: { name: true, instanceKey: true },
+          },
+        },
+      }),
+      // Search in contacts
+      this.prisma.contact.findMany({
+        where: {
+          companyId,
+          OR: [
+            { pushName: { contains: query, mode: 'insensitive' } },
+            { remoteJid: { contains: query } },
+          ],
+        },
+        take: limitNum,
+      }),
+    ]);
+
+    // Combine and dedupe results
+    const resultMap = new Map();
+
+    for (const msg of messageResults) {
+      if (!resultMap.has(msg.remoteJid)) {
+        resultMap.set(msg.remoteJid, {
+          id: msg.id,
+          contact: msg.pushName || this.formatPhoneNumber(msg.remoteJid),
+          remoteJid: msg.remoteJid,
+          lastMessage: msg.content.substring(0, 100),
+          instanceName: msg.instance.name,
+          instanceKey: msg.instance.instanceKey,
+          timestamp: msg.createdAt,
+          profilePicUrl: null,
+        });
+      }
+    }
+
+    for (const contact of contactResults) {
+      if (!resultMap.has(contact.remoteJid)) {
+        resultMap.set(contact.remoteJid, {
+          id: contact.id,
+          contact: contact.pushName || this.formatPhoneNumber(contact.remoteJid),
+          remoteJid: contact.remoteJid,
+          lastMessage: null,
+          instanceName: null,
+          instanceKey: contact.instanceId,
+          timestamp: contact.createdAt,
+          profilePicUrl: contact.profilePicUrl,
+        });
+      } else {
+        // Update with contact info
+        const existing = resultMap.get(contact.remoteJid);
+        existing.contact = contact.pushName || existing.contact;
+        existing.profilePicUrl = contact.profilePicUrl;
+      }
+    }
+
+    return {
+      data: Array.from(resultMap.values()).slice(0, limitNum),
+    };
+  }
+
+  @Get('contacts')
+  async getContacts(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+    @Query('q') query?: string,
+  ) {
+    const companyId = req.user.companyId;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = { companyId };
+
+    if (query && query.length >= 2) {
+      where.OR = [
+        { pushName: { contains: query, mode: 'insensitive' } },
+        { remoteJid: { contains: query } },
+      ];
+    }
+
+    const [contacts, total] = await Promise.all([
+      this.prisma.contact.findMany({
+        where,
+        orderBy: { pushName: 'asc' },
+        skip,
+        take: limitNum,
+      }),
+      this.prisma.contact.count({ where }),
+    ]);
+
+    return {
+      data: contacts.map((contact) => ({
+        id: contact.id,
+        remoteJid: contact.remoteJid,
+        pushName: contact.pushName,
+        displayName: contact.pushName || this.formatPhoneNumber(contact.remoteJid),
+        profilePicUrl: contact.profilePicUrl,
+        instanceId: contact.instanceId,
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
   }
 
   private formatPhoneNumber(jid: string): string {

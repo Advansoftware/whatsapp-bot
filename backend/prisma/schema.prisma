@@ -125,13 +125,14 @@ model Instance {
 model Message {
   id          String    @id @default(cuid())
   remoteJid   String    @map("remote_jid")
-  messageId   String    @map("message_id")
+  messageId   String    @unique @map("message_id")
   content     String    @db.Text
   response    String?   @db.Text
   direction   String
   pushName    String?   @map("push_name")
   mediaUrl    String?   @map("media_url")
   mediaType   String?   @map("media_type") // 'image', 'video', 'audio', 'document'
+  mediaData   Json?     @map("media_data") // JSON data for downloading media via Evolution API
   status      String    @default("pending") // 'pending' | 'processed' | 'failed'
   processedAt DateTime? @map("processed_at")
   companyId   String    @map("company_id")

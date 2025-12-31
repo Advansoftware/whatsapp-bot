@@ -87,11 +87,32 @@ export class WebhookController {
       const data = payload.data!;
       const fromMe = data.key.fromMe || false;
 
+      // Log message structure for debugging media
+      const message = data.message;
+      if (message?.imageMessage || message?.videoMessage || message?.audioMessage || message?.documentMessage) {
+        this.logger.log(`[MEDIA DEBUG] Full message structure: ${JSON.stringify(message, null, 2)}`);
+        this.logger.log(`[MEDIA DEBUG] Data keys: ${JSON.stringify(Object.keys(data))}`);
+        // Check if base64 is already provided
+        if (message.base64) {
+          this.logger.log(`[MEDIA DEBUG] base64 is present in message`);
+        }
+      }
+
       // Extract message content
       const messageData = this.extractMessageContent(payload);
 
       if (!messageData) {
         return { status: 'ignored', reason: 'no_text_content' };
+      }
+
+      // Prepare mediaData for later download via Evolution API getBase64FromMediaMessage
+      let mediaData = null;
+      if (messageData.mediaType) {
+        mediaData = {
+          key: data.key,
+          message: data.message,
+          messageType: messageData.mediaType + 'Message',
+        };
       }
 
       // Create job data
@@ -102,6 +123,7 @@ export class WebhookController {
         content: messageData.content,
         mediaUrl: messageData.mediaUrl,
         mediaType: messageData.mediaType,
+        mediaData: mediaData,
         pushName: data.pushName,
         timestamp: data.messageTimestamp,
         fromMe,
@@ -348,6 +370,7 @@ export class WebhookController {
    */
   private extractMessageContent(payload: EvolutionWebhookDto): { content: string; mediaUrl?: string; mediaType?: string } | null {
     const message = payload.data?.message;
+    const data = payload.data;
 
     if (!message) return null;
 
@@ -361,20 +384,71 @@ export class WebhookController {
       return { content: message.extendedTextMessage.text };
     }
 
-    // Image/video with caption
+    // Image message - Evolution API v2 format
     if (message.imageMessage) {
+      // Try multiple URL sources that Evolution might use
+      const mediaUrl = message.imageMessage.url
+        || data.media?.url
+        || data.mediaUrl
+        || message.imageMessage.directPath;
+
       return {
         content: message.imageMessage.caption || '[Imagem]',
-        mediaUrl: message.imageMessage.url,
+        mediaUrl: mediaUrl,
         mediaType: 'image'
       };
     }
 
+    // Video message
     if (message.videoMessage) {
+      const mediaUrl = message.videoMessage.url
+        || data.media?.url
+        || data.mediaUrl
+        || message.videoMessage.directPath;
+
       return {
         content: message.videoMessage.caption || '[Vídeo]',
-        mediaUrl: message.videoMessage.url,
+        mediaUrl: mediaUrl,
         mediaType: 'video'
+      };
+    }
+
+    // Audio message
+    if (message.audioMessage) {
+      const mediaUrl = message.audioMessage.url
+        || data.media?.url
+        || data.mediaUrl;
+
+      return {
+        content: '[Áudio]',
+        mediaUrl: mediaUrl,
+        mediaType: 'audio'
+      };
+    }
+
+    // Document message
+    if (message.documentMessage) {
+      const mediaUrl = message.documentMessage.url
+        || data.media?.url
+        || data.mediaUrl;
+
+      return {
+        content: message.documentMessage.fileName || '[Documento]',
+        mediaUrl: mediaUrl,
+        mediaType: 'document'
+      };
+    }
+
+    // Sticker message
+    if (message.stickerMessage) {
+      const mediaUrl = message.stickerMessage.url
+        || data.media?.url
+        || data.mediaUrl;
+
+      return {
+        content: '[Sticker]',
+        mediaUrl: mediaUrl,
+        mediaType: 'sticker'
       };
     }
 

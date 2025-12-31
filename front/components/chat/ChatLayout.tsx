@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -12,10 +12,15 @@ import {
   useTheme,
   InputBase,
   IconButton,
+  CircularProgress,
+  Fab,
+  Zoom,
 } from "@mui/material";
-import { Search } from "@mui/icons-material";
+import { Search, Edit, Close } from "@mui/icons-material";
 import { useRecentConversations } from "../../hooks/useApi";
 import { useSocket } from "../../hooks/useSocket";
+import api from "../../lib/api";
+import NewChatModal from "./NewChatModal";
 
 interface ChatLayoutProps {
   onSelectChat: (
@@ -34,16 +39,60 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   children,
 }) => {
   const theme = useTheme();
-  const { data: conversations, isLoading, refetch } = useRecentConversations();
-  const { socket } = useSocket();
-  const [searchQuery, setSearchQuery] = useState("");
+  const isDark = theme.palette.mode === "dark";
 
-  // Listen for new messages to refresh conversation list
+  const {
+    data: conversations,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    updateConversation,
+    refetch,
+  } = useRecentConversations();
+  const { socket } = useSocket();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [newChatModalOpen, setNewChatModalOpen] = useState(false);
+  const [defaultInstanceKey, setDefaultInstanceKey] = useState("");
+
+  const listRef = useRef<HTMLUListElement>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get default instance key from first conversation
+  useEffect(() => {
+    if (conversations.length > 0 && !defaultInstanceKey) {
+      setDefaultInstanceKey(
+        conversations[0].instanceKey || conversations[0].instanceName
+      );
+    }
+  }, [conversations, defaultInstanceKey]);
+
+  // Listen for new messages to update conversation list in real-time
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = () => {
-      refetch();
+    const handleNewMessage = (data: any) => {
+      const remoteJid = data.remoteJid || data.key?.remoteJid;
+      const content =
+        data.content ||
+        data.message?.conversation ||
+        data.message?.extendedTextMessage?.text ||
+        "[Mídia]";
+      const timestamp = data.createdAt || new Date().toISOString();
+
+      if (remoteJid) {
+        const exists = conversations.some(
+          (c: any) => c.remoteJid === remoteJid
+        );
+        if (exists) {
+          updateConversation(remoteJid, content, timestamp);
+        } else {
+          refetch();
+        }
+      }
     };
 
     const handleContactsUpdate = () => {
@@ -57,21 +106,56 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
       socket.off("new_message", handleNewMessage);
       socket.off("contacts_update", handleContactsUpdate);
     };
-  }, [socket, refetch]);
+  }, [socket, conversations, updateConversation, refetch]);
 
-  const getInitials = (contact: string) => {
-    if (!contact) return "??";
-    const parts = contact.split(" ");
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+  // Global search with debounce
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
     }
-    return contact.substring(0, 2).toUpperCase();
-  };
+
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const result = await api.searchConversations(searchQuery);
+        setSearchResults(result.data || []);
+      } catch (err) {
+        console.error("Error searching:", err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback(() => {
+    if (!listRef.current || isLoadingMore || !hasMore || searchResults) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      loadMore();
+    }
+  }, [isLoadingMore, hasMore, loadMore, searchResults]);
 
   const formatTime = (timestamp: string) => {
+    if (!timestamp) return "";
     const date = new Date(timestamp);
     const now = new Date();
-    // basic formatting
     if (now.getDate() === date.getDate()) {
       return date.toLocaleTimeString([], {
         hour: "2-digit",
@@ -81,13 +165,25 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
     return date.toLocaleDateString();
   };
 
-  // Filter conversations based on search query
-  const filteredConversations =
-    conversations?.filter(
-      (conv) =>
-        conv.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setSearchResults(null);
+  };
+
+  // Handle new chat selection
+  const handleNewChatSelect = (
+    remoteJid: string,
+    contact: string,
+    instanceKey: string,
+    profilePicUrl?: string | null
+  ) => {
+    onSelectChat(remoteJid, contact, instanceKey, profilePicUrl);
+    setNewChatModalOpen(false);
+  };
+
+  // Display list - search results or conversations
+  const displayList = searchResults || conversations;
 
   return (
     <Box display="flex" height="calc(100vh - 100px)" gap={2}>
@@ -100,6 +196,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
           flexDirection: "column",
           border: `1px solid ${theme.palette.divider}`,
           overflow: "hidden",
+          position: "relative",
         }}
       >
         <Box p={2} borderBottom={`1px solid ${theme.palette.divider}`}>
@@ -121,105 +218,176 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
             </IconButton>
             <InputBase
               sx={{ ml: 1, flex: 1 }}
-              placeholder="Buscar conversa..."
+              placeholder="Buscar em todas conversas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <IconButton size="small" onClick={handleClearSearch}>
+                <Close fontSize="small" />
+              </IconButton>
+            )}
           </Paper>
+          {searchResults && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1, display: "block" }}
+            >
+              {searchResults.length} resultado(s) encontrado(s)
+            </Typography>
+          )}
         </Box>
 
-        <List
-          sx={{
-            flex: 1,
-            overflow: "auto",
-            p: 0,
-            "&::-webkit-scrollbar": {
-              width: "6px",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor:
-                theme.palette.mode === "dark"
+        {isLoading || isSearching ? (
+          <Box display="flex" justifyContent="center" py={4}>
+            <CircularProgress sx={{ color: "#00a884" }} />
+          </Box>
+        ) : (
+          <List
+            ref={listRef}
+            onScroll={handleScroll}
+            sx={{
+              flex: 1,
+              overflow: "auto",
+              p: 0,
+              "&::-webkit-scrollbar": { width: "6px" },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: isDark
                   ? "rgba(255,255,255,0.2)"
                   : "rgba(0,0,0,0.2)",
-              borderRadius: "3px",
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              backgroundColor:
-                theme.palette.mode === "dark"
+                borderRadius: "3px",
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                backgroundColor: isDark
                   ? "rgba(255,255,255,0.3)"
                   : "rgba(0,0,0,0.3)",
-            },
-          }}
-        >
-          {filteredConversations.map((conv) => (
-            <React.Fragment key={conv.id}>
-              <ListItemButton
-                selected={selectedChatId === conv.remoteJid}
-                onClick={() =>
-                  onSelectChat(
-                    conv.remoteJid,
-                    conv.contact,
-                    conv.instanceKey || conv.instanceName,
-                    conv.profilePicUrl
-                  )
-                }
-                sx={{
-                  py: 1.5,
-                  "&.Mui-selected": {
-                    bgcolor:
-                      theme.palette.mode === "dark"
+              },
+            }}
+          >
+            {displayList.length === 0 && (
+              <Box py={4} textAlign="center">
+                <Typography color="text.secondary">
+                  {searchQuery
+                    ? "Nenhuma conversa encontrada"
+                    : "Nenhuma conversa ainda"}
+                </Typography>
+              </Box>
+            )}
+
+            {displayList.map((conv: any) => (
+              <React.Fragment key={conv.id}>
+                <ListItemButton
+                  selected={selectedChatId === conv.remoteJid}
+                  onClick={() =>
+                    onSelectChat(
+                      conv.remoteJid,
+                      conv.contact,
+                      conv.instanceKey || conv.instanceName,
+                      conv.profilePicUrl
+                    )
+                  }
+                  sx={{
+                    py: 1.5,
+                    "&.Mui-selected": {
+                      bgcolor: isDark
                         ? "rgba(0, 168, 132, 0.25)"
                         : "rgba(0, 168, 132, 0.15)",
-                    borderLeft: `4px solid #00a884`,
-                    "&:hover": {
-                      bgcolor:
-                        theme.palette.mode === "dark"
+                      borderLeft: `4px solid #00a884`,
+                      "&:hover": {
+                        bgcolor: isDark
                           ? "rgba(0, 168, 132, 0.35)"
                           : "rgba(0, 168, 132, 0.2)",
+                      },
                     },
-                  },
-                  "&:hover": {
-                    bgcolor:
-                      theme.palette.mode === "dark"
+                    "&:hover": {
+                      bgcolor: isDark
                         ? "rgba(255,255,255,0.05)"
                         : "rgba(0,0,0,0.04)",
-                  },
-                  transition: "background-color 0.2s ease",
-                }}
-              >
-                <ListItemAvatar>
-                  <Avatar
-                    src={
-                      conv.profilePicUrl ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        conv.contact
-                      )}&background=00a884&color=fff`
+                    },
+                    transition: "background-color 0.2s ease",
+                  }}
+                >
+                  <ListItemAvatar>
+                    <Avatar
+                      src={
+                        conv.profilePicUrl ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          conv.contact
+                        )}&background=00a884&color=fff`
+                      }
+                      sx={{ width: 48, height: 48 }}
+                    />
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="subtitle2" noWrap fontWeight={600}>
+                          {conv.contact}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTime(conv.timestamp)}
+                        </Typography>
+                      </Box>
                     }
-                    sx={{ width: 48, height: 48 }}
+                    secondary={
+                      conv.lastMessage && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          noWrap
+                        >
+                          {conv.lastMessage}
+                        </Typography>
+                      )
+                    }
                   />
-                </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="subtitle2" noWrap fontWeight={600}>
-                        {conv.contact}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatTime(conv.timestamp)}
-                      </Typography>
-                    </Box>
-                  }
-                  secondary={
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      {conv.lastMessage}
-                    </Typography>
-                  }
-                />
-              </ListItemButton>
-              <Divider component="li" />
-            </React.Fragment>
-          ))}
-        </List>
+                </ListItemButton>
+                <Divider component="li" />
+              </React.Fragment>
+            ))}
+
+            {/* Loading more indicator */}
+            {isLoadingMore && !searchResults && (
+              <Box display="flex" justifyContent="center" py={2}>
+                <CircularProgress size={24} sx={{ color: "#00a884" }} />
+              </Box>
+            )}
+
+            {/* End of list indicator */}
+            {!hasMore && conversations.length > 0 && !searchResults && (
+              <Box display="flex" justifyContent="center" py={2}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)",
+                    fontSize: "11px",
+                  }}
+                >
+                  Fim das conversas
+                </Typography>
+              </Box>
+            )}
+          </List>
+        )}
+
+        {/* Floating Action Button - New Chat */}
+        <Zoom in={!newChatModalOpen}>
+          <Fab
+            color="primary"
+            size="medium"
+            onClick={() => setNewChatModalOpen(true)}
+            sx={{
+              position: "absolute",
+              bottom: 16,
+              right: 16,
+              bgcolor: "#00a884",
+              "&:hover": { bgcolor: "#008f72" },
+            }}
+          >
+            <Edit />
+          </Fab>
+        </Zoom>
       </Paper>
 
       {/* Main Chat Area */}
@@ -235,6 +403,14 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
       >
         {children}
       </Paper>
+
+      {/* New Chat Modal */}
+      <NewChatModal
+        open={newChatModalOpen}
+        onClose={() => setNewChatModalOpen(false)}
+        onSelectContact={handleNewChatSelect}
+        defaultInstanceKey={defaultInstanceKey}
+      />
     </Box>
   );
 };
