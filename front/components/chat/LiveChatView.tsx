@@ -5,10 +5,10 @@ import { Box, Typography } from '@mui/material';
 import { SupportAgent } from '@mui/icons-material';
 
 const LiveChatView: React.FC = () => {
-  const [selectedChat, setSelectedChat] = useState<{ id: string; contact: string; instanceKey: string } | null>(null);
+  const [selectedChat, setSelectedChat] = useState<{ id: string; contact: string; instanceKey: string; profilePicUrl?: string | null } | null>(null);
 
-  const handleSelectChat = (id: string, contact: string, instanceKey: string) => {
-    setSelectedChat({ id, contact, instanceKey });
+  const handleSelectChat = (id: string, contact: string, instanceKey: string, profilePicUrl?: string | null) => {
+    setSelectedChat({ id, contact, instanceKey, profilePicUrl });
   };
 
   return (
@@ -17,7 +17,8 @@ const LiveChatView: React.FC = () => {
         <ChatWindow 
           chatId={selectedChat.id} 
           contactName={selectedChat.contact} 
-          instanceKey={selectedChat.instanceKey} 
+          instanceKey={selectedChat.instanceKey}
+          profilePicUrl={selectedChat.profilePicUrl}
         />
       ) : (
         <Box 

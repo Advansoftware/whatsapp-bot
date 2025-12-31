@@ -38,9 +38,10 @@ interface ChatWindowProps {
   chatId: string;
   contactName: string;
   instanceKey: string;
+  profilePicUrl?: string | null;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKey }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKey, profilePicUrl }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
@@ -56,6 +57,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
 
   // Inventory Modal State
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   
   const { data: messagesData, isLoading, refetch } = useChatMessages(chatId, 1, 50);
   const { socket } = useSocket();
@@ -63,6 +66,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
   const messages = messagesData?.data || [];
   // Sort messages oldest first for chat view
   const sortedMessages = [...messages].reverse();
+
+  // Fetch products when inventory modal opens
+  useEffect(() => {
+    if (inventoryOpen && products.length === 0) {
+      setProductsLoading(true);
+      api.getProducts()
+        .then(data => setProducts(data))
+        .catch(err => console.error('Failed to fetch products:', err))
+        .finally(() => setProductsLoading(false));
+    }
+  }, [inventoryOpen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -177,18 +191,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
         borderLeft={`1px solid ${colors.divider}`}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <Avatar src={`https://ui-avatars.com/api/?name=${contactName}&background=00a884&color=fff`} />
+          <Avatar 
+            src={profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(contactName)}&background=00a884&color=fff`} 
+            sx={{ width: 40, height: 40 }}
+          />
           <Box>
             <Typography variant="subtitle1" sx={{ color: colors.incomingText, lineHeight: 1.2 }}>
               {contactName}
             </Typography>
             <Typography variant="caption" sx={{ color: colors.timeText, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {isSyncing ? (
+              {isSyncing && (
                 <>
                   <CircularProgress size={10} thickness={5} sx={{ color: colors.timeText }} />
                   Sincronizando...
                 </>
-              ) : 'online'}
+              )}
             </Typography>
           </Box>
         </Box>
@@ -198,7 +215,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
       </Box>
 
       {/* Messages Area */}
-      <Box flex={1} p={3} overflow="auto" display="flex" flexDirection="column" gap={0.5}>
+      <Box 
+        flex={1} 
+        p={3} 
+        overflow="auto" 
+        display="flex" 
+        flexDirection="column" 
+        gap={0.5}
+        sx={{
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(11,20,26,0.16)',
+            borderRadius: '8px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.26)' : 'rgba(11,20,26,0.26)',
+          }
+        }}
+      >
         {isLoading ? (
           <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress sx={{ color: '#00a884' }} />
@@ -229,9 +268,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
                     boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)'
                   }}
                 >
-                  <Typography variant="body1" sx={{ fontSize: '14.2px', lineHeight: '19px', whiteSpace: 'pre-wrap' }}>
-                    {msg.content}
-                  </Typography>
+                  {/* Check if message contains image URL */}
+                  {(msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) || msg.content.includes('imageMessage')) ? (
+                    <Box 
+                      component="img" 
+                      src={msg.content} 
+                      alt="Image" 
+                      sx={{ 
+                        maxWidth: '100%', 
+                        maxHeight: 300, 
+                        borderRadius: 1,
+                        display: 'block'
+                      }} 
+                      onError={(e: any) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <Typography variant="body1" sx={{ fontSize: '14.2px', lineHeight: '19px', whiteSpace: 'pre-wrap' }}>
+                      {msg.content}
+                    </Typography>
+                  )}
                   <Box display="flex" justifyContent="flex-end" alignItems="center" gap={0.5} mt="2px">
                      <Typography variant="caption" sx={{ color: colors.timeText, fontSize: '11px', mt: '2px' }}>
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -333,24 +388,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
-           {/* Mock Inventory List */}
-           <Grid container spacing={2}>
-              {['Smartwatch Ultra', 'Fone Bluetooth Pro', 'Carregador Turbo', 'Capa iPhone 15'].map((item, index) => (
-                <Grid item xs={6} sm={4} key={index}>
-                  <Card sx={{ bgcolor: isDark ? '#111b21' : '#ffffff', color: colors.incomingText }}>
-                    <CardActionArea onClick={() => handleSendProduct(item, 'R$ 150,00')}>
-                      <Box height={100} bgcolor={isDark ? '#2a3942' : '#f0f2f5'} display="flex" alignItems="center" justifyContent="center">
-                        <InventoryIcon sx={{ fontSize: 40, opacity: 0.5, color: colors.iconColor }} />
-                      </Box>
-                      <CardContent>
-                        <Typography variant="body2" noWrap>{item}</Typography>
-                        <Typography variant="caption" color="#00a884">R$ 150,00</Typography>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                </Grid>
-              ))}
-           </Grid>
+           {productsLoading ? (
+             <Box display="flex" justifyContent="center" py={4}>
+               <CircularProgress />
+             </Box>
+           ) : products.length === 0 ? (
+             <Typography color="text.secondary" textAlign="center" py={4}>
+               Nenhum produto cadastrado. Adicione produtos no módulo Inventário.
+             </Typography>
+           ) : (
+             <Grid container spacing={2}>
+               {products.map((product) => (
+                 <Grid item xs={6} sm={4} key={product.id}>
+                   <Card sx={{ bgcolor: isDark ? '#111b21' : '#ffffff', color: colors.incomingText }}>
+                     <CardActionArea onClick={() => handleSendProduct(product.name, product.price)}>
+                       <Box height={100} bgcolor={isDark ? '#2a3942' : '#f0f2f5'} display="flex" alignItems="center" justifyContent="center">
+                         {product.imageUrl ? (
+                           <CardMedia component="img" height="100" image={product.imageUrl} alt={product.name} />
+                         ) : (
+                           <InventoryIcon sx={{ fontSize: 40, opacity: 0.5, color: colors.iconColor }} />
+                         )}
+                       </Box>
+                       <CardContent>
+                         <Typography variant="body2" noWrap>{product.name}</Typography>
+                         {product.variant && (
+                           <Typography variant="caption" color="text.secondary">{product.variant}</Typography>
+                         )}
+                         <Typography variant="caption" display="block" color="#00a884">{product.price}</Typography>
+                       </CardContent>
+                     </CardActionArea>
+                   </Card>
+                 </Grid>
+               ))}
+             </Grid>
+           )}
         </DialogContent>
       </Dialog>
     </Box>

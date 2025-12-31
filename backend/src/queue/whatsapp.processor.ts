@@ -9,6 +9,8 @@ export interface WhatsappJobData {
   remoteJid: string;
   messageId: string;
   content: string;
+  mediaUrl?: string;
+  mediaType?: string;
   pushName?: string;
   timestamp: number;
   fromMe?: boolean;
@@ -30,7 +32,7 @@ export class WhatsappProcessor extends WorkerHost {
   }
 
   async process(job: Job<WhatsappJobData>): Promise<any> {
-    const { instanceKey, remoteJid, messageId, content, fromMe, isHistory } = job.data;
+    const { instanceKey, remoteJid, messageId, content, mediaUrl, mediaType, fromMe, isHistory } = job.data;
     const direction = fromMe ? 'outgoing' : 'incoming';
 
     this.logger.log(`Processing job ${job.id} from ${remoteJid} (History: ${!!isHistory})`);
@@ -59,6 +61,8 @@ export class WhatsappProcessor extends WorkerHost {
               remoteJid,
               messageId,
               content,
+              mediaUrl,
+              mediaType,
               direction,
               status: 'processed', // History is already processed
               companyId: instance.companyId,
@@ -80,11 +84,12 @@ export class WhatsappProcessor extends WorkerHost {
             remoteJid,
             messageId,
             content,
+            mediaUrl,
+            mediaType,
             direction: 'outgoing',
             status: 'processed',
             companyId: instance.companyId,
             instanceId: instance.id,
-            // pushName not needed for 'fromMe' usually, but can add if available
           },
         });
         return { status: 'saved_outgoing' };
@@ -102,6 +107,8 @@ export class WhatsappProcessor extends WorkerHost {
           remoteJid,
           messageId,
           content,
+          mediaUrl,
+          mediaType,
           direction: 'incoming',
           status: 'pending',
           companyId: instance.companyId,

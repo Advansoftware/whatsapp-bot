@@ -60,6 +60,8 @@ export class MessagesController {
         createdAt: msg.createdAt,
         processedAt: msg.processedAt,
         pushName: msg.pushName,
+        mediaUrl: msg.mediaUrl,
+        mediaType: msg.mediaType,
       })),
       pagination: {
         page: pageNum,
@@ -117,25 +119,40 @@ export class MessagesController {
       where: { companyId },
       orderBy: { createdAt: 'desc' },
       distinct: ['remoteJid'],
-      take: 10,
+      take: 50,
       include: {
         instance: {
-          select: { name: true },
+          select: { name: true, instanceKey: true },
         },
       },
     });
 
-    return conversations.map((msg) => ({
-      id: msg.id,
-      contact: msg.pushName || this.formatPhoneNumber(msg.remoteJid),
-      remoteJid: msg.remoteJid,
-      lastMessage: msg.content.substring(0, 100),
-      status: msg.status,
-      instanceName: msg.instance.name,
-      timestamp: msg.createdAt,
-      pushName: msg.pushName,
-      profilePicUrl: null, // Placeholder for future profile pic
-    }));
+    // Fetch all contacts for this company to join with messages
+    const remoteJids = conversations.map(c => c.remoteJid);
+    const contacts = await this.prisma.contact.findMany({
+      where: {
+        companyId,
+        remoteJid: { in: remoteJids }
+      }
+    });
+
+    const contactMap = new Map(contacts.map(c => [c.remoteJid, c]));
+
+    return conversations.map((msg) => {
+      const contact = contactMap.get(msg.remoteJid);
+      return {
+        id: msg.id,
+        contact: contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid),
+        remoteJid: msg.remoteJid,
+        lastMessage: msg.content.substring(0, 100),
+        status: msg.status,
+        instanceName: msg.instance.name,
+        instanceKey: msg.instance.instanceKey,
+        timestamp: msg.createdAt,
+        pushName: contact?.pushName || msg.pushName,
+        profilePicUrl: contact?.profilePicUrl || null,
+      };
+    });
   }
 
   private formatPhoneNumber(jid: string): string {

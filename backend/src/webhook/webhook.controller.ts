@@ -88,9 +88,9 @@ export class WebhookController {
       const fromMe = data.key.fromMe || false;
 
       // Extract message content
-      const messageContent = this.extractMessageContent(payload);
+      const messageData = this.extractMessageContent(payload);
 
-      if (!messageContent) {
+      if (!messageData) {
         return { status: 'ignored', reason: 'no_text_content' };
       }
 
@@ -99,7 +99,9 @@ export class WebhookController {
         instanceKey: payload.instance,
         remoteJid: data.key.remoteJid,
         messageId: data.key.id,
-        content: messageContent,
+        content: messageData.content,
+        mediaUrl: messageData.mediaUrl,
+        mediaType: messageData.mediaType,
         pushName: data.pushName,
         timestamp: data.messageTimestamp,
         fromMe,
@@ -136,14 +138,16 @@ export class WebhookController {
 
         // Quick helper wrapper
         const tempPayload = { ...payload, data: msg };
-        const content = this.extractMessageContent(tempPayload as EvolutionWebhookDto);
+        const messageData = this.extractMessageContent(tempPayload as EvolutionWebhookDto);
 
-        if (content) {
+        if (messageData) {
           const jobData = {
             instanceKey: payload.instance,
             remoteJid: msg.key.remoteJid,
             messageId: msg.key.id,
-            content: content,
+            content: messageData.content,
+            mediaUrl: messageData.mediaUrl,
+            mediaType: messageData.mediaType,
             pushName: msg.pushName,
             timestamp: msg.messageTimestamp,
             fromMe: msg.key.fromMe || false,
@@ -172,7 +176,52 @@ export class WebhookController {
       return { status: 'processed_history', count: queuedCount };
     }
 
-    // For all other events (contacts.update, chats.update, etc), just acknowledge
+    // Handle contacts.update - save contact names and profile pictures
+    if (payload.event === 'contacts.update' || payload.event === 'contacts.upsert') {
+      const contacts = Array.isArray(payload.data) ? payload.data : [payload.data];
+      this.logger.log(`Processing ${contacts.length} contacts for ${payload.instance}`);
+
+      // Find the instance to get companyId
+      const instance = await this.prisma.instance.findUnique({
+        where: { instanceKey: payload.instance },
+        select: { companyId: true, id: true }
+      });
+
+      if (instance) {
+        for (const contact of contacts) {
+          if (contact.remoteJid) {
+            try {
+              await this.prisma.contact.upsert({
+                where: {
+                  remoteJid_companyId: {
+                    remoteJid: contact.remoteJid,
+                    companyId: instance.companyId,
+                  }
+                },
+                create: {
+                  remoteJid: contact.remoteJid,
+                  pushName: contact.pushName,
+                  profilePicUrl: contact.profilePicUrl,
+                  companyId: instance.companyId,
+                  instanceId: instance.id,
+                },
+                update: {
+                  pushName: contact.pushName || undefined,
+                  profilePicUrl: contact.profilePicUrl || undefined,
+                },
+              });
+            } catch (err) {
+              this.logger.warn(`Failed to upsert contact ${contact.remoteJid}: ${err.message}`);
+            }
+          }
+        }
+        this.logger.log(`Updated ${contacts.length} contacts`);
+      }
+
+      return { status: 'processed_contacts', count: contacts.length };
+    }
+
+    // For all other events (chats.update, etc), just acknowledge
     return { status: 'acknowledged', event: payload.event };
   }
 
@@ -191,38 +240,46 @@ export class WebhookController {
   /**
    * Extrai o conteúdo de texto da mensagem (suporta vários tipos)
    */
-  private extractMessageContent(payload: EvolutionWebhookDto): string | null {
+  private extractMessageContent(payload: EvolutionWebhookDto): { content: string; mediaUrl?: string; mediaType?: string } | null {
     const message = payload.data?.message;
 
     if (!message) return null;
 
     // Text message
     if (message.conversation) {
-      return message.conversation;
+      return { content: message.conversation };
     }
 
     // Extended text message (with link preview, etc)
     if (message.extendedTextMessage?.text) {
-      return message.extendedTextMessage.text;
+      return { content: message.extendedTextMessage.text };
     }
 
     // Image/video with caption
-    if (message.imageMessage?.caption) {
-      return message.imageMessage.caption;
+    if (message.imageMessage) {
+      return {
+        content: message.imageMessage.caption || '[Imagem]',
+        mediaUrl: message.imageMessage.url,
+        mediaType: 'image'
+      };
     }
 
-    if (message.videoMessage?.caption) {
-      return message.videoMessage.caption;
+    if (message.videoMessage) {
+      return {
+        content: message.videoMessage.caption || '[Vídeo]',
+        mediaUrl: message.videoMessage.url,
+        mediaType: 'video'
+      };
     }
 
     // Button response
     if (message.buttonsResponseMessage?.selectedDisplayText) {
-      return message.buttonsResponseMessage.selectedDisplayText;
+      return { content: message.buttonsResponseMessage.selectedDisplayText };
     }
 
     // List response
     if (message.listResponseMessage?.title) {
-      return message.listResponseMessage.title;
+      return { content: message.listResponseMessage.title };
     }
 
     return null;

@@ -1,17 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText, Divider, useTheme, InputBase, IconButton } from '@mui/material';
 import { Search } from '@mui/icons-material';
 import { useRecentConversations } from '../../hooks/useApi';
+import { useSocket } from '../../hooks/useSocket';
 
 interface ChatLayoutProps {
-  onSelectChat: (chatId: string, contact: string, instanceKey: string) => void;
+  onSelectChat: (chatId: string, contact: string, instanceKey: string, profilePicUrl?: string | null) => void;
   selectedChatId: string | null;
   children: React.ReactNode;
 }
 
 const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, children }) => {
   const theme = useTheme();
-  const { data: conversations, isLoading } = useRecentConversations();
+  const { data: conversations, isLoading, refetch } = useRecentConversations();
+  const { socket } = useSocket();
+
+  // Listen for new messages to refresh conversation list
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewMessage = () => {
+      refetch();
+    };
+
+    const handleContactsUpdate = () => {
+      refetch();
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('contacts_update', handleContactsUpdate);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('contacts_update', handleContactsUpdate);
+    };
+  }, [socket, refetch]);
 
   const getInitials = (contact: string) => {
     if (!contact) return '??';
@@ -67,25 +90,50 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
           </Paper>
         </Box>
 
-        <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+        <List sx={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          p: 0,
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+          }
+        }}>
           {conversations?.map((conv) => (
             <React.Fragment key={conv.id}>
               <ListItem 
-                button 
+                component="button"
                 selected={selectedChatId === conv.remoteJid}
-                onClick={() => onSelectChat(conv.remoteJid, conv.contact, conv.instanceName)} // Using instanceName as key based on assumption, verify DTO
+                onClick={() => onSelectChat(conv.remoteJid, conv.contact, conv.instanceKey || conv.instanceName, conv.profilePicUrl)}
                 sx={{ 
-                  '&.Mui-selected': { bgcolor: 'action.selected', borderLeft: `4px solid ${theme.palette.primary.main}` },
-                  '&:hover': { bgcolor: 'action.hover' }
+                  cursor: 'pointer',
+                  '&.Mui-selected': { 
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 168, 132, 0.15)' : 'rgba(0, 168, 132, 0.1)', 
+                    borderLeft: `4px solid ${theme.palette.primary.main}`,
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 168, 132, 0.2)' : 'rgba(0, 168, 132, 0.15)',
+                    }
+                  },
+                  '&:hover': { bgcolor: 'action.hover' },
+                  transition: 'background-color 0.2s ease'
                 }}
               >
                 <ListItemAvatar>
-                  <Avatar src={`https://ui-avatars.com/api/?name=${conv.contact}&background=00a884&color=fff`} />
+                  <Avatar 
+                    src={conv.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.contact)}&background=00a884&color=fff`}
+                    sx={{ width: 48, height: 48 }}
+                  />
                 </ListItemAvatar>
                 <ListItemText
                   primary={
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="subtitle2" noWrap>{conv.contact}</Typography>
+                      <Typography variant="subtitle2" noWrap fontWeight={600}>{conv.contact}</Typography>
                       <Typography variant="caption" color="text.secondary">{formatTime(conv.timestamp)}</Typography>
                     </Box>
                   }

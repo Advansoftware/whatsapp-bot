@@ -37,8 +37,25 @@ model Company {
   messages  Message[]
   chatFlows ChatFlow[]
   products  Product[]
+  contacts  Contact[]
 
   @@map("companies")
+}
+
+model Contact {
+  id            String   @id @default(cuid())
+  remoteJid     String   @map("remote_jid")
+  pushName      String?  @map("push_name")
+  profilePicUrl String?  @map("profile_pic_url")
+  companyId     String   @map("company_id")
+  instanceId    String?  @map("instance_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([remoteJid, companyId])
+  @@map("contacts")
 }
 
 model Product {
@@ -109,7 +126,9 @@ model Message {
   content      String   @db.Text
   response     String?  @db.Text
   direction    String
-  pushName     String?  @map("push_name")   // 'incoming' | 'outgoing'
+  pushName     String?  @map("push_name")
+  mediaUrl     String?  @map("media_url")
+  mediaType    String?  @map("media_type") // 'image', 'video', 'audio', 'document'
   status       String   @default("pending") // 'pending' | 'processed' | 'failed'
   processedAt  DateTime? @map("processed_at")
   companyId    String   @map("company_id")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -20,7 +20,10 @@ import {
   DialogContent,
   DialogActions,
   FormControlLabel,
-  useTheme
+  useTheme,
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Add, 
@@ -32,21 +35,16 @@ import {
   FilterList
 } from '@mui/icons-material';
 import { Product } from '../types';
-
-const initialProducts: Product[] = [
-  { id: '1', name: 'Cerveja Bohemia', variant: 'Gelada (600ml)', quantity: 2, price: 'R$ 12,00', sku: 'BOH-GEL-600', status: 'Low Stock' },
-  { id: '2', name: 'Cerveja Bohemia', variant: 'Natural (600ml)', quantity: 1, price: 'R$ 12,00', sku: 'BOH-NAT-600', status: 'Low Stock' },
-  { id: '3', name: 'Coca-Cola', variant: 'Lata 350ml', quantity: 45, price: 'R$ 6,00', sku: 'COC-LAT-350', status: 'In Stock' },
-  { id: '4', name: 'Água Mineral', variant: 'Sem Gás 500ml', quantity: 0, price: 'R$ 4,00', sku: 'AGU-SEM-500', status: 'Out of Stock' },
-  { id: '5', name: 'Porção de Fritas', variant: 'Grande', quantity: 100, price: 'R$ 25,00', sku: 'PRC-FRT-GRD', status: 'In Stock' },
-];
+import api from '../lib/api';
 
 const InventoryView: React.FC = () => {
   const theme = useTheme();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [aiSync, setAiSync] = useState(true);
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({open: false, message: '', severity: 'success'});
   
   // Form State
   const [currentProductId, setCurrentProductId] = useState<string | null>(null);
@@ -56,6 +54,25 @@ const InventoryView: React.FC = () => {
   const [formPrice, setFormPrice] = useState('');
   const [formSku, setFormSku] = useState('');
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Fetch products on mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const data = await api.getProducts();
+      setProducts(data);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setSnackbar({open: true, message: 'Erro ao carregar produtos', severity: 'error'});
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenAdd = () => {
     setCurrentProductId(null);
@@ -72,28 +89,37 @@ const InventoryView: React.FC = () => {
     setFormName(product.name);
     setFormVariant(product.variant);
     setFormQuantity(String(product.quantity));
-    setFormPrice(product.price);
+    setFormPrice(product.price.replace(/[^\d,\.]/g, '').replace(',', '.'));
     setFormSku(product.sku);
     setOpenDialog(true);
   };
 
-  const handleSaveProduct = () => {
-    const newProduct: Product = {
-      id: currentProductId || Date.now().toString(),
-      name: formName,
-      variant: formVariant,
-      quantity: Number(formQuantity),
-      price: formPrice,
-      sku: formSku,
-      status: Number(formQuantity) === 0 ? 'Out of Stock' : Number(formQuantity) < 10 ? 'Low Stock' : 'In Stock'
-    };
+  const handleSaveProduct = async () => {
+    setSaving(true);
+    try {
+      const productData = {
+        name: formName,
+        variant: formVariant,
+        quantity: Number(formQuantity),
+        price: parseFloat(formPrice.replace(',', '.')),
+        sku: formSku,
+      };
 
-    if (currentProductId) {
-      setProducts(products.map(p => p.id === currentProductId ? newProduct : p));
-    } else {
-      setProducts([...products, newProduct]);
+      if (currentProductId) {
+        await api.updateProduct(currentProductId, productData);
+        setSnackbar({open: true, message: 'Produto atualizado com sucesso!', severity: 'success'});
+      } else {
+        await api.createProduct(productData);
+        setSnackbar({open: true, message: 'Produto criado com sucesso!', severity: 'success'});
+      }
+      setOpenDialog(false);
+      fetchProducts();
+    } catch (err) {
+      console.error('Failed to save product:', err);
+      setSnackbar({open: true, message: 'Erro ao salvar produto', severity: 'error'});
+    } finally {
+      setSaving(false);
     }
-    setOpenDialog(false);
   };
 
   const confirmDeleteProduct = (id: string) => {
@@ -101,9 +127,16 @@ const InventoryView: React.FC = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteProduct = () => {
+  const handleDeleteProduct = async () => {
     if (productToDelete) {
-      setProducts(products.filter(p => p.id !== productToDelete));
+      try {
+        await api.deleteProduct(productToDelete);
+        setSnackbar({open: true, message: 'Produto excluído com sucesso!', severity: 'success'});
+        fetchProducts();
+      } catch (err) {
+        console.error('Failed to delete product:', err);
+        setSnackbar({open: true, message: 'Erro ao excluir produto', severity: 'error'});
+      }
       setProductToDelete(null);
       setDeleteDialogOpen(false);
     }
@@ -343,6 +376,18 @@ const InventoryView: React.FC = () => {
             <Button onClick={handleDeleteProduct} color="error" variant="contained">Excluir</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for feedback */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={4000} 
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({...snackbar, open: false})}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
