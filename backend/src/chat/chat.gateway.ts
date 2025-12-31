@@ -29,7 +29,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Broadcast a new message to all connected clients
    */
   broadcastMessage(message: any) {
-    this.server.emit('new_message', message);
+    // Check if it's a presence update
+    if (message.type === 'presence_update') {
+      this.server.emit('presence_update', message);
+    } else {
+      this.server.emit('new_message', message);
+    }
+  }
+
+  /**
+   * Broadcast presence update to all connected clients
+   */
+  broadcastPresence(presenceData: any) {
+    this.server.emit('presence_update', presenceData);
   }
 
   @SubscribeMessage('message')

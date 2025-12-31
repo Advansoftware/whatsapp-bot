@@ -221,6 +221,22 @@ export class WebhookController {
       return { status: 'processed_contacts', count: contacts.length };
     }
 
+    // Handle presence update - online/offline/typing status
+    if (payload.event === 'presence.update') {
+      const presenceData = payload.data;
+      this.logger.log(`Presence update for ${presenceData?.id}: ${JSON.stringify(presenceData?.presences)}`);
+
+      // Broadcast presence update to frontend
+      this.chatGateway.broadcastMessage({
+        type: 'presence_update',
+        instanceKey: payload.instance,
+        remoteJid: presenceData?.id,
+        presences: presenceData?.presences,
+      });
+
+      return { status: 'processed_presence' };
+    }
+
     // For all other events (chats.update, etc), just acknowledge
     return { status: 'acknowledged', event: payload.event };
   }
