@@ -124,56 +124,103 @@ export class WebhookController {
       };
     }
 
-    // Handle History Sync (messages.set)
+    // Handle History Sync (messages.set) - OPTIMIZED with bulk insert
     if (payload.event === 'messages.set') {
       const messages = Array.isArray(payload.data) ? payload.data : [];
       this.logger.log(`Processing history sync: ${messages.length} messages for ${payload.instance}`);
 
-      let queuedCount = 0;
+      // Get instance info first
+      const instance = await this.prisma.instance.findUnique({
+        where: { instanceKey: payload.instance },
+        select: { id: true, companyId: true }
+      });
+
+      if (!instance) {
+        this.logger.warn(`Instance not found for history sync: ${payload.instance}`);
+        return { status: 'error', reason: 'instance_not_found' };
+      }
+
+      // Prepare bulk data
+      const messagesToInsert: any[] = [];
+      const existingIds = new Set<string>();
+
+      // Get existing message IDs in batch to avoid duplicates
+      if (messages.length > 0) {
+        const messageIds = messages.map(m => m.key?.id).filter(Boolean);
+        const existing = await this.prisma.message.findMany({
+          where: { messageId: { in: messageIds } },
+          select: { messageId: true }
+        });
+        existing.forEach(e => existingIds.add(e.messageId));
+      }
 
       for (const msg of messages) {
-        // Construct a pseudo-payload to reuse extractMessageContent if structure matches, 
-        // OR manually extract since 'msg' matches "payload.data" structure of upsert usually.
-        // Evolution 'messages.set' is often an array of the same objects as 'upsert'.
+        if (!msg.key?.id || existingIds.has(msg.key.id)) continue;
 
-        // Quick helper wrapper
         const tempPayload = { ...payload, data: msg };
         const messageData = this.extractMessageContent(tempPayload as EvolutionWebhookDto);
 
         if (messageData) {
-          const jobData = {
-            instanceKey: payload.instance,
+          const timestamp = msg.messageTimestamp
+            ? new Date(Number(msg.messageTimestamp) * 1000)
+            : new Date();
+
+          messagesToInsert.push({
             remoteJid: msg.key.remoteJid,
             messageId: msg.key.id,
             content: messageData.content,
-            mediaUrl: messageData.mediaUrl,
-            mediaType: messageData.mediaType,
-            pushName: msg.pushName,
-            timestamp: msg.messageTimestamp,
-            fromMe: msg.key.fromMe || false,
-            isHistory: true,
-          };
-
-          await this.whatsappQueue.add('process-message', jobData, {
-            jobId: msg.key.id, // ID deduplication by BullMQ
-            removeOnComplete: true, // Auto-remove history jobs to save Redis space
+            mediaUrl: messageData.mediaUrl || null,
+            mediaType: messageData.mediaType || null,
+            direction: msg.key.fromMe ? 'outgoing' : 'incoming',
+            status: 'processed',
+            companyId: instance.companyId,
+            instanceId: instance.id,
+            pushName: msg.pushName || null,
+            createdAt: timestamp,
+            processedAt: timestamp,
           });
-          queuedCount++;
         }
       }
 
-      this.logger.log(`Queued ${queuedCount}/${messages.length} history messages for ${payload.instance}`);
+      // Bulk insert in batches of 500
+      const BATCH_SIZE = 500;
+      let insertedCount = 0;
 
-      // Notify frontend about history sync progress
+      for (let i = 0; i < messagesToInsert.length; i += BATCH_SIZE) {
+        const batch = messagesToInsert.slice(i, i + BATCH_SIZE);
+        try {
+          const result = await this.prisma.message.createMany({
+            data: batch,
+            skipDuplicates: true, // Skip if messageId already exists
+          });
+          insertedCount += result.count;
+        } catch (err) {
+          this.logger.warn(`Batch insert error: ${err.message}`);
+        }
+
+        // Notify frontend about progress
+        this.chatGateway.broadcastMessage({
+          type: 'history_sync',
+          instanceKey: payload.instance,
+          status: 'processing',
+          count: insertedCount,
+          total: messagesToInsert.length,
+          progress: Math.round((i + batch.length) / messagesToInsert.length * 100)
+        });
+      }
+
+      this.logger.log(`Bulk inserted ${insertedCount}/${messages.length} history messages for ${payload.instance}`);
+
+      // Notify frontend about completion
       this.chatGateway.broadcastMessage({
         type: 'history_sync',
         instanceKey: payload.instance,
-        status: 'processing',
-        count: queuedCount,
+        status: 'completed',
+        count: insertedCount,
         total: messages.length
       });
 
-      return { status: 'processed_history', count: queuedCount };
+      return { status: 'processed_history', count: insertedCount };
     }
 
     // Handle contacts.update - save contact names and profile pictures

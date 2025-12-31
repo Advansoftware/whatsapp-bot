@@ -19,9 +19,9 @@ export interface WhatsappJobData {
 }
 
 @Processor(WHATSAPP_QUEUE, {
-  concurrency: 5,
+  concurrency: 20, // Increased from 5 for faster processing
   limiter: {
-    max: 5,
+    max: 50, // Increased from 5
     duration: 1000,
   },
 })
