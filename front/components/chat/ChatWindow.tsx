@@ -173,7 +173,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       prevMessagesLengthRef.current = sortedMessages.length;
       return;
     }
-    
+
     if (sortedMessages.length > prevMessagesLengthRef.current) {
       const lastMsg = sortedMessages[sortedMessages.length - 1];
       const isOurMessage = lastMsg?.direction === "outgoing";
