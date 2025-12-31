@@ -88,6 +88,39 @@ export function useChatMessages(remoteJid: string | null, page = 1, limit = 50) 
     }
   }, [remoteJid, page, limit]);
 
+  // Add a single message to the list without refetching
+  const addMessage = useCallback((newMessage: any) => {
+    setData((prevData: any) => {
+      if (!prevData) return prevData;
+
+      // Check if message already exists
+      const exists = prevData.data?.some((m: any) => m.id === newMessage.id);
+      if (exists) return prevData;
+
+      return {
+        ...prevData,
+        data: [newMessage, ...prevData.data], // Add to beginning (newest first)
+        pagination: {
+          ...prevData.pagination,
+          total: prevData.pagination.total + 1,
+        },
+      };
+    });
+  }, []);
+
+  // Update a message status
+  const updateMessageStatus = useCallback((messageId: string, status: string) => {
+    setData((prevData: any) => {
+      if (!prevData) return prevData;
+      return {
+        ...prevData,
+        data: prevData.data.map((m: any) =>
+          m.id === messageId ? { ...m, status } : m
+        ),
+      };
+    });
+  }, []);
+
   // Refetch when remoteJid changes - use empty deps for initial + remoteJid for changes
   useEffect(() => {
     if (remoteJid) {
@@ -101,5 +134,5 @@ export function useChatMessages(remoteJid: string | null, page = 1, limit = 50) 
     }
   }, [remoteJid, page, limit]);
 
-  return { data, isLoading, error, refetch };
+  return { data, isLoading, error, refetch, addMessage, updateMessageStatus };
 }

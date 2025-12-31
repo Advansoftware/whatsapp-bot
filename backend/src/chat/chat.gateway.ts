@@ -29,11 +29,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Broadcast a new message to all connected clients
    */
   broadcastMessage(message: any) {
-    // Check if it's a presence update
-    if (message.type === 'presence_update') {
-      this.server.emit('presence_update', message);
-    } else {
-      this.server.emit('new_message', message);
+    // Route to appropriate event based on message type
+    switch (message.type) {
+      case 'presence_update':
+        this.server.emit('presence_update', message);
+        break;
+      case 'message_update':
+        this.server.emit('message_update', message);
+        break;
+      case 'connection_update':
+        this.server.emit('connection_update', message);
+        break;
+      case 'qrcode_update':
+        this.server.emit('qrcode_update', message);
+        break;
+      case 'history_sync':
+        this.server.emit('history_sync', message);
+        break;
+      case 'contacts_update':
+        this.server.emit('contacts_update', message);
+        break;
+      default:
+        this.server.emit('new_message', message);
     }
   }
 

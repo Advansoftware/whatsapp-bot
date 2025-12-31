@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import * as FormData from 'form-data';
 
 @Controller('api/messages')
 @UseGuards(JwtAuthGuard)
@@ -107,6 +109,63 @@ export class MessagesController {
     } catch (error) {
       console.error('Error sending message:', error.message);
       throw new HttpException('Failed to send message', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('send-media')
+  @UseInterceptors(FileInterceptor('file'))
+  async sendMedia(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { instanceKey: string; remoteJid: string; caption?: string }
+  ) {
+    const companyId = req.user.companyId;
+    const { instanceKey, remoteJid, caption } = body;
+
+    if (!file) {
+      throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
+    }
+
+    const instance = await this.prisma.instance.findFirst({
+      where: { instanceKey, companyId },
+    });
+
+    if (!instance) {
+      throw new HttpException('Instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+    // Convert file to base64
+    const base64 = file.buffer.toString('base64');
+    const mimeType = file.mimetype;
+    const fileName = file.originalname;
+
+    // Determine media type
+    const isImage = mimeType.startsWith('image/');
+    const isVideo = mimeType.startsWith('video/');
+    const isAudio = mimeType.startsWith('audio/');
+
+    try {
+      const response = await axios.post(
+        `${evolutionUrl}/message/sendMedia/${instanceKey}`,
+        {
+          number: remoteJid.replace(/\D/g, ''),
+          mediatype: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'document',
+          mimetype: mimeType,
+          caption: caption || '',
+          media: `data:${mimeType};base64,${base64}`,
+          fileName: fileName,
+          delay: 1200,
+        },
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+
+      return { success: true, messageId: response.data?.key?.id };
+    } catch (error) {
+      console.error('Error sending media:', error.message);
+      throw new HttpException('Failed to send media', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

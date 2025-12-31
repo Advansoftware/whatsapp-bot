@@ -221,6 +221,49 @@ export class WebhookController {
       return { status: 'processed_contacts', count: contacts.length };
     }
 
+    // Handle messages.update - status updates (delivered, read, etc)
+    if (payload.event === 'messages.update') {
+      const updates = Array.isArray(payload.data) ? payload.data : [payload.data];
+      this.logger.log(`Messages update: ${updates.length} updates for ${payload.instance}`);
+
+      for (const update of updates) {
+        if (update?.key?.id && update?.update?.status) {
+          // Map Evolution API status codes to readable status
+          let status = 'sent';
+          switch (update.update.status) {
+            case 0: status = 'error'; break;
+            case 1: status = 'pending'; break;
+            case 2: status = 'sent'; break;
+            case 3: status = 'delivered'; break;
+            case 4: status = 'read'; break;
+            case 5: status = 'played'; break;
+            default: status = String(update.update.status);
+          }
+
+          // Update message status in database
+          try {
+            await this.prisma.message.updateMany({
+              where: { messageId: update.key.id },
+              data: { status },
+            });
+          } catch (err) {
+            this.logger.warn(`Failed to update message status: ${err.message}`);
+          }
+
+          // Broadcast to frontend
+          this.chatGateway.broadcastMessage({
+            type: 'message_update',
+            messageId: update.key.id,
+            remoteJid: update.key.remoteJid,
+            status,
+            instanceKey: payload.instance,
+          });
+        }
+      }
+
+      return { status: 'processed_message_updates', count: updates.length };
+    }
+
     // Handle presence update - online/offline/typing status
     if (payload.event === 'presence.update') {
       const presenceData = payload.data;

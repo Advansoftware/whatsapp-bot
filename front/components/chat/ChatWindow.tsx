@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -20,6 +20,8 @@ import {
   CardMedia,
   CardContent,
   CardActionArea,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Send,
@@ -29,6 +31,8 @@ import {
   Inventory as InventoryIcon,
   Close,
   Search,
+  Done,
+  DoneAll,
 } from "@mui/icons-material";
 import { useChatMessages } from "../../hooks/useApi";
 import { useSocket } from "../../hooks/useSocket";
@@ -54,8 +58,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [sending, setSending] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({ open: false, message: "", severity: "success" });
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isAtBottomRef = useRef(true);
+  const prevMessagesLengthRef = useRef(0);
 
   // Attachment Menu State
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -70,6 +83,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     data: messagesData,
     isLoading,
     refetch,
+    addMessage,
+    updateMessageStatus,
   } = useChatMessages(chatId, 1, 50);
   const { socket } = useSocket();
 
@@ -89,24 +104,82 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [inventoryOpen]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Track if user is at the bottom of the messages
+  const handleScroll = useCallback(() => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
+      isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 50;
+    }
+  }, []);
 
+  // Smooth scroll to bottom only when new messages arrive and user is at bottom
+  const scrollToBottomSmooth = useCallback(() => {
+    if (isAtBottomRef.current && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
+
+  // Force scroll to bottom (on chat change)
+  const scrollToBottomForce = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      isAtBottomRef.current = true;
+    }
+  }, []);
+
+  // Scroll to bottom only when new messages arrive (not on initial load jumping)
   useEffect(() => {
-    scrollToBottom();
-  }, [sortedMessages]);
+    if (sortedMessages.length > prevMessagesLengthRef.current) {
+      scrollToBottomSmooth();
+    }
+    prevMessagesLengthRef.current = sortedMessages.length;
+  }, [sortedMessages.length, scrollToBottomSmooth]);
+
+  // Force scroll on chat change
+  useEffect(() => {
+    prevMessagesLengthRef.current = 0;
+    setTimeout(scrollToBottomForce, 100);
+  }, [chatId, scrollToBottomForce]);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleNewMessage = (data: any) => {
-      if (
-        data.remoteJid === chatId ||
-        (data.key && data.key.remoteJid === chatId)
-      ) {
-        refetch();
-        setIsSyncing(false); // Stop syncing indicator if new message arrives (usually means sync is done or live)
+      // Check if this message belongs to the current chat
+      const msgRemoteJid = data.remoteJid || data.key?.remoteJid;
+      if (msgRemoteJid === chatId) {
+        // Try to add the message directly without refetching
+        if (data.id || data.key?.id) {
+          const newMsg = {
+            id: data.id || data.key?.id,
+            remoteJid: msgRemoteJid,
+            content:
+              data.content ||
+              data.message?.conversation ||
+              data.message?.extendedTextMessage?.text ||
+              "[Mídia]",
+            direction:
+              data.direction || (data.key?.fromMe ? "outgoing" : "incoming"),
+            status: data.status || "sent",
+            createdAt: data.createdAt || new Date().toISOString(),
+            pushName: data.pushName,
+            mediaUrl: data.mediaUrl,
+            mediaType: data.mediaType,
+          };
+          addMessage(newMsg);
+        } else {
+          // Fallback to refetch if we can't parse the message
+          refetch();
+        }
+        setIsSyncing(false);
+      }
+    };
+
+    const handleMessageUpdate = (data: any) => {
+      // Handle message status updates (delivered, read, etc)
+      if (data.messageId && data.status) {
+        updateMessageStatus(data.messageId, data.status);
       }
     };
 
@@ -119,13 +192,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
 
     socket.on("new_message", handleNewMessage);
+    socket.on("message_update", handleMessageUpdate);
     socket.on("history_sync", handleHistorySync);
 
     return () => {
       socket.off("new_message", handleNewMessage);
+      socket.off("message_update", handleMessageUpdate);
       socket.off("history_sync", handleHistorySync);
     };
-  }, [socket, chatId, refetch]);
+  }, [socket, chatId, refetch, addMessage, updateMessageStatus, instanceKey]);
 
   // Listen for presence updates
   useEffect(() => {
@@ -200,8 +275,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   ) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log("File selected:", file);
-      alert("Envio de mídia será implementado no próximo passo.");
+      setUploadingMedia(true);
+      try {
+        await api.sendMedia(instanceKey, chatId, file);
+        setSnackbar({
+          open: true,
+          message: "Mídia enviada com sucesso!",
+          severity: "success",
+        });
+        refetch();
+      } catch (err) {
+        console.error("Error sending media:", err);
+        setSnackbar({
+          open: true,
+          message: "Erro ao enviar mídia",
+          severity: "error",
+        });
+      } finally {
+        setUploadingMedia(false);
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
     }
   };
 
@@ -347,6 +443,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Messages Area */}
       <Box
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
         flex={1}
         p={3}
         overflow="auto"
@@ -392,6 +490,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 sx={{
                   position: "relative",
                   mb: 1,
+                  minWidth: 0, // Prevents flex items from overflowing
                 }}
               >
                 <Paper
@@ -406,21 +505,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     borderTopLeftRadius: isSender ? "7.5px" : 0,
                     borderTopRightRadius: isSender ? 0 : "7.5px",
                     boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
+                    overflow: "hidden",
+                    wordBreak: "break-word",
                   }}
                 >
-                  {/* Check if message contains image URL */}
-                  {msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) ||
-                  msg.content.includes("imageMessage") ? (
+                  {/* Check if message has mediaUrl or is an image link */}
+                  {msg.mediaUrl ||
+                  msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
                     <Box
                       component="img"
-                      src={msg.content}
+                      src={msg.mediaUrl || msg.content}
                       alt="Image"
                       sx={{
                         maxWidth: "100%",
                         maxHeight: 300,
                         borderRadius: 1,
                         display: "block",
+                        cursor: "pointer",
                       }}
+                      onClick={() =>
+                        window.open(msg.mediaUrl || msg.content, "_blank")
+                      }
                       onError={(e: any) => {
                         e.target.style.display = "none";
                       }}
@@ -432,6 +537,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         fontSize: "14.2px",
                         lineHeight: "19px",
                         whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
                       }}
                     >
                       {msg.content}
@@ -449,7 +556,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       sx={{
                         color: colors.timeText,
                         fontSize: "11px",
-                        mt: "2px",
                       }}
                     >
                       {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -457,6 +563,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         minute: "2-digit",
                       })}
                     </Typography>
+                    {/* Message status icons for outgoing messages */}
+                    {isSender && (
+                      <>
+                        {msg.status === "read" || msg.status === "READ" ? (
+                          <DoneAll sx={{ fontSize: 16, color: "#53bdeb" }} />
+                        ) : msg.status === "delivered" ||
+                          msg.status === "DELIVERY_ACK" ||
+                          msg.status === "received" ? (
+                          <DoneAll
+                            sx={{ fontSize: 16, color: colors.timeText }}
+                          />
+                        ) : msg.status === "sent" ||
+                          msg.status === "SERVER_ACK" ||
+                          msg.status === "sended" ? (
+                          <Done sx={{ fontSize: 16, color: colors.timeText }} />
+                        ) : msg.status === "pending" ||
+                          msg.status === "PENDING" ? (
+                          <CircularProgress
+                            size={12}
+                            sx={{ color: colors.timeText }}
+                          />
+                        ) : (
+                          <Done sx={{ fontSize: 16, color: colors.timeText }} />
+                        )}
+                      </>
+                    )}
                   </Box>
                 </Paper>
               </Box>
@@ -645,6 +777,47 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Upload overlay */}
+      {uploadingMedia && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <Box textAlign="center">
+            <CircularProgress sx={{ color: "#00a884" }} />
+            <Typography color="white" mt={2}>
+              Enviando mídia...
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 };

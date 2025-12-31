@@ -186,6 +186,30 @@ class ApiClient {
     });
   }
 
+  async sendMedia(instanceKey: string, remoteJid: string, file: File, caption?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('instanceKey', instanceKey);
+    formData.append('remoteJid', remoteJid);
+    if (caption) {
+      formData.append('caption', caption);
+    }
+
+    const response = await fetch(`${API_URL}/api/messages/send-media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send media');
+    }
+
+    return response.json() as Promise<{ success: boolean; messageId?: string }>;
+  }
+
   async getRecentConversations() {
     return this.request<Array<{
       id: string;
