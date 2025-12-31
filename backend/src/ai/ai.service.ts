@@ -10,6 +10,7 @@ interface MessageContext {
   businessContext?: string;
   ownerName?: string;
   isPersonalAssistant?: boolean; // Modo secretária pessoal (quando o dono fala com ela)
+  ownerInstructions?: string; // Instruções temporárias do dono
 }
 
 interface AIAnalysis {
@@ -51,7 +52,216 @@ export class AIService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.evolutionApiUrl = this.config.get('EVOLUTION_API_URL') || '';
     this.evolutionApiKey = this.config.get('EVOLUTION_API_KEY') || '';
-    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.0-flash';
+    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.5-flash';
+  }
+
+  // ========================================
+  // TRANSCRIÇÃO DE ÁUDIO
+  // ========================================
+
+  /**
+   * Baixa mídia da Evolution API e retorna como base64
+   */
+  async downloadMediaFromEvolution(instanceKey: string, mediaData: any): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.evolutionApiKey,
+        },
+        body: JSON.stringify({
+          message: mediaData.message,
+          convertToMp4: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        this.logger.error(`Failed to download media: ${error}`);
+        return null;
+      }
+
+      const data = await response.json();
+      return data.base64 || null;
+    } catch (error) {
+      this.logger.error(`Error downloading media: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Transcreve áudio usando Gemini
+   * O Gemini 2.5 suporta áudio nativo!
+   */
+  async transcribeAudio(audioBase64: string, mimeType: string = 'audio/ogg'): Promise<string> {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: audioBase64,
+          },
+        },
+        'Transcreva este áudio em português. Retorne APENAS a transcrição do que foi dito, sem comentários adicionais. Se não conseguir entender, retorne "[Áudio não compreendido]".',
+      ]);
+
+      const transcription = result.response.text().trim();
+      this.logger.log(`Audio transcribed: ${transcription.substring(0, 100)}...`);
+      return transcription;
+    } catch (error) {
+      this.logger.error(`Audio transcription failed: ${error.message}`);
+      return '[Erro na transcrição do áudio]';
+    }
+  }
+
+  /**
+   * Processa áudio: baixa da Evolution e transcreve
+   */
+  async processAudioMessage(instanceKey: string, mediaData: any): Promise<string> {
+    // Baixar áudio
+    const audioBase64 = await this.downloadMediaFromEvolution(instanceKey, mediaData);
+    if (!audioBase64) {
+      return '[Não foi possível processar o áudio]';
+    }
+
+    // Determinar mime type (WhatsApp geralmente usa ogg/opus)
+    const mimeType = mediaData.message?.audioMessage?.mimetype || 'audio/ogg';
+
+    // Transcrever
+    const transcription = await this.transcribeAudio(audioBase64, mimeType);
+    return transcription;
+  }
+
+  // ========================================
+  // SISTEMA DE INSTRUÇÕES DO DONO
+  // ========================================
+
+  /**
+   * Salva instruções temporárias do dono
+   * Ex: "Diga que estou dormindo e acordo às 8h"
+   */
+  async setOwnerInstructions(
+    companyId: string,
+    instructions: string,
+    durationMinutes?: number
+  ): Promise<void> {
+    const until = durationMinutes
+      ? new Date(Date.now() + durationMinutes * 60 * 1000)
+      : null;
+
+    await this.prisma.aISecretary.update({
+      where: { companyId },
+      data: {
+        ownerInstructions: instructions,
+        instructionsUntil: until,
+      },
+    });
+
+    this.logger.log(`Owner instructions set for company ${companyId}: "${instructions}" until ${until || 'indefinitely'}`);
+  }
+
+  /**
+   * Limpa instruções do dono
+   */
+  async clearOwnerInstructions(companyId: string): Promise<void> {
+    await this.prisma.aISecretary.update({
+      where: { companyId },
+      data: {
+        ownerInstructions: null,
+        instructionsUntil: null,
+      },
+    });
+  }
+
+  /**
+   * Busca instruções ativas (válidas no momento)
+   */
+  async getActiveInstructions(companyId: string): Promise<string | null> {
+    const config = await this.prisma.aISecretary.findUnique({
+      where: { companyId },
+      select: { ownerInstructions: true, instructionsUntil: true },
+    });
+
+    if (!config?.ownerInstructions) return null;
+
+    // Verificar se expirou
+    if (config.instructionsUntil && new Date() > config.instructionsUntil) {
+      // Limpar instruções expiradas
+      await this.clearOwnerInstructions(companyId);
+      return null;
+    }
+
+    return config.ownerInstructions;
+  }
+
+  /**
+   * Interpreta comandos do dono para a secretária
+   * Retorna true se era um comando, false se era mensagem normal
+   */
+  async parseOwnerCommand(
+    messageContent: string,
+    companyId: string
+  ): Promise<{ isCommand: boolean; response?: string }> {
+    const lowerContent = messageContent.toLowerCase().trim();
+
+    // Comandos de limpar instruções
+    if (lowerContent.includes('limpar instrução') ||
+      lowerContent.includes('limpar instruções') ||
+      lowerContent.includes('cancelar instrução') ||
+      lowerContent === 'ok' && await this.getActiveInstructions(companyId)) {
+      await this.clearOwnerInstructions(companyId);
+      return { isCommand: true, response: '✅ Instruções limpas! Voltei ao modo normal.' };
+    }
+
+    // Detectar comandos de instrução usando IA
+    const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
+
+    const prompt = `Analise esta mensagem e determine se é um COMANDO/INSTRUÇÃO para uma secretária ou uma PERGUNTA/CONVERSA normal.
+
+Mensagem: "${messageContent}"
+
+COMANDOS são instruções como:
+- "Quando alguém ligar/chamar, diga que..."
+- "Se alguém perguntar, fala que..."
+- "Avisa que estou ocupado/dormindo/em reunião"
+- "Por X horas/minutos, responda que..."
+
+Retorne JSON:
+{
+  "isCommand": true/false,
+  "instruction": "instrução formatada" (se for comando),
+  "durationMinutes": número ou null (se mencionar tempo)
+}`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        if (parsed.isCommand && parsed.instruction) {
+          await this.setOwnerInstructions(companyId, parsed.instruction, parsed.durationMinutes);
+
+          const durationText = parsed.durationMinutes
+            ? ` por ${parsed.durationMinutes} minutos`
+            : '';
+
+          return {
+            isCommand: true,
+            response: `✅ Entendido! Vou seguir essa instrução${durationText}:\n\n"${parsed.instruction}"\n\nPara cancelar, diga "limpar instruções".`
+          };
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to parse owner command: ${error.message}`);
+    }
+
+    return { isCommand: false };
   }
 
   /**
@@ -507,6 +717,38 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     }
 
     // --- Fluxo normal para clientes ---
+
+    // Buscar instruções ativas do dono
+    const ownerInstructions = await this.getActiveInstructions(companyId);
+
+    // Se há instruções do dono, usar como resposta prioritária
+    if (ownerInstructions) {
+      this.logger.log(`📋 Using owner instructions: "${ownerInstructions}"`);
+
+      // Gerar resposta baseada nas instruções
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
+      const prompt = `Você é Sofia, secretária virtual. Seu chefe deixou esta instrução para você seguir:
+
+INSTRUÇÃO DO CHEFE: "${ownerInstructions}"
+
+Um cliente mandou esta mensagem: "${messageContent}"
+
+Gere uma resposta educada e natural seguindo a instrução do chefe. Seja breve e simpática.`;
+
+      try {
+        const result = await model.generateContent(prompt);
+        const response = result.response.text().trim();
+
+        return {
+          shouldRespond: true,
+          response,
+          shouldNotifyOwner: true, // Notificar que alguém mandou mensagem
+          notificationReason: `Cliente entrou em contato (instrução ativa: "${ownerInstructions.substring(0, 50)}...")`,
+        };
+      } catch (error) {
+        this.logger.error(`Failed to generate instruction-based response: ${error.message}`);
+      }
+    }
 
     // Verificar horário de funcionamento
     if (!this.isWithinBusinessHours(aiConfig.businessHours)) {

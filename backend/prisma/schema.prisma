@@ -217,20 +217,23 @@ model Message {
 }
 
 model AISecretary {
-  id              String   @id @default(cuid())
-  companyId       String   @unique @map("company_id")
-  enabled         Boolean  @default(false)
-  mode            String   @default("passive") // 'passive' | 'active' | 'supervised'
-  systemPrompt    String   @db.Text
-  temperature     Float    @default(0.7)
-  ownerPhone      String?  @map("owner_phone") // WhatsApp do dono para notificações
-  ownerName       String?  @map("owner_name") // Nome do dono
-  businessHours   String?  @map("business_hours") @db.Text // JSON com horários de funcionamento
-  escalationWords String?  @map("escalation_words") @db.Text // Palavras que sempre escalam para humano
-  personality     String   @default("professional") // 'professional' | 'friendly' | 'casual'
-  testMode        Boolean  @default(false) @map("test_mode") // Modo teste: responde mensagens do próprio dono
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                String    @id @default(cuid())
+  companyId         String    @unique @map("company_id")
+  enabled           Boolean   @default(false)
+  mode              String    @default("passive") // 'passive' | 'active' | 'supervised'
+  systemPrompt      String    @db.Text
+  temperature       Float     @default(0.7)
+  ownerPhone        String?   @map("owner_phone") // WhatsApp do dono para notificações
+  ownerName         String?   @map("owner_name") // Nome do dono
+  businessHours     String?   @map("business_hours") @db.Text // JSON com horários de funcionamento
+  escalationWords   String?   @map("escalation_words") @db.Text // Palavras que sempre escalam para humano
+  personality       String    @default("professional") // 'professional' | 'friendly' | 'casual'
+  testMode          Boolean   @default(false) @map("test_mode") // Modo secretária pessoal
+  ownerInstructions String?   @map("owner_instructions") @db.Text // Instruções temporárias do dono (ex: "diga que estou dormindo")
+  instructionsUntil DateTime? @map("instructions_until") // Até quando as instruções são válidas
+  transcribeAudio   Boolean   @default(true) @map("transcribe_audio") // Transcrever áudios automaticamente
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

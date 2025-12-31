@@ -126,18 +126,30 @@ export class WhatsappProcessor extends WorkerHost {
         this.logger.log(`👤 PERSONAL ASSISTANT MODE: Processing owner message - acting as personal secretary`);
       }
 
+      // ========================================
+      // TRANSCRIÇÃO DE ÁUDIO
+      // ========================================
+      let processedContent = content;
+
+      if (mediaType === 'audio' && mediaData && aiConfig?.transcribeAudio !== false) {
+        this.logger.log(`🎤 Transcribing audio message from ${remoteJid}`);
+        const transcription = await this.aiService.processAudioMessage(instanceKey, mediaData);
+        processedContent = `[Áudio transcrito]: ${transcription}`;
+        this.logger.log(`🎤 Transcription: ${transcription.substring(0, 100)}...`);
+      }
+
       // 2. Check company balance
       if (instance.company.balance.lessThanOrEqualTo(0)) {
         this.logger.warn(`Company ${instance.company.name} has no balance`);
         return { status: 'skipped', reason: 'no_balance' };
       }
 
-      // 3. Save incoming message
+      // 3. Save incoming message (com transcrição se houver)
       const message = await this.prisma.message.create({
         data: {
           remoteJid,
           messageId,
-          content,
+          content: processedContent, // Usa conteúdo transcrito se for áudio
           mediaUrl,
           mediaType,
           mediaData,
@@ -152,12 +164,37 @@ export class WhatsappProcessor extends WorkerHost {
       // 4. Atualizar ou criar conversa
       await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
 
+      // ========================================
+      // MODO SECRETÁRIA PESSOAL - Comandos do dono
+      // ========================================
+      if (isPersonalAssistantMode) {
+        // Verificar se é um comando/instrução
+        const commandResult = await this.aiService.parseOwnerCommand(processedContent, instance.companyId);
+
+        if (commandResult.isCommand && commandResult.response) {
+          // Responder com confirmação do comando
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, commandResult.response);
+
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: commandResult.response,
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          this.logger.log(`Command processed for owner: ${processedContent.substring(0, 50)}...`);
+          return { status: 'processed_command', messageId: message.id };
+        }
+      }
+
       // 5. PRIMEIRO: Tentar processar com Chatbot (fluxos baseados em keyword)
       // Pula chatbot se for modo secretária pessoal
       if (!isPersonalAssistantMode) {
         const chatbotResult = await this.chatbotService.processMessage(
           instance.companyId,
-          content,
+          processedContent, // Usa conteúdo transcrito
           { customerName: job.data.pushName },
         );
 
@@ -196,7 +233,7 @@ export class WhatsappProcessor extends WorkerHost {
 
       // 6. Se chatbot não respondeu (ou é modo secretária pessoal), processar com Secretária IA
       const secretaryResult = await this.aiService.processSecretaryMessage(
-        content,
+        processedContent, // Usa conteúdo transcrito
         instance.companyId,
         instanceKey,
         remoteJid,
