@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -16,10 +16,27 @@ import {
   Alert
 } from '@mui/material';
 import { useRecentConversations } from '../hooks/useApi';
+import { useSocket } from '../hooks/useSocket';
 
 const RecentConversations: React.FC = () => {
   const theme = useTheme();
-  const { data: conversations, isLoading, error } = useRecentConversations();
+  const { data: conversations, isLoading, error, refetch } = useRecentConversations();
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (data: any) => {
+      console.log('New message received:', data);
+      refetch();
+    };
+
+    socket.on('new_message', handleNewMessage);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+    };
+  }, [socket, refetch]);
 
   if (isLoading) {
     return (

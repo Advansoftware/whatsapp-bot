@@ -17,7 +17,11 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAuthenticated: boolean;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  login: (data: any) => Promise<void>;
+  register: (data: any) => Promise<void>;
+  logout: () => void;
   logout: () => void;
 }
 
@@ -72,6 +76,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const login = useCallback(async (data: any) => {
+    setIsLoading(true);
+    try {
+      const response = await api.login(data);
+      setUser(response.user);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const register = useCallback(async (data: any) => {
+    setIsLoading(true);
+    try {
+      const response = await api.register(data);
+      setUser(response.user);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     api.logout();
     setUser(null);
@@ -82,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     isAuthenticated: !!user,
     loginWithGoogle,
+    login,
+    register,
     logout,
   };
 

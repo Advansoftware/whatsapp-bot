@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { EvolutionWebhookDto } from './dto/evolution-webhook.dto';
 import { WHATSAPP_QUEUE } from '../queue/queue.module';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Controller('webhook')
 export class WebhookController {
@@ -10,6 +11,7 @@ export class WebhookController {
 
   constructor(
     @InjectQueue(WHATSAPP_QUEUE) private readonly whatsappQueue: Queue,
+    private readonly chatGateway: ChatGateway,
   ) { }
 
   /**
@@ -47,6 +49,9 @@ export class WebhookController {
       pushName: data.pushName,
       timestamp: data.messageTimestamp,
     };
+
+    // Broadcast Real-Time Message
+    this.chatGateway.broadcastMessage(jobData);
 
     // Add to queue immediately (Producer pattern)
     const job = await this.whatsappQueue.add('process-message', jobData, {

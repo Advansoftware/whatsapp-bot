@@ -12,6 +12,7 @@ model User {
   email     String   @unique
   name      String
   picture   String?
+  password  String?  @map("password")
   googleId  String?  @unique @map("google_id")
   companyId String   @map("company_id")
   createdAt DateTime @default(now()) @map("created_at")

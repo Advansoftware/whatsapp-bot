@@ -7,16 +7,52 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  TextField,
+  Button,
+  Divider,
+  Link,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
-import { Chat } from '@mui/icons-material';
+import { Chat, Visibility, VisibilityOff } from '@mui/icons-material';
 
 interface LoginViewProps {
   onLoginSuccess?: () => void;
 }
 
 const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
-  const { loginWithGoogle, isLoading } = useAuth();
+  const { loginWithGoogle, login, register, isLoading } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<string>('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      if (isLogin) {
+        await login({ email: formData.email, password: formData.password });
+      } else {
+        await register(formData);
+      }
+      onLoginSuccess?.();
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      setError(err.message || 'Erro ao autenticar. Verifique suas credenciais.');
+    }
+  };
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
@@ -29,8 +65,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       await loginWithGoogle(credentialResponse.credential);
       onLoginSuccess?.();
     } catch (err) {
-      setError('Erro ao fazer login. Tente novamente.');
-      console.error('Login error:', err);
+      setError('Erro ao fazer login com Google. Tente novamente.');
+      console.error('Google login error:', err);
     }
   };
 
@@ -89,7 +125,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         }}
       >
         {/* Header */}
-        <Box sx={{ pt: 6, pb: 3, px: 4, textAlign: 'center' }}>
+        <Box sx={{ pt: 6, pb: 2, px: 4, textAlign: 'center' }}>
           <Box
             sx={{
               width: 64,
@@ -110,10 +146,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             variant="h4"
             sx={{ color: '#e9edef', fontWeight: 'bold', mb: 1 }}
           >
-            Bem-vindo
+            {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
           </Typography>
           <Typography sx={{ color: '#8696a0', fontSize: 14 }}>
-            Faça login no seu painel de automação WhatsApp
+            {isLogin 
+              ? 'Faça login para acessar seu painel' 
+              : 'Comece a automatizar seu WhatsApp hoje mesmo'}
           </Typography>
         </Box>
 
@@ -125,53 +163,121 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             </Alert>
           )}
 
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress sx={{ color: '#00a884' }} />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-              }}
-            >
-              <Typography
-                sx={{
-                  color: '#8696a0',
-                  fontSize: 12,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                }}
-              >
-                Continue com
-              </Typography>
+          <form onSubmit={handleSubmit}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {!isLogin && (
+                <TextField
+                  fullWidth
+                  label="Nome Completo"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  variant="outlined"
+                  required={!isLogin}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#e9edef',
+                      '& fieldset': { borderColor: '#2a3942' },
+                      '&:hover fieldset': { borderColor: '#00a884' },
+                    },
+                    '& .MuiInputLabel-root': { color: '#8696a0' },
+                  }}
+                />
+              )}
 
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                useOneTap
-                theme="filled_black"
-                size="large"
-                width="300"
-                text="signin_with"
-                shape="rectangular"
+              <TextField
+                fullWidth
+                label="E-mail"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                variant="outlined"
+                required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    color: '#e9edef',
+                    '& fieldset': { borderColor: '#2a3942' },
+                    '&:hover fieldset': { borderColor: '#00a884' },
+                  },
+                  '& .MuiInputLabel-root': { color: '#8696a0' },
+                }}
               />
 
-              <Typography
+              <TextField
+                fullWidth
+                label="Senha"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleChange}
+                variant="outlined"
+                required
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        sx={{ color: '#8696a0' }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{
-                  color: '#8696a0',
-                  fontSize: 12,
-                  textAlign: 'center',
-                  maxWidth: 280,
+                  '& .MuiOutlinedInput-root': {
+                    color: '#e9edef',
+                    '& fieldset': { borderColor: '#2a3942' },
+                    '&:hover fieldset': { borderColor: '#00a884' },
+                  },
+                  '& .MuiInputLabel-root': { color: '#8696a0' },
+                }}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                disabled={isLoading}
+                sx={{
+                  mt: 2,
+                  bgcolor: '#00a884',
+                  '&:hover': { bgcolor: '#008f6f' },
+                  height: 48,
+                  fontWeight: 'bold',
                 }}
               >
-                Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade
-              </Typography>
+                {isLoading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  isLogin ? 'Entrar' : 'Cadastrar'
+                )}
+              </Button>
             </Box>
-          )}
+          </form>
+
+          <Box sx={{ my: 3, display: 'flex', alignItems: 'center' }}>
+            <Divider sx={{ flex: 1, borderColor: '#2a3942' }} />
+            <Typography sx={{ px: 2, color: '#8696a0', fontSize: 12 }}>
+              OU
+            </Typography>
+            <Divider sx={{ flex: 1, borderColor: '#2a3942' }} />
+          </Box>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+              theme="filled_black"
+              size="large"
+              width="300"
+              text={isLogin ? "signin_with" : "signup_with"}
+              shape="rectangular"
+            />
+          </Box>
         </Box>
 
         {/* Footer */}
@@ -185,13 +291,23 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           }}
         >
           <Typography sx={{ color: '#8696a0', fontSize: 14 }}>
-            Não tem uma conta?{' '}
-            <Box
-              component="span"
-              sx={{ color: '#00a884', fontWeight: 600, cursor: 'pointer' }}
+            {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}{' '}
+            <Link
+              component="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+                setFormData({ name: '', email: '', password: '' });
+              }}
+              sx={{
+                color: '#00a884',
+                fontWeight: 600,
+                textDecoration: 'none',
+                verticalAlign: 'baseline',
+              }}
             >
-              O cadastro é automático
-            </Box>
+              {isLogin ? 'Cadastre-se' : 'Faça Login'}
+            </Link>
           </Typography>
         </Box>
       </Paper>

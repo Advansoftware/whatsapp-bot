@@ -1,8 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, HttpCode, HttpStatus, HttpException } from '@nestjs/common';
+import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { IsString, IsNotEmpty } from 'class-validator';
+
 class CreateInstanceDto {
+  @IsString()
+  @IsNotEmpty()
   name: string;
 }
 
@@ -36,22 +41,56 @@ export class ConnectionsController {
     // Generate unique instance key
     const instanceKey = `${companyId.slice(0, 8)}_${Date.now()}`;
 
-    const instance = await this.prisma.instance.create({
-      data: {
-        name: dto.name,
-        instanceKey,
-        companyId,
-        status: 'disconnected',
-      },
-    });
+    // 1. Create instance in Evolution API
+    try {
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
-    return {
-      id: instance.id,
-      name: instance.name,
-      instanceKey: instance.instanceKey,
-      status: instance.status,
-      qrCodeUrl: `${process.env.EVOLUTION_API_URL}/instance/connect/${instanceKey}`,
-    };
+      const response = await axios.post(
+        `${evolutionUrl}/instance/create`,
+        {
+          instanceName: instanceKey,
+          token: instanceKey, // Using instanceKey as token for simplicity
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        },
+        {
+          headers: {
+            'apikey': evolutionApiKey,
+          },
+        },
+      );
+
+      // 2. Save to Database
+      const instance = await this.prisma.instance.create({
+        data: {
+          name: dto.name,
+          instanceKey,
+          companyId,
+          status: 'disconnected', // Initial status
+        },
+      });
+
+      // 3. Construct QR Code URL (Evolution v2 returns it in response usually, or validates it)
+      // For v2, we can fetch the connect QR directly if not returned
+      const qrCodeUrl = response.data?.qrcode?.base64 || `${evolutionUrl}/instance/connect/${instanceKey}`;
+
+      return {
+        id: instance.id,
+        name: instance.name,
+        instanceKey: instance.instanceKey,
+        status: instance.status,
+        qrCodeUrl, // This might need to be proxied or base64
+      };
+    } catch (error) {
+      console.error('Error creating evolution instance:', error.response?.data || error.message);
+
+      // Fallback: If Evolution is down, maybe throw error or return generic error
+      if (error.response?.data) {
+        throw new HttpException(error.response.data, error.response.status);
+      }
+      throw new HttpException('Failed to create WhatsApp instance', HttpStatus.BAD_GATEWAY);
+    }
   }
 
   @Get(':id')

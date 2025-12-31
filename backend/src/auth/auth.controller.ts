@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 class GoogleAuthDto {
   idToken: string;
@@ -9,6 +10,25 @@ class GoogleAuthDto {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
+
+  /**
+   * POST /auth/register
+   * Create new account with email/password
+   */
+  @Post('register')
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  /**
+   * POST /auth/login
+   * Login with email/password
+   */
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
 
   /**
    * POST /auth/google

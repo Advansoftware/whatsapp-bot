@@ -64,6 +64,24 @@ class ApiClient {
     return response;
   }
 
+  async login(data: any) {
+    const response = await this.request<{ accessToken: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    this.setToken(response.accessToken);
+    return response;
+  }
+
+  async register(data: any) {
+    const response = await this.request<{ accessToken: string; user: any }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    this.setToken(response.accessToken);
+    return response;
+  }
+
   async getProfile() {
     return this.request<any>('/auth/me');
   }

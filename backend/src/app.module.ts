@@ -6,6 +6,7 @@ import { QueueModule } from './queue/queue.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { AuthModule } from './auth/auth.module';
 import { ApiModule } from './api/api.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ApiModule } from './api/api.module';
     ApiModule,
     QueueModule,
     WebhookModule,
+    ChatModule,
   ],
 })
 export class AppModule { }

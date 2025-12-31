@@ -31,7 +31,7 @@ services:
       - redis_data:/data
     networks:
       - saas-network
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --bind 0.0.0.0
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -48,7 +48,7 @@ services:
       - SERVER_URL=http://localhost:8080
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/whatsapp_bot
+      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution_api
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true
       - DATABASE_SAVE_MESSAGE_UPDATE=true
@@ -60,6 +60,7 @@ services:
       - WEBHOOK_GLOBAL_URL=http://host.docker.internal:3000/webhook/evolution
       - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=true
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy

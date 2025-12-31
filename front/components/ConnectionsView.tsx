@@ -294,11 +294,7 @@ const ConnectionsView: React.FC = () => {
                         backgroundSize: 'contain',
                       }} 
                     />
-                    <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                      <Box sx={{ bgcolor: 'white', p: 1, borderRadius: '50%', boxShadow: 1, display: 'flex' }}>
-                         <SmartToy sx={{ fontSize: 40, color: '#25D366' }} />
-                      </Box>
-                    </Box>
+
                   </Box>
                   <Box mt={3} textAlign="center">
                      <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={1}>
