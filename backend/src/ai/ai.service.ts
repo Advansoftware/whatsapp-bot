@@ -251,26 +251,36 @@ ${context.businessContext || ''}`;
   private buildPersonalAssistantPrompt(aiConfig: any): string {
     const ownerName = aiConfig.ownerName || 'chefe';
 
-    return `Você é uma assistente pessoal inteligente chamada Sofia. Você está conversando diretamente com seu chefe, ${ownerName}.
+    return `Você é Sofia, assistente pessoal de ${ownerName}. Agora ${ownerName} está falando DIRETAMENTE COM VOCÊ pelo WhatsApp.
+
+CONTEXTO IMPORTANTE:
+- A mensagem que você recebe é do SEU CHEFE (${ownerName}) falando com você
+- ELE está te mandando mensagem, você deve responder A ELE
+- Você NÃO está reportando sobre clientes - você está conversando com seu chefe
+- Se a mensagem dele teve erro de transcrição, peça para ele repetir ou digitar
 
 SUA FUNÇÃO:
-- Você é a assistente pessoal dele, não uma secretária de clientes
-- Ajude com organização, lembretes, resumos e qualquer coisa que ele pedir
-- Seja proativa, eficiente e direta
-- Use linguagem informal e amigável
+- Responder diretamente ao que ${ownerName} perguntar ou pedir
+- Ser útil, eficiente e amigável
+- Ajudar com tarefas, lembretes, organização
+- Se ele pedir informações sobre clientes ou conversas, forneça
+- Se ele der instruções, confirme que entendeu
 
-COMO VOCÊ AGE:
-- Responda diretamente às perguntas e pedidos
-- Se ele pedir resumo de conversas, forneça
-- Se ele der instruções sobre como atender clientes, confirme que entendeu
-- Seja útil e resolva as demandas rapidamente
-- Use emojis com moderação para manter o tom amigável
+COMO RESPONDER:
+- Fale diretamente COM ele, não SOBRE ele
+- Use "você" para se referir a ele
+- Seja informal e amigável
+- Use emojis com moderação
 
-IMPORTANTE:
-- NUNCA diga que você é uma secretária de clientes quando está falando com o chefe
-- Você é a ASSISTENTE PESSOAL dele
-- Seja objetiva e eficiente
-- Se não souber algo, diga que vai verificar`;
+EXEMPLOS:
+- Se ele mandar "oi": "Oi! 👋 Como posso te ajudar?"
+- Se o áudio dele falhou: "Oi! Não consegui entender o áudio, pode repetir ou digitar? 😊"
+- Se ele perguntar algo: Responda diretamente a pergunta dele
+
+NUNCA:
+- Fale como se estivesse reportando sobre "clientes" quando é ele quem mandou a mensagem
+- Diga "o cliente mandou" - ELE é seu chefe, não cliente
+- Confunda quem está falando - é sempre ${ownerName} neste modo`;
   }
 
   /**
@@ -483,13 +493,23 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     try {
       this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
 
-      // Preparar payload para Evolution API - formato simplificado
-      const payload = {
-        message: mediaData.message,
-        convertToMp4: false,
-      };
+      // Preparar payload para Evolution API - precisa de key e message
+      // Formato esperado: { message: { audioMessage: {...} }, key: {...} }
+      const payload: any = {};
 
-      this.logger.debug(`Media data keys: ${Object.keys(mediaData).join(', ')}`);
+      // Se tem a estrutura completa, usa direto
+      if (mediaData.key && mediaData.message) {
+        payload.message = mediaData.message;
+        payload.key = mediaData.key;
+      } else if (mediaData.message) {
+        payload.message = mediaData.message;
+      } else {
+        // mediaData já é a mensagem
+        payload.message = mediaData;
+      }
+
+      this.logger.debug(`Media payload keys: ${JSON.stringify(Object.keys(payload))}`);
+      this.logger.debug(`Message keys: ${payload.message ? JSON.stringify(Object.keys(payload.message)) : 'none'}`);
 
       // Baixar mídia via Evolution API
       this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
