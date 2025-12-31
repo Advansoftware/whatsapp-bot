@@ -34,10 +34,12 @@ model Company {
   users     User[]
   instances Instance[]
 
-  messages  Message[]
-  chatFlows ChatFlow[]
-  products  Product[]
-  contacts  Contact[]
+  messages      Message[]
+  chatFlows     ChatFlow[]
+  products      Product[]
+  contacts      Contact[]
+  aiSecretary   AISecretary?
+  conversations Conversation[]
 
   @@map("companies")
 }
@@ -85,21 +87,21 @@ model ChatFlow {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  company  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  nodes    ChatNode[]
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nodes   ChatNode[]
 
   @@map("chat_flows")
 }
 
 model ChatNode {
-  id        String   @id @default(cuid())
-  flowId    String   @map("flow_id")
-  content   String   @db.Text
-  type      String   @default("text") // text, button, list
-  stepIndex Int      @map("step_index")
-  parentId  String?  @map("parent_id")
-  
-  flow     ChatFlow  @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  flowId    String  @map("flow_id")
+  content   String  @db.Text
+  type      String  @default("text") // text, button, list
+  stepIndex Int     @map("step_index")
+  parentId  String? @map("parent_id")
+
+  flow ChatFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@map("chat_nodes")
 }
@@ -113,27 +115,28 @@ model Instance {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages Message[]
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  conversations Conversation[]
 
   @@map("instances")
 }
 
 model Message {
-  id           String   @id @default(cuid())
-  remoteJid    String   @map("remote_jid")
-  messageId    String   @map("message_id")
-  content      String   @db.Text
-  response     String?  @db.Text
-  direction    String
-  pushName     String?  @map("push_name")
-  mediaUrl     String?  @map("media_url")
-  mediaType    String?  @map("media_type") // 'image', 'video', 'audio', 'document'
-  status       String   @default("pending") // 'pending' | 'processed' | 'failed'
-  processedAt  DateTime? @map("processed_at")
-  companyId    String   @map("company_id")
-  instanceId   String   @map("instance_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          String    @id @default(cuid())
+  remoteJid   String    @map("remote_jid")
+  messageId   String    @map("message_id")
+  content     String    @db.Text
+  response    String?   @db.Text
+  direction   String
+  pushName    String?   @map("push_name")
+  mediaUrl    String?   @map("media_url")
+  mediaType   String?   @map("media_type") // 'image', 'video', 'audio', 'document'
+  status      String    @default("pending") // 'pending' | 'processed' | 'failed'
+  processedAt DateTime? @map("processed_at")
+  companyId   String    @map("company_id")
+  instanceId  String    @map("instance_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
@@ -142,4 +145,58 @@ model Message {
   @@index([instanceId])
   @@index([remoteJid])
   @@map("messages")
+}
+
+model AISecretary {
+  id              String   @id @default(cuid())
+  companyId       String   @unique @map("company_id")
+  enabled         Boolean  @default(false)
+  mode            String   @default("passive") // 'passive' | 'active' | 'supervised'
+  systemPrompt    String   @db.Text
+  temperature     Float    @default(0.7)
+  ownerPhone      String?  @map("owner_phone") // WhatsApp do dono para notificações
+  ownerName       String?  @map("owner_name") // Nome do dono
+  businessHours   String?  @map("business_hours") @db.Text // JSON com horários de funcionamento
+  escalationWords String?  @map("escalation_words") @db.Text // Palavras que sempre escalam para humano
+  personality     String   @default("professional") // 'professional' | 'friendly' | 'casual'
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("ai_secretaries")
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  remoteJid     String   @map("remote_jid")
+  companyId     String   @map("company_id")
+  instanceId    String   @map("instance_id")
+  status        String   @default("active") // 'active' | 'resolved' | 'archived'
+  assignedTo    String?  @map("assigned_to") // 'ai' | 'human' | null
+  priority      String   @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
+  summary       String?  @db.Text
+  lastMessageAt DateTime @map("last_message_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([remoteJid, companyId])
+  @@map("conversations")
+}
+
+model AIInteraction {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  messageId      String   @map("message_id")
+  action         String // 'responded' | 'escalated' | 'summarized' | 'suggested'
+  reasoning      String?  @db.Text
+  confidence     Float?
+  humanOverride  Boolean  @default(false) @map("human_override")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("ai_interactions")
 }

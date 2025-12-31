@@ -1,46 +1,82 @@
-import React, { useMemo } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
-import { getTheme } from './theme';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import DashboardView from './components/DashboardView';
-import ConnectionsView from './components/ConnectionsView';
-import InventoryView from './components/InventoryView';
-import SettingsView from './components/SettingsView';
-import PlaceholderView from './components/PlaceholderView';
-import LandingPage from './components/LandingPage';
-import LoginView from './components/LoginView';
-import { View } from './types';
-import LiveChatView from './components/chat/LiveChatView';
-import ChatbotView from './components/chatbot/ChatbotView';
+import React, { useMemo } from "react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import {
+  ThemeProvider,
+  CssBaseline,
+  Box,
+  CircularProgress,
+} from "@mui/material";
+import { getTheme } from "./theme";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import DashboardView from "./components/DashboardView";
+import ConnectionsView from "./components/ConnectionsView";
+import InventoryView from "./components/InventoryView";
+import SettingsView from "./components/SettingsView";
+import PlaceholderView from "./components/PlaceholderView";
+import LandingPage from "./components/LandingPage";
+import LoginView from "./components/LoginView";
+import { View } from "./types";
+import LiveChatView from "./components/chat/LiveChatView";
+import ChatbotView from "./components/chatbot/ChatbotView";
+import AISecretaryView from "./components/ai-secretary/AISecretaryView";
 
 // Fallback to placeholder if env var missing to prevent crash
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id';
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID || "placeholder_client_id";
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const [showLogin, setShowLogin] = React.useState(false);
-  const [mode, setMode] = React.useState<'light' | 'dark'>('dark');
-  const [currentView, setCurrentView] = React.useState<View>('dashboard');
+  const [mode, setMode] = React.useState<"light" | "dark">("dark");
+  const [currentView, setCurrentView] = React.useState<View>("dashboard");
+  const [selectedChatFromDashboard, setSelectedChatFromDashboard] =
+    React.useState<any>(null);
 
   const theme = useMemo(() => getTheme(mode), [mode]);
 
   const toggleTheme = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+    setMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
   };
+
+  const handleNavigateToChat = (conversation: any) => {
+    setSelectedChatFromDashboard({
+      remoteJid: conversation.remoteJid,
+      contact: conversation.contact,
+      instanceKey: conversation.instanceKey || conversation.instanceName,
+      profilePicUrl: conversation.profilePicUrl,
+    });
+    setCurrentView("livechat");
+  };
+
+  // Clear selected chat when navigating away from livechat
+  React.useEffect(() => {
+    if (currentView !== "livechat") {
+      setSelectedChatFromDashboard(null);
+    }
+  }, [currentView]);
 
   const renderView = () => {
     switch (currentView) {
-      case 'dashboard': return <DashboardView />;
-      case 'connections': return <ConnectionsView />;
-      case 'inventory': return <InventoryView />;
-      case 'settings': return <SettingsView />;
-      case 'chatbot': return <ChatbotView />;
-      case 'livechat': return <LiveChatView />;
-      case 'subscription': return <PlaceholderView title="Gerenciamento de Assinatura" />;
-      default: return <DashboardView />;
+      case "dashboard":
+        return <DashboardView onNavigateToChat={handleNavigateToChat} />;
+      case "connections":
+        return <ConnectionsView />;
+      case "inventory":
+        return <InventoryView />;
+      case "settings":
+        return <SettingsView />;
+      case "chatbot":
+        return <ChatbotView />;
+      case "livechat":
+        return <LiveChatView initialChat={selectedChatFromDashboard} />;
+      case "ai-secretary":
+        return <AISecretaryView />;
+      case "subscription":
+        return <PlaceholderView title="Gerenciamento de Assinatura" />;
+      default:
+        return <DashboardView onNavigateToChat={handleNavigateToChat} />;
     }
   };
 
@@ -49,9 +85,9 @@ const AppContent: React.FC = () => {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box 
-          display="flex" 
-          minHeight="100vh" 
+        <Box
+          display="flex"
+          minHeight="100vh"
           bgcolor="background.default"
           alignItems="center"
           justifyContent="center"
@@ -68,16 +104,16 @@ const AppContent: React.FC = () => {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Box display="flex" minHeight="100vh" bgcolor="background.default">
-          <Sidebar 
-            open={true} 
-            onClose={() => {}} 
+          <Sidebar
+            open={true}
+            onClose={() => {}}
             currentView={currentView}
             onNavigate={setCurrentView}
           />
-          
+
           <Box flex={1} display="flex" flexDirection="column" overflow="hidden">
-            <Header toggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />
-            
+            <Header toggleTheme={toggleTheme} isDarkMode={mode === "dark"} />
+
             <Box flex={1} overflow="auto" p={{ xs: 2, md: 4 }}>
               {renderView()}
             </Box>

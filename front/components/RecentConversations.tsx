@@ -1,47 +1,66 @@
-import React, { useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
+import React, { useEffect } from "react";
+import {
+  Box,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
   Chip,
   Avatar,
   useTheme,
   CircularProgress,
-  Alert
-} from '@mui/material';
-import { useRecentConversations } from '../hooks/useApi';
-import { useSocket } from '../hooks/useSocket';
+  Alert,
+} from "@mui/material";
+import { useRecentConversations } from "../hooks/useApi";
+import { useSocket } from "../hooks/useSocket";
 
-const RecentConversations: React.FC = () => {
+interface RecentConversationsProps {
+  onNavigateToChat?: (conversation: any) => void;
+}
+
+const RecentConversations: React.FC<RecentConversationsProps> = ({
+  onNavigateToChat,
+}) => {
   const theme = useTheme();
-  const { data: conversations, isLoading, error, refetch } = useRecentConversations();
+  const {
+    data: conversations,
+    isLoading,
+    error,
+    refetch,
+  } = useRecentConversations();
   const { socket } = useSocket();
 
   useEffect(() => {
     if (!socket) return;
 
     const handleNewMessage = (data: any) => {
-      console.log('New message received:', data);
+      console.log("New message received:", data);
       refetch();
     };
 
-    socket.on('new_message', handleNewMessage);
+    socket.on("new_message", handleNewMessage);
 
     return () => {
-      socket.off('new_message', handleNewMessage);
+      socket.off("new_message", handleNewMessage);
     };
   }, [socket, refetch]);
 
   if (isLoading) {
     return (
-      <Paper elevation={0} sx={{ p: 3, border: `1px solid ${theme.palette.divider}` }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+      <Paper
+        elevation={0}
+        sx={{ p: 3, border: `1px solid ${theme.palette.divider}` }}
+      >
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight={200}
+        >
           <CircularProgress />
         </Box>
       </Paper>
@@ -50,7 +69,10 @@ const RecentConversations: React.FC = () => {
 
   if (error) {
     return (
-      <Paper elevation={0} sx={{ p: 3, border: `1px solid ${theme.palette.divider}` }}>
+      <Paper
+        elevation={0}
+        sx={{ p: 3, border: `1px solid ${theme.palette.divider}` }}
+      >
         <Alert severity="error">Erro ao carregar conversas recentes</Alert>
       </Paper>
     );
@@ -58,25 +80,25 @@ const RecentConversations: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'processed':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'failed':
-        return 'error';
+      case "processed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "failed":
+        return "error";
       default:
-        return 'default';
+        return "default";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'processed':
-        return 'Respondido';
-      case 'pending':
-        return 'Pendente';
-      case 'failed':
-        return 'Falhou';
+      case "processed":
+        return "Respondido";
+      case "pending":
+        return "Pendente";
+      case "failed":
+        return "Falhou";
       default:
         return status;
     }
@@ -90,20 +112,24 @@ const RecentConversations: React.FC = () => {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Agora';
+    if (diffMins < 1) return "Agora";
     if (diffMins < 60) return `${diffMins}m atrás`;
     if (diffHours < 24) return `${diffHours}h atrás`;
     return `${diffDays}d atrás`;
   };
 
-  const getInitials = (contact: string) => {
-    // Extract numbers for initials
-    const numbers = contact.replace(/\D/g, '');
-    return numbers.slice(-2) || '??';
+  const handleRowClick = (conv: any) => {
+    // Navigate to chat with this conversation selected
+    if (onNavigateToChat) {
+      onNavigateToChat(conv);
+    }
   };
 
   return (
-    <Paper elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+    <Paper
+      elevation={0}
+      sx={{ border: `1px solid ${theme.palette.divider}`, overflow: "hidden" }}
+    >
       <Box p={3} borderBottom={`1px solid ${theme.palette.divider}`}>
         <Typography variant="h6" fontWeight="bold">
           Conversas Recentes
@@ -112,7 +138,7 @@ const RecentConversations: React.FC = () => {
           Últimas mensagens recebidas
         </Typography>
       </Box>
-      
+
       <TableContainer>
         <Table>
           <TableHead>
@@ -127,37 +153,41 @@ const RecentConversations: React.FC = () => {
           <TableBody>
             {conversations && conversations.length > 0 ? (
               conversations.map((conv) => (
-                <TableRow 
-                  key={conv.id} 
-                  hover 
-                  sx={{ cursor: 'pointer', '&:last-child td': { border: 0 } }}
+                <TableRow
+                  key={conv.id}
+                  hover
+                  onClick={() => handleRowClick(conv)}
+                  sx={{ cursor: "pointer", "&:last-child td": { border: 0 } }}
                 >
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={2}>
-                      <Avatar 
-                        sx={{ 
-                          bgcolor: theme.palette.primary.main,
+                      <Avatar
+                        src={
+                          conv.profilePicUrl ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            conv.contact
+                          )}&background=00a884&color=fff`
+                        }
+                        sx={{
                           width: 36,
                           height: 36,
-                          fontSize: 14
+                          fontSize: 14,
                         }}
-                      >
-                        {getInitials(conv.contact)}
-                      </Avatar>
+                      />
                       <Typography variant="body2" fontWeight={500}>
                         {conv.contact}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       color="text.secondary"
                       sx={{
                         maxWidth: 300,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {conv.lastMessage}
@@ -169,8 +199,8 @@ const RecentConversations: React.FC = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={getStatusLabel(conv.status)} 
+                    <Chip
+                      label={getStatusLabel(conv.status)}
                       color={getStatusColor(conv.status) as any}
                       size="small"
                     />
@@ -186,7 +216,8 @@ const RecentConversations: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    Nenhuma conversa ainda. As mensagens aparecerão aqui quando chegarem.
+                    Nenhuma conversa ainda. As mensagens aparecerão aqui quando
+                    chegarem.
                   </Typography>
                 </TableCell>
               </TableRow>

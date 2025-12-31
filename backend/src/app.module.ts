@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ApiModule } from './api/api.module';
 import { ChatModule } from './chat/chat.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ChatbotModule } from './chatbot/chatbot.module';
     WebhookModule,
     ChatModule,
     ChatbotModule,
+    AIModule,
   ],
 })
 export class AppModule { }

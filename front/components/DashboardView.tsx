@@ -1,18 +1,27 @@
-import React from 'react';
-import { Box, Grid, Typography, CircularProgress, Alert } from '@mui/material';
-import { Forum, PersonAdd, Api } from '@mui/icons-material';
-import StatCard from './StatCard';
-import ActivityChart from './ActivityChart';
-import RecentConversations from './RecentConversations';
-import { useDashboardStats } from '../hooks/useApi';
-import { StatData } from '../types';
+import React from "react";
+import { Box, Grid, Typography, CircularProgress, Alert } from "@mui/material";
+import { Forum, PersonAdd, Api } from "@mui/icons-material";
+import StatCard from "./StatCard";
+import ActivityChart from "./ActivityChart";
+import RecentConversations from "./RecentConversations";
+import { useDashboardStats } from "../hooks/useApi";
+import { StatData } from "../types";
 
-const DashboardView: React.FC = () => {
+interface DashboardViewProps {
+  onNavigateToChat?: (conversation: any) => void;
+}
+
+const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToChat }) => {
   const { data: stats, isLoading, error } = useDashboardStats();
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight={400}
+      >
         <CircularProgress />
       </Box>
     );
@@ -20,7 +29,7 @@ const DashboardView: React.FC = () => {
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ maxWidth: 'lg', mx: 'auto' }}>
+      <Alert severity="error" sx={{ maxWidth: "lg", mx: "auto" }}>
         Erro ao carregar dados do dashboard: {error.message}
       </Alert>
     );
@@ -28,29 +37,29 @@ const DashboardView: React.FC = () => {
 
   const statCards: StatData[] = [
     {
-      title: 'Total de Mensagens',
-      value: stats?.totalMessages?.toLocaleString('pt-BR') || '0',
-      change: stats?.messageGrowth || '0%',
-      isPositive: !stats?.messageGrowth?.startsWith('-'),
-      subtext: 'vs mês anterior',
-      icon: <Forum />
+      title: "Total de Mensagens",
+      value: stats?.totalMessages?.toLocaleString("pt-BR") || "0",
+      change: stats?.messageGrowth || "0%",
+      isPositive: !stats?.messageGrowth?.startsWith("-"),
+      subtext: "vs mês anterior",
+      icon: <Forum />,
     },
     {
-      title: 'Leads Ativos',
-      value: stats?.activeLeads?.toLocaleString('pt-BR') || '0',
+      title: "Leads Ativos",
+      value: stats?.activeLeads?.toLocaleString("pt-BR") || "0",
       change: `${stats?.activeInstances || 0} conexões`,
       isPositive: true,
-      subtext: 'instâncias ativas',
-      icon: <PersonAdd />
+      subtext: "instâncias ativas",
+      icon: <PersonAdd />,
     },
     {
-      title: 'Status da API',
-      value: stats?.apiStatus === 'healthy' ? 'Saudável' : 'Offline',
-      change: stats?.uptime || '0%',
-      isPositive: stats?.apiStatus === 'healthy',
-      subtext: 'Últimas 24h',
-      icon: <Api />
-    }
+      title: "Status da API",
+      value: stats?.apiStatus === "healthy" ? "Saudável" : "Offline",
+      change: stats?.uptime || "0%",
+      isPositive: stats?.apiStatus === "healthy",
+      subtext: "Últimas 24h",
+      icon: <Api />,
+    },
   ];
 
   return (
@@ -70,13 +79,13 @@ const DashboardView: React.FC = () => {
           sx={{
             p: 2,
             borderRadius: 2,
-            bgcolor: 'background.paper',
+            bgcolor: "background.paper",
             border: 1,
-            borderColor: 'divider',
+            borderColor: "divider",
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            Saldo disponível:{' '}
+            Saldo disponível:{" "}
             <Typography component="span" fontWeight="bold" color="primary">
               R$ {Number(stats.balance).toFixed(2)}
             </Typography>
@@ -88,15 +97,20 @@ const DashboardView: React.FC = () => {
       <ActivityChart />
 
       {/* Table */}
-      <RecentConversations />
-      
+      <RecentConversations onNavigateToChat={onNavigateToChat} />
+
       <Box component="footer" textAlign="center" py={2}>
-        <Box 
-            component="span" 
-            sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
+        <Box
+          component="span"
+          sx={{ color: "text.secondary", fontSize: "0.75rem" }}
         >
-            © 2024 WA Automator. Todos os direitos reservados. 
-            <Box component="span" sx={{ color: 'primary.main', ml: 1, cursor: 'pointer' }}>Política de Privacidade</Box>
+          © 2024 WA Automator. Todos os direitos reservados.
+          <Box
+            component="span"
+            sx={{ color: "primary.main", ml: 1, cursor: "pointer" }}
+          >
+            Política de Privacidade
+          </Box>
         </Box>
       </Box>
     </Box>

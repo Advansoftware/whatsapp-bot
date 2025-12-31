@@ -264,6 +264,89 @@ class ApiClient {
     });
   }
 
+  // AI Secretary endpoints
+  async getAISecretaryConfig() {
+    return this.request<{
+      id: string;
+      enabled: boolean;
+      mode: 'passive' | 'active' | 'supervised';
+      systemPrompt: string;
+      temperature: number;
+      ownerPhone: string | null;
+      ownerName: string | null;
+      businessHours: string | null;
+      escalationWords: string | null;
+      personality: string;
+    }>('/api/ai-secretary/config');
+  }
+
+  async updateAISecretaryConfig(data: Partial<{
+    enabled: boolean;
+    mode: string;
+    systemPrompt: string;
+    temperature: number;
+    ownerPhone: string;
+    ownerName: string;
+    businessHours: string;
+    escalationWords: string;
+    personality: string;
+  }>) {
+    return this.request<any>('/api/ai-secretary/config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAIConversations() {
+    return this.request<Array<{
+      id: string;
+      remoteJid: string;
+      status: string;
+      priority: string;
+      assignedTo: string | null;
+      summary: string | null;
+      lastMessageAt: string;
+      lastMessage: string;
+    }>>('/api/ai-secretary/conversations');
+  }
+
+  async getAISuggestions(remoteJid: string) {
+    return this.request<{
+      suggestion: string | null;
+      confidence: number;
+      reasoning: string;
+      intent: string;
+      urgency: string;
+      sentiment: string;
+      shouldEscalate: boolean;
+    }>(`/api/ai-secretary/suggestions/${encodeURIComponent(remoteJid)}`);
+  }
+
+  async approveAISuggestion(remoteJid: string, instanceKey: string, response: string) {
+    return this.request<{ success: boolean }>('/api/ai-secretary/approve', {
+      method: 'POST',
+      body: JSON.stringify({ remoteJid, instanceKey, response }),
+    });
+  }
+
+  async overrideAISuggestion(remoteJid: string, aiSuggestion: string, humanResponse: string) {
+    return this.request<{ success: boolean }>('/api/ai-secretary/override', {
+      method: 'POST',
+      body: JSON.stringify({ remoteJid, aiSuggestion, humanResponse }),
+    });
+  }
+
+  async getAIStats() {
+    return this.request<{
+      totalInteractions: number;
+      approvedSuggestions: number;
+      overrides: number;
+      escalations: number;
+      approvalRate: string;
+      activeConversations: number;
+    }>('/api/ai-secretary/stats');
+  }
+
   // Logout
   logout() {
     this.setToken(null);

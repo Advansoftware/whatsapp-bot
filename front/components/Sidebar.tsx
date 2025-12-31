@@ -1,18 +1,18 @@
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { 
-  Box, 
-  Drawer, 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemIcon, 
+import React from "react";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
   Typography,
   Avatar,
   Divider,
-  useTheme
-} from '@mui/material';
+  useTheme,
+} from "@mui/material";
 import {
   Dashboard,
   Cable,
@@ -21,9 +21,10 @@ import {
   SmartToy,
   Chat,
   CreditCard,
-  Logout
-} from '@mui/icons-material';
-import { View } from '../types';
+  Logout,
+  Psychology,
+} from "@mui/icons-material";
+import { View } from "../types";
 
 interface SidebarProps {
   open: boolean;
@@ -35,19 +36,25 @@ interface SidebarProps {
 const DRAWER_WIDTH = 280;
 
 const menuItems = [
-  { id: 'dashboard' as View, label: 'Dashboard', icon: <Dashboard /> },
-  { id: 'connections' as View, label: 'Conexões', icon: <Cable /> },
-  { id: 'chatbot' as View, label: 'Chatbot', icon: <SmartToy /> },
-  { id: 'livechat' as View, label: 'Chat ao Vivo', icon: <Chat /> },
-  { id: 'inventory' as View, label: 'Inventário', icon: <Inventory /> },
+  { id: "dashboard" as View, label: "Dashboard", icon: <Dashboard /> },
+  { id: "connections" as View, label: "Conexões", icon: <Cable /> },
+  { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
+  { id: "livechat" as View, label: "Chat ao Vivo", icon: <Chat /> },
+  { id: "ai-secretary" as View, label: "Secretária IA", icon: <Psychology /> },
+  { id: "inventory" as View, label: "Inventário", icon: <Inventory /> },
 ];
 
 const bottomItems = [
-  { id: 'subscription' as View, label: 'Assinatura', icon: <CreditCard /> },
-  { id: 'settings' as View, label: 'Configurações', icon: <Settings /> },
+  { id: "subscription" as View, label: "Assinatura", icon: <CreditCard /> },
+  { id: "settings" as View, label: "Configurações", icon: <Settings /> },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  open,
+  onClose,
+  currentView,
+  onNavigate,
+}) => {
   const theme = useTheme();
   const { user, logout } = useAuth();
 
@@ -56,28 +63,28 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigat
   };
 
   const drawerContent = (
-    <Box 
-      sx={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column',
-        bgcolor: 'background.paper'
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "background.paper",
       }}
     >
       {/* Logo */}
-      <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
         <Box
           sx={{
             width: 40,
             height: 40,
             borderRadius: 2,
-            bgcolor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            bgcolor: "primary.main",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <SmartToy sx={{ color: 'white' }} />
+          <SmartToy sx={{ color: "white" }} />
         </Box>
         <Typography variant="h6" fontWeight="bold">
           WA Automator
@@ -90,15 +97,24 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigat
       {user && (
         <>
           <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2, bgcolor: 'action.hover' }}>
-              <Avatar 
-                src={user.picture || undefined} 
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: "action.hover",
+              }}
+            >
+              <Avatar
+                src={user.picture || undefined}
                 alt={user.name}
                 sx={{ width: 40, height: 40 }}
               >
                 {user.name?.charAt(0)}
               </Avatar>
-              <Box sx={{ overflow: 'hidden' }}>
+              <Box sx={{ overflow: "hidden" }}>
                 <Typography variant="body2" fontWeight={500} noWrap>
                   {user.name}
                 </Typography>
@@ -121,21 +137,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigat
               onClick={() => onNavigate(item.id)}
               sx={{
                 borderRadius: 2,
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
+                "&.Mui-selected": {
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  "&:hover": {
+                    bgcolor: "primary.dark",
                   },
-                  '& .MuiListItemIcon-root': {
-                    color: 'inherit',
+                  "& .MuiListItemIcon-root": {
+                    color: "inherit",
                   },
                 },
               }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                {item.icon}
-              </ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
               <ListItemText primary={item.label} />
             </ListItemButton>
           </ListItem>
@@ -153,43 +167,41 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigat
               onClick={() => onNavigate(item.id)}
               sx={{
                 borderRadius: 2,
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
+                "&.Mui-selected": {
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  "&:hover": {
+                    bgcolor: "primary.dark",
                   },
-                  '& .MuiListItemIcon-root': {
-                    color: 'inherit',
+                  "& .MuiListItemIcon-root": {
+                    color: "inherit",
                   },
                 },
               }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                {item.icon}
-              </ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
               <ListItemText primary={item.label} />
             </ListItemButton>
           </ListItem>
         ))}
-        
+
         {/* Logout */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
           <ListItemButton
             onClick={handleLogout}
             sx={{
               borderRadius: 2,
-              color: 'error.main',
-              '&:hover': {
-                bgcolor: 'error.main',
-                color: 'error.contrastText',
-                '& .MuiListItemIcon-root': {
-                  color: 'inherit',
+              color: "error.main",
+              "&:hover": {
+                bgcolor: "error.main",
+                color: "error.contrastText",
+                "& .MuiListItemIcon-root": {
+                  color: "inherit",
                 },
               },
             }}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
+            <ListItemIcon sx={{ minWidth: 40, color: "error.main" }}>
               <Logout />
             </ListItemIcon>
             <ListItemText primary="Sair" />
@@ -205,9 +217,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, currentView, onNavigat
       sx={{
         width: DRAWER_WIDTH,
         flexShrink: 0,
-        '& .MuiDrawer-paper': {
+        "& .MuiDrawer-paper": {
           width: DRAWER_WIDTH,
-          boxSizing: 'border-box',
+          boxSizing: "border-box",
           borderRight: `1px solid ${theme.palette.divider}`,
         },
       }}

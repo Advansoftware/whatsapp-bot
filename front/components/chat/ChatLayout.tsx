@@ -14,6 +14,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
   const theme = useTheme();
   const { data: conversations, isLoading, refetch } = useRecentConversations();
   const { socket } = useSocket();
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Listen for new messages to refresh conversation list
   useEffect(() => {
@@ -55,6 +56,12 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
     return date.toLocaleDateString();
   };
 
+  // Filter conversations based on search query
+  const filteredConversations = conversations?.filter(conv => 
+    conv.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
   return (
     <Box display="flex" height="calc(100vh - 100px)" gap={2}>
       {/* Sidebar List */}
@@ -86,6 +93,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
             <InputBase
               sx={{ ml: 1, flex: 1 }}
               placeholder="Buscar conversa..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </Paper>
         </Box>
@@ -105,7 +114,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
             backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
           }
         }}>
-          {conversations?.map((conv) => (
+          {filteredConversations.map((conv) => (
             <React.Fragment key={conv.id}>
               <ListItem 
                 component="button"
