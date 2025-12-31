@@ -67,11 +67,39 @@ export function useMessages(page = 1, limit = 20, instanceId?: string) {
 }
 
 export function useChatMessages(remoteJid: string | null, page = 1, limit = 50) {
-  // Use a specialized fetcher that depends on remoteJid
-  const fetcher = useCallback(() => {
-    if (!remoteJid) return Promise.resolve(null);
-    return api.getMessages(page, limit, undefined, remoteJid);
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async () => {
+    if (!remoteJid) {
+      setData(null);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await api.getMessages(page, limit, undefined, remoteJid);
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An error occurred'));
+    } finally {
+      setIsLoading(false);
+    }
   }, [remoteJid, page, limit]);
 
-  return useApi(fetcher, { autoFetch: !!remoteJid });
+  // Refetch when remoteJid changes - use empty deps for initial + remoteJid for changes
+  useEffect(() => {
+    if (remoteJid) {
+      setIsLoading(true);
+      api.getMessages(page, limit, undefined, remoteJid)
+        .then(result => setData(result))
+        .catch(err => setError(err instanceof Error ? err : new Error('An error occurred')))
+        .finally(() => setIsLoading(false));
+    } else {
+      setData(null);
+    }
+  }, [remoteJid, page, limit]);
+
+  return { data, isLoading, error, refetch };
 }

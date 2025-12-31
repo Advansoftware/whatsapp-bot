@@ -229,6 +229,41 @@ class ApiClient {
     });
   }
 
+  // Products/Inventory endpoints
+  async getProducts() {
+    return this.request<Array<{
+      id: string;
+      name: string;
+      variant: string;
+      quantity: number;
+      price: string;
+      priceRaw: number;
+      sku: string;
+      imageUrl?: string;
+      status: string;
+    }>>('/api/products');
+  }
+
+  async createProduct(data: any) {
+    return this.request<any>('/api/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProduct(id: string, data: any) {
+    return this.request<any>(`/api/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProduct(id: string) {
+    return this.request<void>(`/api/products/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Logout
   logout() {
     this.setToken(null);

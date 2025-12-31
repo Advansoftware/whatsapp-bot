@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { EvolutionWebhookDto } from './dto/evolution-webhook.dto';
 import { WHATSAPP_QUEUE } from '../queue/queue.module';
 import { ChatGateway } from '../chat/chat.gateway';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('webhook')
 export class WebhookController {
@@ -12,6 +13,7 @@ export class WebhookController {
   constructor(
     @InjectQueue(WHATSAPP_QUEUE) private readonly whatsappQueue: Queue,
     private readonly chatGateway: ChatGateway,
+    private readonly prisma: PrismaService,
   ) { }
 
   /**
@@ -42,7 +44,25 @@ export class WebhookController {
     if (payload.event === 'connection.update') {
       const state = payload.data?.state || payload.data?.status;
       this.logger.log(`Connection update for ${payload.instance}: ${state}`);
-      // TODO: Update instance status in database
+
+      // Update instance status in database
+      let dbStatus = 'disconnected';
+      if (state === 'open' || state === 'connected') {
+        dbStatus = 'connected';
+      } else if (state === 'connecting' || state === 'syncing') {
+        dbStatus = 'syncing';
+      }
+
+      try {
+        await this.prisma.instance.updateMany({
+          where: { instanceKey: payload.instance },
+          data: { status: dbStatus },
+        });
+        this.logger.log(`Updated instance ${payload.instance} status to ${dbStatus}`);
+      } catch (err) {
+        this.logger.error(`Failed to update instance status: ${err.message}`);
+      }
+
       this.chatGateway.broadcastMessage({
         type: 'connection_update',
         instanceKey: payload.instance,
