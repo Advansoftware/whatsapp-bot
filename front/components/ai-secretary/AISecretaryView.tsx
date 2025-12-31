@@ -47,6 +47,7 @@ interface AIConfig {
   businessHours: string | null;
   escalationWords: string | null;
   personality: string;
+  testMode: boolean;
 }
 
 interface AIStats {
@@ -104,6 +105,7 @@ const AISecretaryView: React.FC = () => {
     ownerName: "",
     escalationWords: "",
     personality: "professional",
+    testMode: false,
   });
 
   useEffect(() => {
@@ -130,6 +132,7 @@ const AISecretaryView: React.FC = () => {
         ownerName: configData.ownerName || "",
         escalationWords: configData.escalationWords || "",
         personality: configData.personality,
+        testMode: configData.testMode || false,
       });
     } catch (err) {
       setError("Erro ao carregar configurações");
@@ -317,6 +320,68 @@ const AISecretaryView: React.FC = () => {
                   }
                   label="Ativar Secretária IA"
                 />
+
+                <Box
+                  sx={{
+                    mt: 2,
+                    ml: 2,
+                    p: 1.5,
+                    bgcolor: (theme) =>
+                      formData.testMode
+                        ? theme.palette.mode === "dark"
+                          ? "rgba(156, 39, 176, 0.15)"
+                          : "rgba(156, 39, 176, 0.08)"
+                        : theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.03)",
+                    border: (theme) =>
+                      formData.testMode
+                        ? "1px solid rgba(156, 39, 176, 0.4)"
+                        : theme.palette.mode === "dark"
+                        ? "1px solid rgba(255, 255, 255, 0.1)"
+                        : "1px solid rgba(0, 0, 0, 0.1)",
+                    borderRadius: 1,
+                    opacity: formData.enabled ? 1 : 0.5,
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.testMode}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            testMode: e.target.checked,
+                          })
+                        }
+                        color="secondary"
+                        disabled={!formData.enabled}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          sx={{
+                            color: formData.testMode
+                              ? "secondary.main"
+                              : "text.primary",
+                          }}
+                        >
+                          👤 Secretária Pessoal
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary" }}
+                        >
+                          Quando você enviar mensagem, ela será sua assistente
+                          pessoal
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Box>
 
                 <Box sx={{ mt: 3 }}>
                   <Typography gutterBottom>Modo de Operação</Typography>

@@ -228,6 +228,7 @@ model AISecretary {
   businessHours   String?  @map("business_hours") @db.Text // JSON com horários de funcionamento
   escalationWords String?  @map("escalation_words") @db.Text // Palavras que sempre escalam para humano
   personality     String   @default("professional") // 'professional' | 'friendly' | 'casual'
+  testMode        Boolean  @default(false) @map("test_mode") // Modo teste: responde mensagens do próprio dono
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

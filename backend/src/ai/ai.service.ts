@@ -9,6 +9,7 @@ interface MessageContext {
   products?: any[];
   businessContext?: string;
   ownerName?: string;
+  isPersonalAssistant?: boolean; // Modo secretária pessoal (quando o dono fala com ela)
 }
 
 interface AIAnalysis {
@@ -191,10 +192,44 @@ Responda em JSON:
 
   /**
    * Builds system prompt with business context - Secretária humanizada
+   * Se isPersonalAssistant for true, age como secretária pessoal do dono
    */
   private buildSystemPrompt(context: MessageContext): string {
     const ownerName = context.ownerName || 'o proprietário';
 
+    // Modo Secretária Pessoal - quando o dono está falando com ela
+    if (context.isPersonalAssistant) {
+      return `Você é Sofia, a secretária pessoal de ${ownerName}. ${ownerName} está falando diretamente com você.
+
+SUA PERSONALIDADE:
+- Você é eficiente, prestativa e fala de forma natural como uma brasileira
+- Use emojis com moderação para deixar a conversa mais leve
+- Seja informal e amigável - você conhece bem seu chefe
+- Demonstre proatividade e iniciativa
+
+SUAS FUNÇÕES COMO SECRETÁRIA PESSOAL:
+- Ajudar a organizar tarefas e lembretes
+- Anotar informações importantes que ${ownerName} mencionar
+- Lembrar de compromissos e prazos
+- Ajudar a redigir mensagens para clientes
+- Resumir conversas de clientes quando solicitado
+- Sugerir ações baseadas nas conversas recentes
+
+COMO RESPONDER:
+- Seja direta e objetiva, ${ownerName} é ocupado
+- Confirme quando anotar algo: "Anotado, chefe! 📝"
+- Seja proativa: "Quer que eu te lembre disso amanhã?"
+- Para tarefas: "Deixa comigo! Vou cuidar disso."
+
+EXEMPLOS DE INTERAÇÕES:
+- "${ownerName}: Lembra de ligar pro João amanhã" → "Anotado! Vou te lembrar amanhã de ligar pro João. Quer que eu avise em algum horário específico? ⏰"
+- "${ownerName}: Como tá a conversa com o cliente X?" → "Deixa eu ver aqui... [resumo da conversa]"
+- "${ownerName}: Manda uma mensagem pro cliente Y agradecendo" → "Claro! Que tal algo assim: '[sugestão]' Posso mandar?"
+
+${context.businessContext || ''}`;
+    }
+
+    // Modo normal - atendendo clientes
     return `Você é uma secretária virtual chamada Sofia. Você trabalha para ${ownerName} atendendo clientes pelo WhatsApp.
 
 SUA PERSONALIDADE:
@@ -419,6 +454,7 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
 
   /**
    * Processa mensagem completa com lógica de secretária
+   * Se isPersonalAssistant for true, age como secretária pessoal do dono
    */
   async processSecretaryMessage(
     messageContent: string,
@@ -426,6 +462,7 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     instanceKey: string,
     remoteJid: string,
     contactName?: string,
+    isPersonalAssistant: boolean = false,
   ): Promise<{
     shouldRespond: boolean;
     response?: string;
@@ -440,6 +477,36 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     if (!aiConfig || !aiConfig.enabled) {
       return { shouldRespond: false, shouldNotifyOwner: false };
     }
+
+    // Se é o proprietário no modo secretária pessoal, pular verificações de horário e escalação
+    if (isPersonalAssistant) {
+      this.logger.log(`👤 Processing as personal assistant for owner`);
+
+      // Buscar contexto para o dono
+      const messages = await this.prisma.message.findMany({
+        where: { companyId, remoteJid },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+
+      const context: MessageContext = {
+        conversationHistory: messages.reverse(),
+        contactName: aiConfig.ownerName || contactName,
+        ownerName: aiConfig.ownerName ?? undefined,
+        isPersonalAssistant: true,
+      };
+
+      // Gerar resposta como secretária pessoal
+      const response = await this.generateResponse(messageContent, context, aiConfig);
+
+      return {
+        shouldRespond: true,
+        response,
+        shouldNotifyOwner: false, // Nunca notifica o dono, ELE é o dono!
+      };
+    }
+
+    // --- Fluxo normal para clientes ---
 
     // Verificar horário de funcionamento
     if (!this.isWithinBusinessHours(aiConfig.businessHours)) {
@@ -477,6 +544,7 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
       contactName,
       products,
       ownerName: aiConfig.ownerName ?? undefined,
+      isPersonalAssistant: false,
     };
 
     // Analisar mensagem

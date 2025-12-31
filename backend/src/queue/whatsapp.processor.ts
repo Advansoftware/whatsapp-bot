@@ -84,9 +84,26 @@ export class WhatsappProcessor extends WorkerHost {
         return { status: 'processed_history', messageId };
       }
 
+      // Verificar configuração da secretária e se é o proprietário
+      const aiConfig = await this.prisma.aISecretary.findUnique({
+        where: { companyId: instance.companyId },
+      });
+
+      // Extrair número do remetente (sem @s.whatsapp.net)
+      const senderNumber = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+      const ownerPhone = aiConfig?.ownerPhone?.replace(/\D/g, '') || ''; // Remove não-dígitos
+
+      // Verifica se é o proprietário falando consigo mesmo (via instância)
+      const isOwnerMessage = fromMe && aiConfig?.testMode === true && aiConfig?.enabled === true;
+      // OU se é uma mensagem recebida do número do proprietário (ele mandando do celular pessoal)
+      const isOwnerSendingToBot = !fromMe && !!ownerPhone && senderNumber === ownerPhone && aiConfig?.testMode === true && aiConfig?.enabled === true;
+
+      const isPersonalAssistantMode = isOwnerMessage || isOwnerSendingToBot;
+
       // ... Normal AI Flow for NEW INCOMING messages only ...
-      if (fromMe) {
+      if (fromMe && !isPersonalAssistantMode) {
         // If it's a new message but from ME (e.g. sent via phone), just save and ignore AI
+        // UNLESS personal assistant mode is enabled
         await this.prisma.message.create({
           data: {
             remoteJid,
@@ -102,6 +119,11 @@ export class WhatsappProcessor extends WorkerHost {
           },
         });
         return { status: 'saved_outgoing' };
+      }
+
+      // Log se está em modo secretária pessoal
+      if (isPersonalAssistantMode) {
+        this.logger.log(`👤 PERSONAL ASSISTANT MODE: Processing owner message - acting as personal secretary`);
       }
 
       // 2. Check company balance
@@ -131,51 +153,55 @@ export class WhatsappProcessor extends WorkerHost {
       await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
 
       // 5. PRIMEIRO: Tentar processar com Chatbot (fluxos baseados em keyword)
-      const chatbotResult = await this.chatbotService.processMessage(
-        instance.companyId,
-        content,
-        { customerName: job.data.pushName },
-      );
+      // Pula chatbot se for modo secretária pessoal
+      if (!isPersonalAssistantMode) {
+        const chatbotResult = await this.chatbotService.processMessage(
+          instance.companyId,
+          content,
+          { customerName: job.data.pushName },
+        );
 
-      if (chatbotResult.matched && chatbotResult.responses.length > 0) {
-        this.logger.log(`Chatbot flow matched for ${remoteJid}, sending ${chatbotResult.responses.length} messages`);
+        if (chatbotResult.matched && chatbotResult.responses.length > 0) {
+          this.logger.log(`Chatbot flow matched for ${remoteJid}, sending ${chatbotResult.responses.length} messages`);
 
-        // Enviar todas as respostas do fluxo
-        for (const response of chatbotResult.responses) {
-          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, response);
-          // Pequeno delay entre mensagens para parecer mais natural
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Enviar todas as respostas do fluxo
+          for (const response of chatbotResult.responses) {
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, response);
+            // Pequeno delay entre mensagens para parecer mais natural
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+
+          // Atualizar mensagem com resposta do chatbot
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: chatbotResult.responses.join('\n---\n'),
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          // Deduzir balance
+          await this.prisma.company.update({
+            where: { id: instance.companyId },
+            data: {
+              balance: { decrement: 0.01 * chatbotResult.responses.length },
+            },
+          });
+
+          this.logger.log(`Job ${job.id} completed via Chatbot flow`);
+          return { status: 'processed_chatbot', messageId: message.id };
         }
-
-        // Atualizar mensagem com resposta do chatbot
-        await this.prisma.message.update({
-          where: { id: message.id },
-          data: {
-            response: chatbotResult.responses.join('\n---\n'),
-            status: 'processed',
-            processedAt: new Date(),
-          },
-        });
-
-        // Deduzir balance
-        await this.prisma.company.update({
-          where: { id: instance.companyId },
-          data: {
-            balance: { decrement: 0.01 * chatbotResult.responses.length },
-          },
-        });
-
-        this.logger.log(`Job ${job.id} completed via Chatbot flow`);
-        return { status: 'processed_chatbot', messageId: message.id };
       }
 
-      // 6. Se chatbot não respondeu, processar com Secretária IA
+      // 6. Se chatbot não respondeu (ou é modo secretária pessoal), processar com Secretária IA
       const secretaryResult = await this.aiService.processSecretaryMessage(
         content,
         instance.companyId,
         instanceKey,
         remoteJid,
         job.data.pushName,
+        isPersonalAssistantMode, // Passa o flag indicando se é o dono falando
       );
 
       // 7. Se deve responder, enviar resposta
@@ -210,41 +236,39 @@ export class WhatsappProcessor extends WorkerHost {
         });
       }
 
-      // 8. SISTEMA DE MEMÓRIA: Extrair e salvar memórias da mensagem
-      try {
-        const contact = await this.prisma.contact.findFirst({
-          where: { companyId: instance.companyId, remoteJid },
-          select: { id: true, totalMessages: true, aiAnalyzedAt: true },
-        });
-
-        if (contact) {
-          // Extrair memórias da mensagem
-          await this.aiService.extractAndSaveMemory(contact.id, content, message.id);
-
-          // Atualizar contador de mensagens
-          const updatedContact = await this.prisma.contact.update({
-            where: { id: contact.id },
-            data: { totalMessages: { increment: 1 } },
+      // 8. SISTEMA DE MEMÓRIA: Extrair e salvar memórias da mensagem (pula se for secretária pessoal)
+      if (!isPersonalAssistantMode) {
+        try {
+          const contact = await this.prisma.contact.findFirst({
+            where: { companyId: instance.companyId, remoteJid },
             select: { id: true, totalMessages: true, aiAnalyzedAt: true },
           });
 
-          // Qualificação automática: dispara quando atingir 300 mensagens e ainda não foi analisado
-          if (updatedContact.totalMessages >= 300 && !updatedContact.aiAnalyzedAt) {
-            this.logger.log(`Auto-qualifying lead ${contact.id} with ${updatedContact.totalMessages} messages`);
-            await this.aiService.analyzeAndQualifyLead(contact.id, instance.companyId);
+          if (contact) {
+            // Extrair memórias da mensagem
+            await this.aiService.extractAndSaveMemory(contact.id, content, message.id);
+
+            // Atualizar contador de mensagens
+            const updatedContact = await this.prisma.contact.update({
+              where: { id: contact.id },
+              data: { totalMessages: { increment: 1 } },
+              select: { id: true, totalMessages: true, aiAnalyzedAt: true },
+            });
+
+            // Qualificação automática: dispara quando atingir 300 mensagens e ainda não foi analisado
+            if (updatedContact.totalMessages >= 300 && !updatedContact.aiAnalyzedAt) {
+              this.logger.log(`Auto-qualifying lead ${contact.id} with ${updatedContact.totalMessages} messages`);
+              await this.aiService.analyzeAndQualifyLead(contact.id, instance.companyId);
+            }
           }
+        } catch (memoryError) {
+          // Não falhar a mensagem por erro de memória
+          this.logger.warn(`Memory extraction failed: ${memoryError.message}`);
         }
-      } catch (memoryError) {
-        // Não falhar a mensagem por erro de memória
-        this.logger.warn(`Memory extraction failed: ${memoryError.message}`);
       }
 
-      // 9. Se deve notificar o dono
-      if (secretaryResult.shouldNotifyOwner) {
-        const aiConfig = await this.prisma.aISecretary.findUnique({
-          where: { companyId: instance.companyId },
-        });
-
+      // 9. Se deve notificar o dono (nunca notifica no modo secretária pessoal)
+      if (secretaryResult.shouldNotifyOwner && !isPersonalAssistantMode) {
         if (aiConfig?.ownerPhone) {
           // Buscar últimas mensagens para resumo
           const recentMessages = await this.prisma.message.findMany({
