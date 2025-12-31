@@ -144,9 +144,13 @@ export class WhatsappProcessor extends WorkerHost {
         return { status: 'skipped', reason: 'no_balance' };
       }
 
-      // 3. Save incoming message (com transcrição se houver)
-      const message = await this.prisma.message.create({
-        data: {
+      // 3. Save incoming message (com transcrição se houver) - usando upsert para evitar duplicatas
+      const message = await this.prisma.message.upsert({
+        where: { messageId },
+        update: {
+          content: processedContent, // Atualiza com transcrição se for retry
+        },
+        create: {
           remoteJid,
           messageId,
           content: processedContent, // Usa conteúdo transcrito se for áudio

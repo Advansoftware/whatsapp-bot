@@ -9,8 +9,6 @@ interface MessageContext {
   products?: any[];
   businessContext?: string;
   ownerName?: string;
-  isPersonalAssistant?: boolean; // Modo secretária pessoal (quando o dono fala com ela)
-  ownerInstructions?: string; // Instruções temporárias do dono
 }
 
 interface AIAnalysis {
@@ -52,276 +50,24 @@ export class AIService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.evolutionApiUrl = this.config.get('EVOLUTION_API_URL') || '';
     this.evolutionApiKey = this.config.get('EVOLUTION_API_KEY') || '';
-    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.5-flash';
-  }
-
-  // ========================================
-  // TRANSCRIÇÃO DE ÁUDIO
-  // ========================================
-
-  /**
-   * Converte objeto indexado (ex: {0: 1, 1: 2, ...}) para array
-   */
-  private objectToArray(obj: any): number[] | any {
-    if (!obj || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj;
-
-    // Verifica se parece ser um objeto indexado (chaves são números sequenciais)
-    const keys = Object.keys(obj);
-    if (keys.length > 0 && keys.every((k, i) => k === String(i))) {
-      return keys.map(k => obj[k]);
-    }
-    return obj;
+    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.0-flash';
   }
 
   /**
-   * Converte recursivamente objetos indexados em arrays na mensagem
+   * Verifica se o erro é de rate limit (429)
    */
-  private convertMediaMessage(message: any): any {
-    if (!message || typeof message !== 'object') return message;
-
-    const result: any = {};
-    for (const [key, value] of Object.entries(message)) {
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        // Campos que devem ser arrays de bytes
-        const byteFields = ['mediaKey', 'fileSha256', 'fileEncSha256', 'waveform', 'messageSecret',
-          'senderKeyHash', 'recipientKeyHash', 'threadId', 'senderKeyIndexes', 'recipientKeyIndexes'];
-
-        if (byteFields.includes(key)) {
-          result[key] = this.objectToArray(value);
-        } else if (key === 'fileLength' || key === 'mediaKeyTimestamp' || key === 'senderTimestamp' || key === 'recipientTimestamp') {
-          // Campos de números long - pegar o valor low
-          result[key] = (value as any).low !== undefined ? (value as any).low : value;
-        } else {
-          result[key] = this.convertMediaMessage(value);
-        }
-      } else {
-        result[key] = value;
-      }
-    }
-    return result;
+  private isRateLimitError(error: any): boolean {
+    return error.message?.includes('429') ||
+      error.message?.includes('Too Many Requests') ||
+      error.message?.includes('quota');
   }
 
   /**
-   * Baixa mídia da Evolution API e retorna como base64
+   * Extrai o tempo de retry do erro de rate limit
    */
-  async downloadMediaFromEvolution(instanceKey: string, mediaData: any): Promise<string | null> {
-    try {
-      this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
-      this.logger.debug(`Media data keys: ${Object.keys(mediaData).join(', ')}`);
-
-      // Converter a mensagem para formato correto (arrays ao invés de objetos indexados)
-      // A Evolution API espera: { message: { key: {...}, message: {...}, messageType: 'audioMessage' } }
-      const convertedData = this.convertMediaMessage(mediaData);
-
-      const requestBody = {
-        message: convertedData,
-        convertToMp4: false,
-      };
-
-      this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
-      const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.evolutionApiKey,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        this.logger.error(`Failed to download media (${response.status}): ${error}`);
-        return null;
-      }
-
-      const data = await response.json();
-
-      if (!data.base64) {
-        this.logger.error(`No base64 in response: ${JSON.stringify(data).substring(0, 200)}`);
-        return null;
-      }
-
-      this.logger.log(`✅ Media downloaded successfully, size: ${data.base64.length} chars`);
-      return data.base64;
-    } catch (error) {
-      this.logger.error(`Error downloading media: ${error.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Transcreve áudio usando Gemini
-   * O Gemini 2.5 suporta áudio nativo!
-   */
-  async transcribeAudio(audioBase64: string, mimeType: string = 'audio/ogg'): Promise<string> {
-    try {
-      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
-
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: audioBase64,
-          },
-        },
-        'Transcreva este áudio em português. Retorne APENAS a transcrição do que foi dito, sem comentários adicionais. Se não conseguir entender, retorne "[Áudio não compreendido]".',
-      ]);
-
-      const transcription = result.response.text().trim();
-      this.logger.log(`Audio transcribed: ${transcription.substring(0, 100)}...`);
-      return transcription;
-    } catch (error) {
-      this.logger.error(`Audio transcription failed: ${error.message}`);
-      return '[Erro na transcrição do áudio]';
-    }
-  }
-
-  /**
-   * Processa áudio: baixa da Evolution e transcreve
-   */
-  async processAudioMessage(instanceKey: string, mediaData: any): Promise<string> {
-    // Baixar áudio
-    const audioBase64 = await this.downloadMediaFromEvolution(instanceKey, mediaData);
-    if (!audioBase64) {
-      return '[Não foi possível processar o áudio]';
-    }
-
-    // Determinar mime type (WhatsApp geralmente usa ogg/opus)
-    const mimeType = mediaData.message?.audioMessage?.mimetype || 'audio/ogg';
-
-    // Transcrever
-    const transcription = await this.transcribeAudio(audioBase64, mimeType);
-    return transcription;
-  }
-
-  // ========================================
-  // SISTEMA DE INSTRUÇÕES DO DONO
-  // ========================================
-
-  /**
-   * Salva instruções temporárias do dono
-   * Ex: "Diga que estou dormindo e acordo às 8h"
-   */
-  async setOwnerInstructions(
-    companyId: string,
-    instructions: string,
-    durationMinutes?: number
-  ): Promise<void> {
-    const until = durationMinutes
-      ? new Date(Date.now() + durationMinutes * 60 * 1000)
-      : null;
-
-    await this.prisma.aISecretary.update({
-      where: { companyId },
-      data: {
-        ownerInstructions: instructions,
-        instructionsUntil: until,
-      },
-    });
-
-    this.logger.log(`Owner instructions set for company ${companyId}: "${instructions}" until ${until || 'indefinitely'}`);
-  }
-
-  /**
-   * Limpa instruções do dono
-   */
-  async clearOwnerInstructions(companyId: string): Promise<void> {
-    await this.prisma.aISecretary.update({
-      where: { companyId },
-      data: {
-        ownerInstructions: null,
-        instructionsUntil: null,
-      },
-    });
-  }
-
-  /**
-   * Busca instruções ativas (válidas no momento)
-   */
-  async getActiveInstructions(companyId: string): Promise<string | null> {
-    const config = await this.prisma.aISecretary.findUnique({
-      where: { companyId },
-      select: { ownerInstructions: true, instructionsUntil: true },
-    });
-
-    if (!config?.ownerInstructions) return null;
-
-    // Verificar se expirou
-    if (config.instructionsUntil && new Date() > config.instructionsUntil) {
-      // Limpar instruções expiradas
-      await this.clearOwnerInstructions(companyId);
-      return null;
-    }
-
-    return config.ownerInstructions;
-  }
-
-  /**
-   * Interpreta comandos do dono para a secretária
-   * Retorna true se era um comando, false se era mensagem normal
-   */
-  async parseOwnerCommand(
-    messageContent: string,
-    companyId: string
-  ): Promise<{ isCommand: boolean; response?: string }> {
-    const lowerContent = messageContent.toLowerCase().trim();
-
-    // Comandos de limpar instruções
-    if (lowerContent.includes('limpar instrução') ||
-      lowerContent.includes('limpar instruções') ||
-      lowerContent.includes('cancelar instrução') ||
-      lowerContent === 'ok' && await this.getActiveInstructions(companyId)) {
-      await this.clearOwnerInstructions(companyId);
-      return { isCommand: true, response: '✅ Instruções limpas! Voltei ao modo normal.' };
-    }
-
-    // Detectar comandos de instrução usando IA
-    const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
-
-    const prompt = `Analise esta mensagem e determine se é um COMANDO/INSTRUÇÃO para uma secretária ou uma PERGUNTA/CONVERSA normal.
-
-Mensagem: "${messageContent}"
-
-COMANDOS são instruções como:
-- "Quando alguém ligar/chamar, diga que..."
-- "Se alguém perguntar, fala que..."
-- "Avisa que estou ocupado/dormindo/em reunião"
-- "Por X horas/minutos, responda que..."
-
-Retorne JSON:
-{
-  "isCommand": true/false,
-  "instruction": "instrução formatada" (se for comando),
-  "durationMinutes": número ou null (se mencionar tempo)
-}`;
-
-    try {
-      const result = await model.generateContent(prompt);
-      const response = result.response.text();
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-
-        if (parsed.isCommand && parsed.instruction) {
-          await this.setOwnerInstructions(companyId, parsed.instruction, parsed.durationMinutes);
-
-          const durationText = parsed.durationMinutes
-            ? ` por ${parsed.durationMinutes} minutos`
-            : '';
-
-          return {
-            isCommand: true,
-            response: `✅ Entendido! Vou seguir essa instrução${durationText}:\n\n"${parsed.instruction}"\n\nPara cancelar, diga "limpar instruções".`
-          };
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Failed to parse owner command: ${error.message}`);
-    }
-
-    return { isCommand: false };
+  private getRetryDelay(error: any): number {
+    const match = error.message?.match(/retry in (\d+)/i);
+    return match ? parseInt(match[1]) * 1000 : 60000; // Default 60s
   }
 
   /**
@@ -364,7 +110,7 @@ Retorne JSON:
         model: this.MODEL_NAME,
         generationConfig: {
           temperature: aiConfig.temperature || 0.7,
-          maxOutputTokens: 1024, // Aumentado para evitar respostas cortadas
+          maxOutputTokens: 2048,
         }
       });
 
@@ -372,35 +118,29 @@ Retorne JSON:
       const conversationContext = this.buildConversationContext(context);
       const productContext = this.buildProductContext(context.products);
 
-      // Prompt mais estruturado para evitar loops
       const prompt = `${systemPrompt}
-
-REGRAS IMPORTANTES:
-1. Responda de forma completa e natural, como uma brasileira falaria
-2. NUNCA repita a mesma informação várias vezes
-3. NUNCA diga apenas que é uma secretária - responda à pergunta do cliente
-4. Seja objetiva mas acolhedora
-5. Se não souber responder, diga que vai verificar com o responsável
-6. Use no máximo 2-3 parágrafos curtos
 
 ${conversationContext}
 
 ${productContext}
 
-Mensagem do cliente: "${messageContent}"
+Cliente: ${messageContent}
 
-Gere uma resposta natural e completa (não corte no meio):`;
+Assistente:`;
 
       const result = await model.generateContent(prompt);
-      let response = result.response.text().trim();
+      const response = result.response.text();
 
-      // Remover prefixos indesejados que a IA às vezes adiciona
-      response = response.replace(/^(Assistente:|Sofia:|Você:|Bot:)\s*/i, '');
-      response = response.replace(/^["']|["']$/g, ''); // Remover aspas
-
-      return response;
+      return response.trim();
     } catch (error) {
       this.logger.error(`Response generation failed: ${error.message}`);
+
+      // Se for rate limit, retorna mensagem amigável ao invés de lançar exceção
+      if (this.isRateLimitError(error)) {
+        this.logger.warn(`Rate limit exceeded, returning friendly message`);
+        return '[Sistema temporariamente ocupado. Por favor, aguarde alguns segundos e tente novamente.]';
+      }
+
       throw error;
     }
   }
@@ -475,86 +215,62 @@ Responda em JSON:
 
   /**
    * Builds system prompt with business context - Secretária humanizada
-   * Se isPersonalAssistant for true, age como secretária pessoal do dono
    */
   private buildSystemPrompt(context: MessageContext): string {
     const ownerName = context.ownerName || 'o proprietário';
 
-    // Modo Secretária Pessoal - quando o dono está falando com ela
-    if (context.isPersonalAssistant) {
-      return `Você é Sofia, a secretária pessoal de ${ownerName}. Seu chefe está falando diretamente com você agora.
-
-SUA PERSONALIDADE:
-- Você é eficiente, prestativa e fala de forma natural como uma brasileira
-- Use emojis com moderação para deixar a conversa mais leve
-- Seja informal e amigável - você conhece bem seu chefe
-- Demonstre proatividade e iniciativa
-- Seja DIRETA - seu chefe é ocupado
-
-COMO RESPONDER:
-- Vá direto ao ponto, não enrole
-- Se ele pedir algo, confirme e faça
-- Se ele perguntar algo, responda objetivamente
-- Use no máximo 2-3 frases curtas
-- Seja prestativa mas não bajuladora
-
-SUAS CAPACIDADES:
-- Ajudar a organizar tarefas e lembretes
-- Resumir situações de clientes
-- Sugerir respostas para clientes
-- Ajudar a redigir mensagens
-- Dar informações sobre o negócio
-
-EXEMPLOS:
-- "${ownerName}: oi" → "Oi chefe! No que posso ajudar? 😊"
-- "${ownerName}: como tão as coisas?" → "Tudo tranquilo! X clientes entraram em contato hoje. Quer que eu resuma alguma conversa?"
-- "${ownerName}: avisa que estou ocupado" → "Anotado! Vou dizer aos clientes que você está ocupado no momento. Por quanto tempo?"
-
-${context.businessContext || ''}`;
-    }
-
-    // Modo normal - atendendo clientes
-    return `Você é Sofia, uma secretária virtual brasileira. Você trabalha para ${ownerName} atendendo clientes pelo WhatsApp.
+    return `Você é uma secretária virtual chamada Sofia. Você trabalha para ${ownerName} atendendo clientes pelo WhatsApp.
 
 SUA PERSONALIDADE:
 - Você é simpática, acolhedora e fala de forma natural como uma brasileira
-- Use emojis com moderação (1-2 por mensagem, quando fizer sentido)
-- Seja informal mas profissional - trate os clientes de "você"
+- Use emojis com moderação (não em toda mensagem, mas quando fizer sentido)
+- Seja informal mas profissional - trate os clientes de "você" 
 - Demonstre empatia e interesse genuíno
 - Use expressões naturais como "Oi!", "Claro!", "Com certeza!", "Opa!"
-- NUNCA seja robótica ou formal demais
+- Evite ser robótica ou muito formal
 
-COMO RESPONDER:
-- SEMPRE responda à pergunta ou solicitação do cliente
-- NUNCA fique apenas se apresentando - vá direto ao ponto
-- Se o cliente perguntar sobre produtos, fale dos produtos
-- Se o cliente quiser informações, dê as informações
-- Se não tiver a informação, diga que vai verificar
-- Seja breve (2-3 frases no máximo, exceto se precisar explicar algo)
+COMO VOCÊ FUNCIONA:
+- Você responde dúvidas sobre produtos, preços e disponibilidade
+- Você pode informar sobre promoções e novidades
+- Quando não sabe algo ou a situação é complexa, você diz que vai chamar ${ownerName}
+- Se o cliente insistir em falar com um humano, respeite e chame ${ownerName}
+- Para pedidos, orçamentos complexos ou reclamações sérias, chame ${ownerName}
 
-O QUE VOCÊ PODE FAZER:
-- Informar sobre produtos, preços e disponibilidade
-- Tirar dúvidas gerais sobre a empresa
-- Agendar retorno de contato
-- Anotar pedidos simples
-- Encaminhar para ${ownerName} quando necessário
-
-QUANDO CHAMAR ${ownerName}:
-- Para pedidos grandes ou complexos
-- Para reclamações ou problemas sérios
-- Quando o cliente insistir em falar com humano
-- Para negociações especiais de preço
-- Quando não souber responder
-
-EXEMPLO DE RESPOSTA RUIM (EVITE):
-"Oi! Sou a Sofia, secretária virtual de ${ownerName}. Como posso ajudar?"
-
-EXEMPLO DE RESPOSTA BOA:
-"Oi! Tudo bem? 😊 Me conta, no que posso te ajudar?"
-
-${context.ownerInstructions ? `\n⚠️ INSTRUÇÃO ESPECIAL DO CHEFE: "${context.ownerInstructions}"\nSiga esta instrução ao responder.\n` : ''}
+FRASES QUE VOCÊ USA:
+- "Deixa eu verificar aqui pra você..."
+- "Vou passar isso pro ${ownerName}, tá? Ele te responde rapidinho!"
+- "Opa, essa eu não sei responder, mas já vou chamar alguém pra te ajudar!"
+- "Que legal! Temos sim!"
 
 ${context.businessContext || ''}`;
+  }
+
+  /**
+   * Builds prompt for personal assistant mode (when owner is talking)
+   */
+  private buildPersonalAssistantPrompt(aiConfig: any): string {
+    const ownerName = aiConfig.ownerName || 'chefe';
+
+    return `Você é uma assistente pessoal inteligente chamada Sofia. Você está conversando diretamente com seu chefe, ${ownerName}.
+
+SUA FUNÇÃO:
+- Você é a assistente pessoal dele, não uma secretária de clientes
+- Ajude com organização, lembretes, resumos e qualquer coisa que ele pedir
+- Seja proativa, eficiente e direta
+- Use linguagem informal e amigável
+
+COMO VOCÊ AGE:
+- Responda diretamente às perguntas e pedidos
+- Se ele pedir resumo de conversas, forneça
+- Se ele der instruções sobre como atender clientes, confirme que entendeu
+- Seja útil e resolva as demandas rapidamente
+- Use emojis com moderação para manter o tom amigável
+
+IMPORTANTE:
+- NUNCA diga que você é uma secretária de clientes quando está falando com o chefe
+- Você é a ASSISTENTE PESSOAL dele
+- Seja objetiva e eficiente
+- Se não souber algo, diga que vai verificar`;
   }
 
   /**
@@ -707,6 +423,198 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
   }
 
   /**
+   * Converte objeto com índices numéricos para array (para mediaData)
+   */
+  private objectToArray(obj: any): Uint8Array | null {
+    if (!obj) return null;
+    if (obj instanceof Uint8Array) return obj;
+    if (Array.isArray(obj)) return new Uint8Array(obj);
+
+    // Objeto com índices numéricos como chaves
+    if (typeof obj === 'object') {
+      const keys = Object.keys(obj).filter(k => !isNaN(Number(k)));
+      if (keys.length > 0) {
+        const arr = new Array(keys.length);
+        for (const key of keys) {
+          arr[Number(key)] = obj[key];
+        }
+        return new Uint8Array(arr);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Converte mediaMessage para formato correto
+   */
+  private convertMediaMessage(mediaData: any): any {
+    if (!mediaData?.message) return mediaData;
+
+    const message = mediaData.message;
+    const convertedMessage: any = {};
+
+    for (const key of Object.keys(message)) {
+      const value = message[key];
+      if (value && typeof value === 'object') {
+        convertedMessage[key] = { ...value };
+
+        // Converter campos que devem ser arrays
+        const arrayFields = ['jpegThumbnail', 'waveform', 'fileEncSha256', 'fileSha256', 'mediaKey'];
+        for (const field of arrayFields) {
+          if (value[field] && typeof value[field] === 'object' && !(value[field] instanceof Uint8Array)) {
+            const converted = this.objectToArray(value[field]);
+            if (converted) {
+              convertedMessage[key][field] = converted;
+            }
+          }
+        }
+      } else {
+        convertedMessage[key] = value;
+      }
+    }
+
+    return { ...mediaData, message: convertedMessage };
+  }
+
+  /**
+   * Processa mensagem de áudio e retorna a transcrição
+   */
+  async processAudioMessage(instanceKey: string, mediaData: any): Promise<string> {
+    try {
+      this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
+
+      // Preparar payload para Evolution API - formato simplificado
+      const payload = {
+        message: mediaData.message,
+        convertToMp4: false,
+      };
+
+      this.logger.debug(`Media data keys: ${Object.keys(mediaData).join(', ')}`);
+
+      // Baixar mídia via Evolution API
+      this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
+
+      const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.evolutionApiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Evolution API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      const base64Audio = result.base64;
+
+      if (!base64Audio) {
+        throw new Error('No base64 audio data in response');
+      }
+
+      this.logger.log(`✅ Media downloaded successfully, size: ${base64Audio.length} chars`);
+
+      // Usar Gemini para transcrever o áudio
+      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
+
+      // Detectar mime type
+      const mimeType = result.mimetype || 'audio/ogg';
+
+      const transcriptionResult = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Audio,
+          },
+        },
+        'Transcreva o áudio acima em português. Retorne APENAS o texto transcrito, sem explicações ou formatação adicional.',
+      ]);
+
+      const transcription = transcriptionResult.response.text().trim();
+
+      this.logger.log(`🎤 Audio transcribed successfully: ${transcription.substring(0, 50)}...`);
+
+      return transcription;
+    } catch (error) {
+      this.logger.error(`Audio transcription failed: ${error.message}`);
+
+      // Se for rate limit, retorna mensagem amigável
+      if (this.isRateLimitError(error)) {
+        this.logger.warn(`Rate limit exceeded during audio transcription`);
+        return '[Erro na transcrição do áudio - limite de requisições excedido]';
+      }
+
+      return '[Erro na transcrição do áudio]';
+    }
+  }
+
+  /**
+   * Analisa se a mensagem do dono é um comando/instrução para a secretária
+   */
+  async parseOwnerCommand(messageContent: string, companyId: string): Promise<{
+    isCommand: boolean;
+    commandType?: 'instruction' | 'query' | 'config';
+    response?: string;
+  }> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 512,
+        }
+      });
+
+      const prompt = `Você é uma secretária virtual inteligente. Analise a mensagem do seu chefe (dono) e determine:
+
+1. Se é um COMANDO/INSTRUÇÃO para você (ex: "avise todos os clientes que...", "quando alguém perguntar sobre X, diga Y", "mude sua forma de responder")
+2. Se é uma CONSULTA sobre algo (ex: "quantas mensagens hoje?", "quem me procurou?", "resumo do dia")
+3. Se é apenas uma CONVERSA normal
+
+Mensagem do chefe: "${messageContent}"
+
+Responda em JSON:
+{
+  "isCommand": true/false,
+  "commandType": "instruction" | "query" | "conversation",
+  "response": "Sua resposta ao chefe (confirme o comando ou responda a consulta)"
+}
+
+Se for instrução, confirme que entendeu e vai seguir.
+Se for consulta, responda de forma útil.
+Se for conversa, responda naturalmente como assistente pessoal.`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          isCommand: parsed.isCommand || false,
+          commandType: parsed.commandType,
+          response: parsed.response,
+        };
+      }
+
+      // Se não conseguir parsear, trata como conversa normal
+      return { isCommand: false };
+    } catch (error) {
+      this.logger.error(`Failed to parse owner command: ${error.message}`);
+
+      // Se for rate limit, não lança exceção
+      if (this.isRateLimitError(error)) {
+        return { isCommand: false };
+      }
+
+      return { isCommand: false };
+    }
+  }
+
+  /**
    * Verifica se a mensagem contém palavras que devem escalar para humano
    */
   checkEscalationWords(message: string, escalationWords: string | null): boolean {
@@ -755,7 +663,6 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
 
   /**
    * Processa mensagem completa com lógica de secretária
-   * Se isPersonalAssistant for true, age como secretária pessoal do dono
    */
   async processSecretaryMessage(
     messageContent: string,
@@ -763,7 +670,7 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     instanceKey: string,
     remoteJid: string,
     contactName?: string,
-    isPersonalAssistant: boolean = false,
+    isPersonalAssistantMode: boolean = false,
   ): Promise<{
     shouldRespond: boolean;
     response?: string;
@@ -779,70 +686,13 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
       return { shouldRespond: false, shouldNotifyOwner: false };
     }
 
-    // Se é o proprietário no modo secretária pessoal, pular verificações de horário e escalação
-    if (isPersonalAssistant) {
+    // Se é modo assistente pessoal (dono falando), pular verificações de horário/escalação
+    if (isPersonalAssistantMode) {
       this.logger.log(`👤 Processing as personal assistant for owner`);
-
-      // Buscar contexto para o dono
-      const messages = await this.prisma.message.findMany({
-        where: { companyId, remoteJid },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      });
-
-      const context: MessageContext = {
-        conversationHistory: messages.reverse(),
-        contactName: aiConfig.ownerName || contactName,
-        ownerName: aiConfig.ownerName ?? undefined,
-        isPersonalAssistant: true,
-      };
-
-      // Gerar resposta como secretária pessoal
-      const response = await this.generateResponse(messageContent, context, aiConfig);
-
-      return {
-        shouldRespond: true,
-        response,
-        shouldNotifyOwner: false, // Nunca notifica o dono, ELE é o dono!
-      };
     }
 
-    // --- Fluxo normal para clientes ---
-
-    // Buscar instruções ativas do dono
-    const ownerInstructions = await this.getActiveInstructions(companyId);
-
-    // Se há instruções do dono, usar como resposta prioritária
-    if (ownerInstructions) {
-      this.logger.log(`📋 Using owner instructions: "${ownerInstructions}"`);
-
-      // Gerar resposta baseada nas instruções
-      const model = this.genAI.getGenerativeModel({ model: this.MODEL_NAME });
-      const prompt = `Você é Sofia, secretária virtual. Seu chefe deixou esta instrução para você seguir:
-
-INSTRUÇÃO DO CHEFE: "${ownerInstructions}"
-
-Um cliente mandou esta mensagem: "${messageContent}"
-
-Gere uma resposta educada e natural seguindo a instrução do chefe. Seja breve e simpática.`;
-
-      try {
-        const result = await model.generateContent(prompt);
-        const response = result.response.text().trim();
-
-        return {
-          shouldRespond: true,
-          response,
-          shouldNotifyOwner: true, // Notificar que alguém mandou mensagem
-          notificationReason: `Cliente entrou em contato (instrução ativa: "${ownerInstructions.substring(0, 50)}...")`,
-        };
-      } catch (error) {
-        this.logger.error(`Failed to generate instruction-based response: ${error.message}`);
-      }
-    }
-
-    // Verificar horário de funcionamento
-    if (!this.isWithinBusinessHours(aiConfig.businessHours)) {
+    // Verificar horário de funcionamento (apenas para clientes)
+    if (!isPersonalAssistantMode && !this.isWithinBusinessHours(aiConfig.businessHours)) {
       return {
         shouldRespond: true,
         response: 'Oi! No momento estamos fora do horário de atendimento. Deixa sua mensagem que respondemos assim que possível! 😊',
@@ -850,8 +700,8 @@ Gere uma resposta educada e natural seguindo a instrução do chefe. Seja breve 
       };
     }
 
-    // Verificar palavras de escalação
-    if (this.checkEscalationWords(messageContent, aiConfig.escalationWords)) {
+    // Verificar palavras de escalação (apenas para clientes)
+    if (!isPersonalAssistantMode && this.checkEscalationWords(messageContent, aiConfig.escalationWords)) {
       return {
         shouldRespond: true,
         response: `Entendi! Vou chamar o ${aiConfig.ownerName || 'responsável'} pra te atender, tá? Só um minutinho! 🙂`,
@@ -877,10 +727,22 @@ Gere uma resposta educada e natural seguindo a instrução do chefe. Seja breve 
       contactName,
       products,
       ownerName: aiConfig.ownerName ?? undefined,
-      isPersonalAssistant: false,
     };
 
-    // Analisar mensagem
+    // Se é modo assistente pessoal (dono), responde diretamente como assistente
+    if (isPersonalAssistantMode) {
+      const response = await this.generateResponse(messageContent, context, {
+        ...aiConfig,
+        systemPrompt: this.buildPersonalAssistantPrompt(aiConfig),
+      });
+      return {
+        shouldRespond: true,
+        response,
+        shouldNotifyOwner: false,
+      };
+    }
+
+    // Analisar mensagem (apenas para clientes)
     const analysis = await this.analyzeMessage(messageContent, context);
 
     // Decidir ação baseado no modo
