@@ -493,19 +493,35 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     try {
       this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
 
-      // Preparar payload para Evolution API - precisa de key e message
+      // Preparar payload para Evolution API
       // Formato esperado: { message: { audioMessage: {...} }, key: {...} }
-      const payload: any = {};
+      // Evolution API precisa de contextInfo mesmo que vazio
+      const payload: any = {
+        message: {},
+        key: {},
+      };
 
-      // Se tem a estrutura completa, usa direto
-      if (mediaData.key && mediaData.message) {
-        payload.message = mediaData.message;
+      // Extrair key
+      if (mediaData.key) {
         payload.key = mediaData.key;
-      } else if (mediaData.message) {
-        payload.message = mediaData.message;
-      } else {
-        // mediaData já é a mensagem
-        payload.message = mediaData;
+      }
+
+      // Extrair message e garantir que contextInfo existe
+      if (mediaData.message) {
+        const messageType = Object.keys(mediaData.message).find(k => k.endsWith('Message'));
+        if (messageType && mediaData.message[messageType]) {
+          // Clonar a mensagem e adicionar contextInfo se não existir
+          payload.message[messageType] = {
+            ...mediaData.message[messageType],
+          };
+
+          // Garantir que contextInfo existe (Evolution API precisa disso)
+          if (!payload.message[messageType].contextInfo) {
+            payload.message[messageType].contextInfo = {};
+          }
+        } else {
+          payload.message = mediaData.message;
+        }
       }
 
       this.logger.debug(`Media payload keys: ${JSON.stringify(Object.keys(payload))}`);
