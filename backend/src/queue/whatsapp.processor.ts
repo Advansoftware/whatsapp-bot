@@ -11,13 +11,15 @@ export interface WhatsappJobData {
   content: string;
   pushName?: string;
   timestamp: number;
+  fromMe?: boolean;
+  isHistory?: boolean;
 }
 
 @Processor(WHATSAPP_QUEUE, {
-  concurrency: 5, // Process 5 jobs at a time
+  concurrency: 5,
   limiter: {
-    max: 5,       // Max 5 jobs
-    duration: 1000, // Per second (rate limit for AI API)
+    max: 5,
+    duration: 1000,
   },
 })
 export class WhatsappProcessor extends WorkerHost {
@@ -28,9 +30,10 @@ export class WhatsappProcessor extends WorkerHost {
   }
 
   async process(job: Job<WhatsappJobData>): Promise<any> {
-    this.logger.log(`Processing job ${job.id} from ${job.data.remoteJid}`);
+    const { instanceKey, remoteJid, messageId, content, fromMe, isHistory } = job.data;
+    const direction = fromMe ? 'outgoing' : 'incoming';
 
-    const { instanceKey, remoteJid, messageId, content } = job.data;
+    this.logger.log(`Processing job ${job.id} from ${remoteJid} (History: ${!!isHistory})`);
 
     try {
       // 1. Find instance and company
@@ -41,6 +44,50 @@ export class WhatsappProcessor extends WorkerHost {
 
       if (!instance) {
         throw new Error(`Instance not found: ${instanceKey}`);
+      }
+
+      // If history sync, just save and exit
+      if (isHistory) {
+        // Check if exists to avoid duplicates (upsert-like behavior)
+        const exists = await this.prisma.message.findFirst({
+          where: { messageId }
+        });
+
+        if (!exists) {
+          await this.prisma.message.create({
+            data: {
+              remoteJid,
+              messageId,
+              content,
+              direction,
+              status: 'processed', // History is already processed
+              companyId: instance.companyId,
+              instanceId: instance.id,
+              processedAt: new Date(job.data.timestamp * 1000), // Use actual timestamp
+              createdAt: new Date(job.data.timestamp * 1000),
+              pushName: job.data.pushName, // Save contact name
+            },
+          });
+        }
+        return { status: 'processed_history', messageId };
+      }
+
+      // ... Normal AI Flow for NEW INCOMING messages only ...
+      if (fromMe) {
+        // If it's a new message but from ME (e.g. sent via phone), just save and ignore AI
+        await this.prisma.message.create({
+          data: {
+            remoteJid,
+            messageId,
+            content,
+            direction: 'outgoing',
+            status: 'processed',
+            companyId: instance.companyId,
+            instanceId: instance.id,
+            // pushName not needed for 'fromMe' usually, but can add if available
+          },
+        });
+        return { status: 'saved_outgoing' };
       }
 
       // 2. Check company balance
@@ -59,10 +106,11 @@ export class WhatsappProcessor extends WorkerHost {
           status: 'pending',
           companyId: instance.companyId,
           instanceId: instance.id,
+          pushName: job.data.pushName, // Save contact name
         },
       });
 
-      // 4. Call AI API (placeholder - implement your AI logic here)
+      // 4. Call AI API (placeholder)
       const aiResponse = await this.callAIAPI(content, instance.company.id);
 
       // 5. Update message with response
@@ -75,7 +123,7 @@ export class WhatsappProcessor extends WorkerHost {
         },
       });
 
-      // 6. Deduct balance (example: 0.01 per message)
+      // 6. Deduct balance
       await this.prisma.company.update({
         where: { id: instance.companyId },
         data: {
@@ -83,13 +131,18 @@ export class WhatsappProcessor extends WorkerHost {
         },
       });
 
-      // 7. Send response via Evolution API (placeholder)
+      // 7. Send response
       await this.sendWhatsAppMessage(instanceKey, remoteJid, aiResponse);
 
       this.logger.log(`Job ${job.id} completed successfully`);
       return { status: 'processed', messageId: message.id };
 
     } catch (error) {
+      // Silent error for history to not clog logs
+      if (isHistory) {
+        this.logger.warn(`History sync failed for ${messageId}: ${error.message}`);
+        return { status: 'failed_history' };
+      }
       this.logger.error(`Job ${job.id} failed: ${error.message}`);
       throw error;
     }

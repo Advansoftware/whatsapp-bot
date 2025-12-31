@@ -167,8 +167,12 @@ export class ConnectionsController {
         `${evolutionUrl}/instance/delete/${instance.instanceKey}`,
         { headers: { 'apikey': evolutionApiKey } }
       );
-    } catch (error) {
-      console.error('Error deleting evolution instance:', error.message);
+    } catch (error: any) {
+      console.error('Error deleting evolution instance:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       // Continue to delete from DB even if Evolution fails (avoid inconsistent state)
     }
 

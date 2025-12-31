@@ -17,11 +17,9 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  isAuthenticated: boolean;
   loginWithGoogle: (idToken: string) => Promise<void>;
   login: (data: any) => Promise<void>;
   register: (data: any) => Promise<void>;
-  logout: () => void;
   logout: () => void;
 }
 

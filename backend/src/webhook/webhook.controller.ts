@@ -64,10 +64,8 @@ export class WebhookController {
 
     // Handle messages
     if (payload.event === 'messages.upsert') {
-      // Ignore outgoing messages (from bot)
-      if (payload.data?.key?.fromMe) {
-        return { status: 'ignored', reason: 'outgoing_message' };
-      }
+      const data = payload.data!;
+      const fromMe = data.key.fromMe || false;
 
       // Extract message content
       const messageContent = this.extractMessageContent(payload);
@@ -77,7 +75,6 @@ export class WebhookController {
       }
 
       // Create job data
-      const data = payload.data!;
       const jobData = {
         instanceKey: payload.instance,
         remoteJid: data.key.remoteJid,
@@ -85,6 +82,8 @@ export class WebhookController {
         content: messageContent,
         pushName: data.pushName,
         timestamp: data.messageTimestamp,
+        fromMe,
+        isHistory: false,
       };
 
       // Broadcast Real-Time Message
@@ -95,12 +94,62 @@ export class WebhookController {
         jobId: data.key.id,
       });
 
-      this.logger.log(`Job ${job.id} added to queue from ${data.key.remoteJid}`);
+      this.logger.log(`Job ${job.id} added to queue from ${data.key.remoteJid} (fromMe: ${fromMe})`);
 
       return {
         status: 'queued',
         jobId: job.id,
       };
+    }
+
+    // Handle History Sync (messages.set)
+    if (payload.event === 'messages.set') {
+      const messages = Array.isArray(payload.data) ? payload.data : [];
+      this.logger.log(`Processing history sync: ${messages.length} messages for ${payload.instance}`);
+
+      let queuedCount = 0;
+
+      for (const msg of messages) {
+        // Construct a pseudo-payload to reuse extractMessageContent if structure matches, 
+        // OR manually extract since 'msg' matches "payload.data" structure of upsert usually.
+        // Evolution 'messages.set' is often an array of the same objects as 'upsert'.
+
+        // Quick helper wrapper
+        const tempPayload = { ...payload, data: msg };
+        const content = this.extractMessageContent(tempPayload as EvolutionWebhookDto);
+
+        if (content) {
+          const jobData = {
+            instanceKey: payload.instance,
+            remoteJid: msg.key.remoteJid,
+            messageId: msg.key.id,
+            content: content,
+            pushName: msg.pushName,
+            timestamp: msg.messageTimestamp,
+            fromMe: msg.key.fromMe || false,
+            isHistory: true,
+          };
+
+          await this.whatsappQueue.add('process-message', jobData, {
+            jobId: msg.key.id, // ID deduplication by BullMQ
+            removeOnComplete: true, // Auto-remove history jobs to save Redis space
+          });
+          queuedCount++;
+        }
+      }
+
+      this.logger.log(`Queued ${queuedCount}/${messages.length} history messages for ${payload.instance}`);
+
+      // Notify frontend about history sync progress
+      this.chatGateway.broadcastMessage({
+        type: 'history_sync',
+        instanceKey: payload.instance,
+        status: 'processing',
+        count: queuedCount,
+        total: messages.length
+      });
+
+      return { status: 'processed_history', count: queuedCount };
     }
 
     // For all other events (contacts.update, chats.update, etc), just acknowledge

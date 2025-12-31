@@ -148,9 +148,7 @@ const InventoryView: React.FC = () => {
         </Button>
       </Box>
 
-      {/* ... (AI Context Card and Search skipped for brevity, keeping file structure) ... */}
-      
-      {/* Search Box - Update to just show context, replacing previous if needed or relying on existing structure */}
+      {/* AI Context Card */}
       <Paper 
         elevation={0} 
         sx={{ 

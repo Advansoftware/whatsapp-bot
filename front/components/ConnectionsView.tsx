@@ -117,6 +117,12 @@ const ConnectionsView: React.FC = () => {
     const handleMessage = (data: any) => {
       console.log('[WebSocket] Received:', data);
       
+      // Handle History Sync (NEW)
+      if (data.type === 'history_sync' && data.instanceKey) {
+         setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'syncing'}));
+         return;
+      }
+      
       // Handle QR Code updates
       if (data.type === 'qrcode_update' && data.instanceKey) {
         console.log('[WebSocket] QR Code update for:', data.instanceKey);

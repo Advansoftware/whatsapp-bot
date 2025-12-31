@@ -7,6 +7,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { AuthModule } from './auth/auth.module';
 import { ApiModule } from './api/api.module';
 import { ChatModule } from './chat/chat.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ChatModule } from './chat/chat.module';
     QueueModule,
     WebhookModule,
     ChatModule,
+    ChatbotModule,
   ],
 })
 export class AppModule { }

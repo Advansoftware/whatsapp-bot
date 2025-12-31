@@ -51,7 +51,7 @@ export class MessagesController {
       data: messages.map((msg) => ({
         id: msg.id,
         remoteJid: msg.remoteJid,
-        contact: this.formatPhoneNumber(msg.remoteJid),
+        contact: msg.pushName || this.formatPhoneNumber(msg.remoteJid),
         content: msg.content,
         response: msg.response,
         direction: msg.direction,
@@ -59,6 +59,7 @@ export class MessagesController {
         instanceName: msg.instance.name,
         createdAt: msg.createdAt,
         processedAt: msg.processedAt,
+        pushName: msg.pushName,
       })),
       pagination: {
         page: pageNum,
@@ -126,12 +127,14 @@ export class MessagesController {
 
     return conversations.map((msg) => ({
       id: msg.id,
-      contact: this.formatPhoneNumber(msg.remoteJid),
+      contact: msg.pushName || this.formatPhoneNumber(msg.remoteJid),
       remoteJid: msg.remoteJid,
       lastMessage: msg.content.substring(0, 100),
       status: msg.status,
       instanceName: msg.instance.name,
       timestamp: msg.createdAt,
+      pushName: msg.pushName,
+      profilePicUrl: null, // Placeholder for future profile pic
     }));
   }
 

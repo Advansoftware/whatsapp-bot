@@ -1,6 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Paper, Typography, TextField, IconButton, CircularProgress, Avatar, useTheme } from '@mui/material';
-import { Send, AttachFile, MoreVert } from '@mui/icons-material';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  TextField, 
+  IconButton, 
+  CircularProgress, 
+  Avatar, 
+  useTheme,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Grid,
+  Card,
+  CardMedia,
+  CardContent,
+  CardActionArea
+} from '@mui/material';
+import { 
+  Send, 
+  AttachFile, 
+  MoreVert, 
+  Image as ImageIcon, 
+  Inventory as InventoryIcon,
+  Close,
+  Search
+} from '@mui/icons-material';
 import { useChatMessages } from '../../hooks/useApi';
 import { useSocket } from '../../hooks/useSocket';
 import api from '../../lib/api';
@@ -13,15 +42,25 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKey }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Attachment Menu State
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const openMenu = Boolean(anchorEl);
+
+  // Inventory Modal State
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  
   const { data: messagesData, isLoading, refetch } = useChatMessages(chatId, 1, 50);
   const { socket } = useSocket();
 
   const messages = messagesData?.data || [];
-
   // Sort messages oldest first for chat view
   const sortedMessages = [...messages].reverse();
 
@@ -37,28 +76,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
     if (!socket) return;
 
     const handleNewMessage = (data: any) => {
-      // If the message belongs to this chat, refresh
       if (data.remoteJid === chatId || (data.key && data.key.remoteJid === chatId)) {
          refetch();
-         // Optimistic update could happen here, but for simplicity we refetch or we could append if DTO matches
+         setIsSyncing(false); // Stop syncing indicator if new message arrives (usually means sync is done or live)
       }
     };
 
+    const handleHistorySync = (data: any) => {
+      if (data.instanceKey === instanceKey) {
+        setIsSyncing(true);
+        // Auto-turn off after 10 seconds if no more events, just in case
+        setTimeout(() => setIsSyncing(false), 10000);
+      }
+    }
+
     socket.on('new_message', handleNewMessage);
+    socket.on('history_sync', handleHistorySync);
 
     return () => {
       socket.off('new_message', handleNewMessage);
+      socket.off('history_sync', handleHistorySync);
     };
   }, [socket, chatId, refetch]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async (content?: string) => {
+    const textToSend = content || newMessage;
+    if (!textToSend.trim()) return;
 
     setSending(true);
     try {
-      await api.sendMessage(instanceKey, chatId, newMessage);
+      await api.sendMessage(instanceKey, chatId, textToSend);
       setNewMessage('');
-      refetch(); // Refresh to show sent message (or wait for webhook)
+      refetch();
     } catch (err) {
       console.error('Error sending message:', err);
     } finally {
@@ -66,54 +115,128 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
     }
   };
 
+  const handleAttachClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handlePhotoSelect = () => {
+    handleMenuClose();
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      console.log('File selected:', file);
+      alert('Envio de mídia será implementado no próximo passo.');
+    }
+  };
+
+  const handleProductSelect = () => {
+    handleMenuClose();
+    setInventoryOpen(true);
+  };
+
+  const handleSendProduct = (productName: string, price: string) => {
+    const message = `*Produto:* ${productName}\n*Preço:* ${price}\n\nTenho interesse!`;
+    handleSendMessage(message);
+    setInventoryOpen(false);
+  };
+
+  // Theme Colors
+  const colors = {
+    bg: isDark ? '#0b141a' : '#efeae2',
+    headerBg: isDark ? '#202c33' : '#f0f2f5',
+    inputBg: isDark ? '#2a3942' : '#ffffff',
+    inputText: isDark ? '#d1d7db' : '#54656f',
+    incomingBubble: isDark ? '#202c33' : '#ffffff',
+    outgoingBubble: isDark ? '#005c4b' : '#d9fdd3',
+    incomingText: isDark ? '#e9edef' : '#111b21',
+    outgoingText: isDark ? '#e9edef' : '#111b21',
+    timeText: isDark ? '#8696a0' : '#667781',
+    iconColor: isDark ? '#aebac1' : '#54656f',
+    divider: isDark ? theme.palette.divider : '#d1d7db',
+    bgImage: isDark 
+      ? 'none' 
+      : 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' // Use same doodle but different opacity if needed
+  };
+
   return (
-    <Box display="flex" flexDirection="column" height="100%">
+    <Box display="flex" flexDirection="column" height="100%" sx={{ bgcolor: colors.bg, backgroundImage: colors.bgImage, backgroundRepeat: 'repeat', backgroundSize: '400px' }}>
       {/* Header */}
-      <Box p={2} borderBottom={`1px solid ${theme.palette.divider}`} display="flex" alignItems="center" justifyContent="space-between" bgcolor="background.paper">
+      <Box 
+        p={1.5} 
+        bgcolor={colors.headerBg}
+        display="flex" 
+        alignItems="center" 
+        justifyContent="space-between" 
+        borderLeft={`1px solid ${colors.divider}`}
+      >
         <Box display="flex" alignItems="center" gap={2}>
-          <Avatar sx={{ bgcolor: theme.palette.secondary.main }}>{contactName?.slice(0, 1)}</Avatar>
+          <Avatar src={`https://ui-avatars.com/api/?name=${contactName}&background=00a884&color=fff`} />
           <Box>
-            <Typography variant="subtitle1" fontWeight="bold">{contactName}</Typography>
-            <Typography variant="caption" color="text.secondary">{chatId}</Typography>
+            <Typography variant="subtitle1" sx={{ color: colors.incomingText, lineHeight: 1.2 }}>
+              {contactName}
+            </Typography>
+            <Typography variant="caption" sx={{ color: colors.timeText, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {isSyncing ? (
+                <>
+                  <CircularProgress size={10} thickness={5} sx={{ color: colors.timeText }} />
+                  Sincronizando...
+                </>
+              ) : 'online'}
+            </Typography>
           </Box>
         </Box>
-        <IconButton>
+        <IconButton sx={{ color: colors.iconColor }}>
           <MoreVert />
         </IconButton>
       </Box>
 
       {/* Messages Area */}
-      <Box flex={1} p={2} overflow="auto" bgcolor={theme.palette.action.hover} display="flex" flexDirection="column" gap={1}>
+      <Box flex={1} p={3} overflow="auto" display="flex" flexDirection="column" gap={0.5}>
         {isLoading ? (
           <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
+            <CircularProgress sx={{ color: '#00a884' }} />
           </Box>
         ) : (
           sortedMessages.map((msg) => {
-            const isMe = msg.direction === 'SEND' || msg.status === 'sended' || msg.remoteJid.includes('fromMe'); // Check your DB/DTO for reliable "fromMe" indicator. Assuming direction or status for now.
-            // Wait, Message DTO has 'fromMe' on key usually, but our Prisma model has 'direction'.
-            // Prisma model: direction String (SEND/RECEIVE usually)
-            const isSender = msg.direction === 'SEND';
+            const isSender = msg.direction === 'outgoing' || msg.direction === 'SEND' || msg.status === 'sended';
             
             return (
               <Box 
                 key={msg.id} 
                 alignSelf={isSender ? 'flex-end' : 'flex-start'}
-                maxWidth="70%"
+                maxWidth="65%"
+                sx={{
+                  position: 'relative',
+                  mb: 1
+                }}
               >
                 <Paper 
                   elevation={1} 
                   sx={{ 
-                    p: 1.5, 
-                    bgcolor: isSender ? 'primary.main' : 'background.paper',
-                    color: isSender ? 'primary.contrastText' : 'text.primary',
-                    borderRadius: 2
+                    p: '6px 7px 8px 9px', 
+                    bgcolor: isSender ? colors.outgoingBubble : colors.incomingBubble,
+                    color: isSender ? colors.outgoingText : colors.incomingText,
+                    borderRadius: '7.5px',
+                    borderTopLeftRadius: isSender ? '7.5px' : 0,
+                    borderTopRightRadius: isSender ? 0 : '7.5px',
+                    boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)'
                   }}
                 >
-                  <Typography variant="body1">{msg.content}</Typography>
-                  <Typography variant="caption" display="block" textAlign="right" sx={{ opacity: 0.7, mt: 0.5, fontSize: '0.7rem' }}>
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <Typography variant="body1" sx={{ fontSize: '14.2px', lineHeight: '19px', whiteSpace: 'pre-wrap' }}>
+                    {msg.content}
                   </Typography>
+                  <Box display="flex" justifyContent="flex-end" alignItems="center" gap={0.5} mt="2px">
+                     <Typography variant="caption" sx={{ color: colors.timeText, fontSize: '11px', mt: '2px' }}>
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
+                  </Box>
                 </Paper>
               </Box>
             );
@@ -123,13 +246,47 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
       </Box>
 
       {/* Input Area */}
-      <Box p={2} borderTop={`1px solid ${theme.palette.divider}`} bgcolor="background.paper" display="flex" gap={1}>
-        <IconButton>
-          <AttachFile />
+      <Box 
+        p={1.5} 
+        bgcolor={colors.headerBg} 
+        display="flex" 
+        alignItems="center" 
+        gap={1}
+      >
+        <IconButton onClick={handleAttachClick} sx={{ color: colors.iconColor }}>
+          <AttachFile sx={{ transform: 'rotate(45deg)' }} />
         </IconButton>
+        
+        {/* Attachment Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={openMenu}
+          onClose={handleMenuClose}
+          sx={{ '& .MuiPaper-root': { bgcolor: isDark ? '#233138' : '#ffffff', color: isDark ? '#d1d7db' : '#54656f' } }}
+          transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+          anchorOrigin={{ horizontal: 'left', vertical: 'top' }}
+        >
+          <MenuItem onClick={handlePhotoSelect}>
+             <ListItemIcon><ImageIcon sx={{ color: '#ac44cf' }} /></ListItemIcon>
+             <ListItemText>Fotos e Vídeos</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleProductSelect}>
+             <ListItemIcon><InventoryIcon sx={{ color: '#00a884' }} /></ListItemIcon>
+             <ListItemText>Produtos (Inventário)</ListItemText>
+          </MenuItem>
+        </Menu>
+        
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          hidden 
+          accept="image/*,video/*"
+          onChange={handleFileChange} 
+        />
+
         <TextField
           fullWidth
-          placeholder="Digite uma mensagem..."
+          placeholder="Digite uma mensagem"
           variant="outlined"
           size="small"
           value={newMessage}
@@ -141,11 +298,61 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatId, contactName, instanceKe
             }
           }}
           disabled={sending}
+          sx={{
+            bgcolor: colors.inputBg,
+            borderRadius: 2,
+            '& fieldset': { border: 'none' },
+            '& input': { color: colors.inputText, padding: '10px 12px' },
+            '& .MuiInputBase-root': { height: 'auto' }
+          }}
         />
-        <IconButton color="primary" onClick={handleSendMessage} disabled={sending || !newMessage.trim()}>
-          {sending ? <CircularProgress size={24} /> : <Send />}
+        <IconButton 
+          onClick={() => handleSendMessage()} 
+          disabled={sending || !newMessage.trim()}
+          sx={{ color: colors.iconColor }}
+        >
+          {sending ? <CircularProgress size={24} color="inherit" /> : <Send />}
         </IconButton>
       </Box>
+
+      {/* Inventory Modal */}
+      <Dialog 
+        open={inventoryOpen} 
+        onClose={() => setInventoryOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: colors.headerBg, color: colors.incomingText } }}
+      >
+        <DialogTitle sx={{ borderBottom: `1px solid ${colors.divider}` }}>
+          Selecionar Produto
+          <IconButton 
+            onClick={() => setInventoryOpen(false)} 
+            sx={{ position: 'absolute', right: 8, top: 8, color: colors.iconColor }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+           {/* Mock Inventory List */}
+           <Grid container spacing={2}>
+              {['Smartwatch Ultra', 'Fone Bluetooth Pro', 'Carregador Turbo', 'Capa iPhone 15'].map((item, index) => (
+                <Grid item xs={6} sm={4} key={index}>
+                  <Card sx={{ bgcolor: isDark ? '#111b21' : '#ffffff', color: colors.incomingText }}>
+                    <CardActionArea onClick={() => handleSendProduct(item, 'R$ 150,00')}>
+                      <Box height={100} bgcolor={isDark ? '#2a3942' : '#f0f2f5'} display="flex" alignItems="center" justifyContent="center">
+                        <InventoryIcon sx={{ fontSize: 40, opacity: 0.5, color: colors.iconColor }} />
+                      </Box>
+                      <CardContent>
+                        <Typography variant="body2" noWrap>{item}</Typography>
+                        <Typography variant="caption" color="#00a884">R$ 150,00</Typography>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              ))}
+           </Grid>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

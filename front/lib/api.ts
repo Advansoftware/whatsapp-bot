@@ -37,7 +37,10 @@ class ApiClient {
 
     if (response.status === 401) {
       this.setToken(null);
-      window.location.href = '/';
+      // Don't redirect if it's a login attempt, so we can show the error
+      if (!endpoint.includes('/auth/login')) {
+        window.location.href = '/';
+      }
       throw new Error('Unauthorized');
     }
 
@@ -193,6 +196,37 @@ class ApiClient {
       instanceName: string;
       timestamp: string;
     }>>('/api/messages/recent');
+  }
+
+  // Chatbot endpoints
+  async getFlows() {
+    return this.request<Array<{
+      id: string;
+      name: string;
+      keyword: string;
+      isActive: boolean;
+      nodes: Array<any>;
+    }>>('/api/chatbot/flows');
+  }
+
+  async createFlow(data: any) {
+    return this.request<any>('/api/chatbot/flows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFlow(id: string, data: any) {
+    return this.request<any>(`/api/chatbot/flows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFlow(id: string) {
+    return this.request<void>(`/api/chatbot/flows/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   // Logout

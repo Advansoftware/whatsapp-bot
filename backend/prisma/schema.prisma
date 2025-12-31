@@ -33,9 +33,39 @@ model Company {
 
   users     User[]
   instances Instance[]
+
   messages  Message[]
+  chatFlows ChatFlow[]
 
   @@map("companies")
+}
+
+model ChatFlow {
+  id        String   @id @default(cuid())
+  name      String
+  keyword   String
+  isActive  Boolean  @default(true) @map("is_active")
+  companyId String   @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nodes    ChatNode[]
+
+  @@map("chat_flows")
+}
+
+model ChatNode {
+  id        String   @id @default(cuid())
+  flowId    String   @map("flow_id")
+  content   String   @db.Text
+  type      String   @default("text") // text, button, list
+  stepIndex Int      @map("step_index")
+  parentId  String?  @map("parent_id")
+  
+  flow     ChatFlow  @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@map("chat_nodes")
 }
 
 model Instance {
@@ -59,7 +89,8 @@ model Message {
   messageId    String   @map("message_id")
   content      String   @db.Text
   response     String?  @db.Text
-  direction    String   // 'incoming' | 'outgoing'
+  direction    String
+  pushName     String?  @map("push_name")   // 'incoming' | 'outgoing'
   status       String   @default("pending") // 'pending' | 'processed' | 'failed'
   processedAt  DateTime? @map("processed_at")
   companyId    String   @map("company_id")

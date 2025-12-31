@@ -13,6 +13,7 @@ import {
   Link,
   IconButton,
   InputAdornment,
+  Snackbar,
 } from '@mui/material';
 import { Chat, Visibility, VisibilityOff } from '@mui/icons-material';
 
@@ -33,6 +34,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     password: '',
   });
 
+  const [success, setSuccess] = useState<string>('');
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -40,17 +43,31 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     try {
       if (isLogin) {
         await login({ email: formData.email, password: formData.password });
+        setSuccess('Login realizado com sucesso! Redirecionando...');
       } else {
         await register(formData);
+        setSuccess('Cadastro realizado com sucesso! Redirecionando...');
       }
-      onLoginSuccess?.();
+      
+      // Delay redirection to show success message
+      setTimeout(() => {
+        onLoginSuccess?.();
+      }, 1500);
     } catch (err: any) {
       console.error('Auth error:', err);
-      setError(err.message || 'Erro ao autenticar. Verifique suas credenciais.');
+      // Format error message better if possible
+      let msg = err.message;
+      if (msg === 'Unauthorized' || msg === 'Request failed') {
+        msg = 'Credenciais inválidas. Verifique seu e-mail e senha.';
+      } else if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
+        msg = 'Erro de conexão: O servidor não está respondendo. Verifique se o backend está rodando.';
+      }
+      setError(msg || 'Erro ao autenticar. Tente novamente.');
     }
   };
 
@@ -62,8 +79,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
     try {
       setError('');
+      setSuccess('');
       await loginWithGoogle(credentialResponse.credential);
-      onLoginSuccess?.();
+      setSuccess('Login com Google realizado com sucesso!');
+      setTimeout(() => {
+        onLoginSuccess?.();
+      }, 1500);
     } catch (err) {
       setError('Erro ao fazer login com Google. Tente novamente.');
       console.error('Google login error:', err);
@@ -311,6 +332,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </Typography>
         </Box>
       </Paper>
+
+      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={() => setSuccess('')} severity="success" sx={{ width: '100%' }}>
+          {success}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -14,8 +14,12 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
   const { data: conversations, isLoading } = useRecentConversations();
 
   const getInitials = (contact: string) => {
-    const numbers = contact.replace(/\D/g, '');
-    return numbers.slice(-2) || '??';
+    if (!contact) return '??';
+    const parts = contact.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return contact.substring(0, 2).toUpperCase();
   };
 
   const formatTime = (timestamp: string) => {
@@ -76,7 +80,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ onSelectChat, selectedChatId, c
                 }}
               >
                 <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: theme.palette.primary.main }}>{getInitials(conv.contact)}</Avatar>
+                  <Avatar src={`https://ui-avatars.com/api/?name=${conv.contact}&background=00a884&color=fff`} />
                 </ListItemAvatar>
                 <ListItemText
                   primary={
