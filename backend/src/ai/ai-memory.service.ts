@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 export class AIMemoryService {
   private readonly logger = new Logger(AIMemoryService.name);
   private genAI: GoogleGenerativeAI;
-  private readonly MODEL_NAME = 'gemini-2.0-flash-exp';
+  private readonly MODEL_NAME: string;
 
   constructor(
     private readonly config: ConfigService,
@@ -18,6 +18,7 @@ export class AIMemoryService {
       throw new Error('GEMINI_API_KEY is not configured');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.0-flash';
   }
 
   /**

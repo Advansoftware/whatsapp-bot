@@ -8,7 +8,7 @@ export class AITranscriptionService {
   private genAI: GoogleGenerativeAI;
   private evolutionApiUrl: string;
   private evolutionApiKey: string;
-  private readonly MODEL_NAME = 'gemini-2.0-flash-exp';
+  private readonly MODEL_NAME: string;
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
@@ -18,6 +18,7 @@ export class AITranscriptionService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.evolutionApiUrl = this.config.get<string>('EVOLUTION_API_URL') || 'http://evolution:8080';
     this.evolutionApiKey = this.config.get<string>('EVOLUTION_API_KEY') || '';
+    this.MODEL_NAME = this.config.get('GEMINI_MODEL') || 'gemini-2.0-flash';
   }
 
   /**
