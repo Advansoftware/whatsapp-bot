@@ -4,7 +4,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
-import { AIService } from '../ai/ai.service';
+import { AITranscriptionService } from '../ai/ai-transcription.service';
 import * as FormData from 'form-data';
 
 @Controller('api/messages')
@@ -12,7 +12,7 @@ import * as FormData from 'form-data';
 export class MessagesController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AIService,
+    private readonly aiTranscriptionService: AITranscriptionService,
   ) { }
 
   @Get()
@@ -106,7 +106,7 @@ export class MessagesController {
 
     try {
       // Transcrever usando AIService
-      const transcription = await this.aiService.processAudioMessage(
+      const transcription = await this.aiTranscriptionService.processAudioMessage(
         message.instance.instanceKey,
         message.mediaData,
       );

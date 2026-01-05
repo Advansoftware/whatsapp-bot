@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from '../ai/ai.service';
+import { AITranscriptionService } from '../ai/ai-transcription.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { WHATSAPP_QUEUE } from './constants';
 
@@ -33,6 +34,7 @@ export class WhatsappProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
+    private readonly aiTranscriptionService: AITranscriptionService,
     private readonly chatbotService: ChatbotService,
   ) {
     super();
@@ -140,7 +142,7 @@ export class WhatsappProcessor extends WorkerHost {
 
       if (mediaType === 'audio' && mediaData && aiConfig?.transcribeAudio !== false) {
         this.logger.log(`🎤 Transcribing audio message from ${remoteJid}`);
-        const transcription = await this.aiService.processAudioMessage(instanceKey, mediaData);
+        const transcription = await this.aiTranscriptionService.processAudioMessage(instanceKey, mediaData);
         processedContent = `[Áudio transcrito]: ${transcription}`;
         this.logger.log(`🎤 Transcription: ${transcription.substring(0, 100)}...`);
       }
