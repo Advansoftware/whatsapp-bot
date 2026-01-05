@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from "react";
-import { Box, Paper, Typography } from "@mui/material";
-import { Done, DoneAll, Schedule, ErrorOutline } from "@mui/icons-material";
+import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material";
+import { Done, DoneAll, Schedule, ErrorOutline, Mic } from "@mui/icons-material";
 
 interface MessageBubbleProps {
   message: {
@@ -20,6 +20,8 @@ interface MessageBubbleProps {
     timeText: string;
   };
   getMediaSrc: (msg: any) => string;
+  onTranscribe?: (messageId: string) => void;
+  isTranscribing?: boolean;
 }
 
 // Memoized status icon component
@@ -82,7 +84,7 @@ const renderMessageContent = (content: string): React.ReactNode => {
 
 // Main component - memoized to prevent unnecessary re-renders
 const MessageBubble = memo<MessageBubbleProps>(
-  ({ message: msg, colors, getMediaSrc }) => {
+  ({ message: msg, colors, getMediaSrc, onTranscribe, isTranscribing }) => {
     const isSender = useMemo(
       () =>
         msg.direction === "outgoing" ||
@@ -208,13 +210,47 @@ const MessageBubble = memo<MessageBubbleProps>(
               )}
             </>
           ) : isAudio ? (
-            <Box
-              component="audio"
-              src={mediaSrc!}
-              controls
-              preload="metadata"
-              sx={{ width: "100%", minWidth: 200 }}
-            />
+            <>
+              <Box
+                component="audio"
+                src={mediaSrc!}
+                controls
+                preload="metadata"
+                sx={{ width: "100%", minWidth: 200 }}
+              />
+              {/* Transcrição ou botão de transcrever */}
+              {msg.content?.includes("[Erro na transcrição do áudio]") ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={isTranscribing ? <CircularProgress size={14} /> : <Mic />}
+                  disabled={isTranscribing}
+                  onClick={() => onTranscribe?.(msg.id)}
+                  sx={{
+                    mt: 0.5,
+                    fontSize: "12px",
+                    textTransform: "none",
+                    color: isSender ? colors.outgoingText : colors.incomingText,
+                    opacity: 0.8,
+                    "&:hover": { opacity: 1 },
+                  }}
+                >
+                  {isTranscribing ? "Transcrevendo..." : "Transcrever"}
+                </Button>
+              ) : msg.content && !msg.content.startsWith("[Áudio]") ? (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    mt: 0.5,
+                    fontSize: "13px",
+                    opacity: 0.9,
+                    fontStyle: "italic",
+                  }}
+                >
+                  {msg.content.replace("[Áudio transcrito]: ", "")}
+                </Typography>
+              ) : null}
+            </>
           ) : isDocument ? (
             <Box
               sx={{

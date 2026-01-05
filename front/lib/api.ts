@@ -212,6 +212,13 @@ class ApiClient {
     return response.json() as Promise<{ success: boolean; messageId?: string }>;
   }
 
+  async transcribeMessage(messageId: string) {
+    return this.request<{ success: boolean; transcription: string; content: string }>(
+      `/api/messages/${messageId}/transcribe`,
+      { method: 'POST' }
+    );
+  }
+
   async getRecentConversations(page = 1, limit = 30) {
     return this.request<{
       data: Array<{

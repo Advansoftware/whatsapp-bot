@@ -4,12 +4,16 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { AIService } from '../ai/ai.service';
 import * as FormData from 'form-data';
 
 @Controller('api/messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AIService,
+  ) { }
 
   @Get()
   async getMessages(
@@ -73,6 +77,61 @@ export class MessagesController {
         totalPages: Math.ceil(total / limitNum),
       },
     };
+  }
+
+  /**
+   * Transcreve manualmente uma mensagem de áudio
+   */
+  @Post(':id/transcribe')
+  async transcribeAudio(@Request() req: any, @Param('id') messageId: string) {
+    const companyId = req.user.companyId;
+
+    // Buscar mensagem
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, companyId },
+      include: { instance: true },
+    });
+
+    if (!message) {
+      throw new HttpException('Message not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (message.mediaType !== 'audio') {
+      throw new HttpException('Message is not an audio', HttpStatus.BAD_REQUEST);
+    }
+
+    if (!message.mediaData) {
+      throw new HttpException('No media data available for transcription', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      // Transcrever usando AIService
+      const transcription = await this.aiService.processAudioMessage(
+        message.instance.instanceKey,
+        message.mediaData,
+      );
+
+      // Verificar se a transcrição retornou erro
+      if (transcription.includes('[Erro na transcrição do áudio]')) {
+        throw new HttpException(transcription, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      // Atualizar mensagem com a transcrição
+      const newContent = `[Áudio transcrito]: ${transcription}`;
+      await this.prisma.message.update({
+        where: { id: messageId },
+        data: { content: newContent },
+      });
+
+      return {
+        success: true,
+        transcription,
+        content: newContent,
+      };
+    } catch (error) {
+      console.error('Error transcribing audio:', error.message);
+      throw new HttpException(error.message || 'Failed to transcribe audio', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Post('send')

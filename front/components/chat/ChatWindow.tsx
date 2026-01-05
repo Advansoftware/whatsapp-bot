@@ -55,6 +55,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     message: string;
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
+  const [transcribingMessageId, setTranscribingMessageId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -479,6 +480,35 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     []
   );
 
+  // Handle audio transcription
+  const handleTranscribeAudio = useCallback(
+    async (messageId: string) => {
+      setTranscribingMessageId(messageId);
+      try {
+        const result = await api.transcribeMessage(messageId);
+        if (result.success) {
+          // Update the message in local state
+          refetch();
+          setSnackbar({
+            open: true,
+            message: "Áudio transcrito com sucesso!",
+            severity: "success",
+          });
+        }
+      } catch (err) {
+        console.error("Error transcribing audio:", err);
+        setSnackbar({
+          open: true,
+          message: "Erro ao transcrever áudio",
+          severity: "error",
+        });
+      } finally {
+        setTranscribingMessageId(null);
+      }
+    },
+    [refetch]
+  );
+
   return (
     <Box
       display="flex"
@@ -565,6 +595,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 message={msg}
                 colors={colors}
                 getMediaSrc={getMediaSrc}
+                onTranscribe={handleTranscribeAudio}
+                isTranscribing={transcribingMessageId === msg.id}
               />
             ))}
           </>

@@ -493,39 +493,38 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
     try {
       this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
 
-      // Preparar payload para Evolution API
-      // Formato esperado: { message: { audioMessage: {...} }, key: {...} }
-      // Evolution API precisa de contextInfo mesmo que vazio
-      const payload: any = {
-        message: {},
-        key: {},
-      };
+      // Log completo do mediaData para debug
+      this.logger.debug(`Full mediaData: ${JSON.stringify(mediaData, null, 2)}`);
 
-      // Extrair key
+      // Evolution API v2 espera o payload no mesmo formato do webhook
+      // Vamos copiar apenas o necessário e remover campos problemáticos
+      const payload: any = {};
+
+      // Copiar key se existir
       if (mediaData.key) {
         payload.key = mediaData.key;
       }
 
-      // Extrair message e garantir que contextInfo existe
+      // Copiar message, removendo campos problemáticos recursivamente
       if (mediaData.message) {
-        const messageType = Object.keys(mediaData.message).find(k => k.endsWith('Message'));
-        if (messageType && mediaData.message[messageType]) {
-          // Clonar a mensagem e adicionar contextInfo se não existir
-          payload.message[messageType] = {
-            ...mediaData.message[messageType],
-          };
+        payload.message = {};
+        for (const [key, value] of Object.entries(mediaData.message)) {
+          // Pular messageContextInfo completamente
+          if (key === 'messageContextInfo') continue;
 
-          // Garantir que contextInfo existe (Evolution API precisa disso)
-          if (!payload.message[messageType].contextInfo) {
-            payload.message[messageType].contextInfo = {};
+          if (typeof value === 'object' && value !== null) {
+            // Copiar o objeto removendo contextInfo interno
+            payload.message[key] = { ...(value as any) };
+            if (payload.message[key].contextInfo) {
+              delete payload.message[key].contextInfo;
+            }
+          } else {
+            payload.message[key] = value;
           }
-        } else {
-          payload.message = mediaData.message;
         }
       }
 
-      this.logger.debug(`Media payload keys: ${JSON.stringify(Object.keys(payload))}`);
-      this.logger.debug(`Message keys: ${payload.message ? JSON.stringify(Object.keys(payload.message)) : 'none'}`);
+      this.logger.debug(`Cleaned payload: ${JSON.stringify(payload, null, 2)}`);
 
       // Baixar mídia via Evolution API
       this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
