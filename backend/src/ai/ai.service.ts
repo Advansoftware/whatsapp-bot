@@ -1376,13 +1376,20 @@ Se não encontrar nada relevante, retorne: []`;
       const conversationSummary = messages
         .reverse()
         .slice(0, 200) // Últimas 200 mensagens para análise mais detalhada
-        .map(m => `[${m.direction === 'incoming' ? 'Cliente' : 'Você'}] ${m.content?.substring(0, 300) || '[mídia]'}`)
+        .map(m => `[${m.direction === 'incoming' ? contact.pushName || 'CONTATO' : 'EU'}] ${m.content?.substring(0, 300) || '[mídia]'}`)
         .join('\n');
 
-      const prompt = `Você é um analista de vendas experiente. Analise este lead DETALHADAMENTE com base em TODA a conversa.
+      const prompt = `Você é um analista de vendas experiente. Sua tarefa é analisar um CONTATO/LEAD específico.
 
-DADOS DO CONTATO:
-- Nome: ${contact.pushName || 'Desconhecido'}
+⚠️ ATENÇÃO - IDENTIFIQUE CORRETAMENTE AS PARTES:
+- Mensagens marcadas com [EU] = São mensagens que EU enviei (o dono desta conta de WhatsApp)
+- Mensagens marcadas com [${contact.pushName || 'CONTATO'}] = São mensagens do CONTATO que estou analisando
+
+🎯 VOCÊ DEVE ANALISAR APENAS O CONTATO "${contact.pushName || 'CONTATO'}", NÃO A MIM.
+A análise é sobre a pessoa que me enviou mensagens, não sobre mim que estou enviando.
+
+DADOS DO CONTATO A SER ANALISADO:
+- Nome do Contato: ${contact.pushName || 'Desconhecido'}
 - Total de mensagens na conversa: ${messages.length}
 - Cidade: ${contact.city || 'Desconhecido'}
 - Estado: ${contact.state || 'Desconhecido'}
@@ -1390,27 +1397,35 @@ DADOS DO CONTATO:
 - Universidade: ${contact.university || 'N/A'}
 - Curso: ${contact.course || 'N/A'}
 
-MEMÓRIAS EXTRAÍDAS SOBRE O CLIENTE:
+MEMÓRIAS EXTRAÍDAS SOBRE O CONTATO:
 ${memoryContext || 'Nenhuma memória salva ainda'}
 
-HISTÓRICO COMPLETO DA CONVERSA (${messages.length} mensagens):
+HISTÓRICO DA CONVERSA (${messages.length} mensagens):
+- [EU] = minhas mensagens (ignore para a análise do perfil)
+- [${contact.pushName || 'CONTATO'}] = mensagens do contato (FOCO DA ANÁLISE)
+
 ${conversationSummary}
 
-FAÇA UMA ANÁLISE PROFUNDA E RETORNE JSON:
+FAÇA UMA ANÁLISE PROFUNDA SOBRE O CONTATO "${contact.pushName || 'CONTATO'}" E RETORNE JSON:
 {
   "score": 0-100,
   "status": "cold|warm|hot|qualified|customer",
-  "analysis": "Escreva uma análise DETALHADA de 4-5 parágrafos cobrindo:
+  "analysis": "Escreva uma análise DETALHADA de 4-5 parágrafos sobre o CONTATO cobrindo:
     
-    1. PERFIL DO CLIENTE: Quem é essa pessoa? O que sabemos sobre ela? Qual seu contexto de vida?
+    ### Perfil do Contato
+    Quem é ${contact.pushName || 'este contato'}? O que sabemos sobre ele(a)? Qual seu contexto de vida?
     
-    2. INTERESSES E NECESSIDADES: O que ela busca? Quais produtos/serviços demonstrou interesse? Por que entrou em contato?
+    ### Interesses e Necessidades  
+    O que ${contact.pushName || 'o contato'} busca? Quais produtos/serviços demonstrou interesse? Por que entrou em contato?
     
-    3. OBJEÇÕES E PREOCUPAÇÕES: Quais dúvidas ou resistências foram identificadas? Houve negociação de preço?
+    ### Objeções e Preocupações
+    Quais dúvidas ou resistências ${contact.pushName || 'o contato'} demonstrou? Houve negociação de preço?
     
-    4. HISTÓRICO DE INTERAÇÃO: Como foi a evolução da conversa? Houve compras anteriores? Quanto tempo de relacionamento?
+    ### Histórico de Interação
+    Como foi a evolução da conversa com ${contact.pushName || 'o contato'}? Houve compras anteriores?
     
-    5. RECOMENDAÇÕES: Como abordar esse cliente? Qual a melhor estratégia de venda? O que oferecer?"
+    ### Recomendações
+    Como devo abordar ${contact.pushName || 'este contato'}? Qual a melhor estratégia de venda?"
 }`;
 
       const result = await model.generateContent(prompt);

@@ -23,6 +23,64 @@ import {
 } from "lucide-react";
 import api from "../lib/api";
 
+// Função para renderizar markdown básico
+const renderMarkdown = (text: string) => {
+  const lines = text.split("\n");
+  return lines.map((line, index) => {
+    // Headers
+    if (line.startsWith("### ")) {
+      return (
+        <h3 key={index} className="text-lg font-bold text-purple-400 mt-4 mb-2">
+          {line.replace("### ", "")}
+        </h3>
+      );
+    }
+    if (line.startsWith("## ")) {
+      return (
+        <h2 key={index} className="text-xl font-bold text-purple-300 mt-4 mb-2">
+          {line.replace("## ", "")}
+        </h2>
+      );
+    }
+    if (line.startsWith("# ")) {
+      return (
+        <h1
+          key={index}
+          className="text-2xl font-bold text-purple-200 mt-4 mb-2"
+        >
+          {line.replace("# ", "")}
+        </h1>
+      );
+    }
+
+    // Bold text
+    let formattedLine: React.ReactNode = line;
+    if (line.includes("**")) {
+      const parts = line.split(/\*\*(.*?)\*\*/g);
+      formattedLine = parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <strong key={i} className="text-white font-semibold">
+            {part}
+          </strong>
+        ) : (
+          part
+        )
+      );
+    }
+
+    // Empty line
+    if (line.trim() === "") {
+      return <br key={index} />;
+    }
+
+    return (
+      <p key={index} className="text-white/80 text-sm mb-1">
+        {formattedLine}
+      </p>
+    );
+  });
+};
+
 interface ContactDetailsModalProps {
   contactId: string;
   isOpen: boolean;
@@ -329,11 +387,11 @@ export default function ContactDetailsModal({
 
                   {contact.aiAnalysis && (
                     <div className="bg-black/20 rounded-lg p-4">
-                      <p className="text-white/80 text-sm whitespace-pre-wrap">
-                        {contact.aiAnalysis}
-                      </p>
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        {renderMarkdown(contact.aiAnalysis)}
+                      </div>
                       {contact.aiAnalyzedAt && (
-                        <p className="text-white/40 text-xs mt-2 flex items-center gap-1">
+                        <p className="text-white/40 text-xs mt-4 flex items-center gap-1 border-t border-white/10 pt-3">
                           <Clock className="w-3 h-3" />
                           Analisado em{" "}
                           {new Date(contact.aiAnalyzedAt).toLocaleString(
