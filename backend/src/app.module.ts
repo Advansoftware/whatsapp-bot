@@ -9,6 +9,8 @@ import { ApiModule } from './api/api.module';
 import { ChatModule } from './chat/chat.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { AIModule } from './ai/ai.module';
+import { SecretaryTasksModule } from './secretary-tasks/secretary-tasks.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { AIModule } from './ai/ai.module';
     ChatModule,
     ChatbotModule,
     AIModule,
+    SecretaryTasksModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule { }

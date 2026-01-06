@@ -4,6 +4,7 @@ import { WhatsappProcessor } from './whatsapp.processor';
 import { WHATSAPP_QUEUE } from './constants';
 import { AIModule } from '../ai/ai.module';
 import { ChatbotModule } from '../chatbot/chatbot.module';
+import { SecretaryTasksModule } from '../secretary-tasks/secretary-tasks.module';
 
 export { WHATSAPP_QUEUE } from './constants';
 
@@ -23,6 +24,7 @@ export { WHATSAPP_QUEUE } from './constants';
     }),
     AIModule,
     ChatbotModule,
+    SecretaryTasksModule,
   ],
   providers: [WhatsappProcessor],
   exports: [BullModule],

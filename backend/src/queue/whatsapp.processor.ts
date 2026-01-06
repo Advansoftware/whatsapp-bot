@@ -4,7 +4,10 @@ import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from '../ai/ai.service';
 import { AITranscriptionService } from '../ai/ai-transcription.service';
+import { AITasksService } from '../ai/ai-tasks.service';
+import { AIExpensesService } from '../ai/ai-expenses.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -35,7 +38,10 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     private readonly aiTranscriptionService: AITranscriptionService,
+    private readonly aiTasksService: AITasksService,
+    private readonly aiExpensesService: AIExpensesService,
     private readonly chatbotService: ChatbotService,
+    private readonly secretaryTasksService: SecretaryTasksService,
   ) {
     super();
   }
@@ -95,9 +101,28 @@ export class WhatsappProcessor extends WorkerHost {
       const senderNumber = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
       const ownerPhone = aiConfig?.ownerPhone?.replace(/\D/g, '') || ''; // Remove não-dígitos
 
-      // Mensagens fromMe (enviadas por você) NUNCA devem ser respondidas pela IA
-      // A IA só responde a mensagens RECEBIDAS (de clientes ou do dono via outro número)
+      // Helper para comparar números de telefone (lidando com o 9º dígito do Brasil)
+      // Ex: 553584216196 (API) vs 5535984216196 (Config)
+      const isPhoneMatch = (phone1: string, phone2: string) => {
+        if (!phone1 || !phone2) return false;
+        if (phone1 === phone2) return true;
+        // Se um inclui o outro (devido ao 9º dígito extra)
+        return phone1.includes(phone2) || phone2.includes(phone1);
+      };
+
+      // DEBUG: Verificar por que não está entrando no modo secretária pessoal
       if (fromMe) {
+        this.logger.log(`DEBUG Check SelfChat: sender=${senderNumber}, owner=${ownerPhone}, match=${isPhoneMatch(senderNumber, ownerPhone)}, enabled=${aiConfig?.enabled}, testMode=${aiConfig?.testMode}`);
+      }
+
+      // Verificar se é o dono mandando mensagem para si mesmo (chat pessoal com a secretária)
+      // Nesse caso, remoteJid é o número do bot/dono e fromMe é true
+      // Requer que "Secretária Pessoal" (testMode) esteja ativado
+      const isOwnerSelfChat = fromMe && isPhoneMatch(senderNumber, ownerPhone) && aiConfig?.enabled === true && aiConfig?.testMode === true;
+
+      // Mensagens fromMe (enviadas por você) NUNCA devem ser respondidas pela IA
+      // EXCETO: quando é o dono mandando para si mesmo (self-chat como secretária pessoal)
+      if (fromMe && !isOwnerSelfChat) {
         // Salvar mensagem outgoing e ignorar IA
         await this.prisma.message.upsert({
           where: { messageId },
@@ -125,14 +150,16 @@ export class WhatsappProcessor extends WorkerHost {
         return { status: 'saved_outgoing' };
       }
 
-      // Verifica se é uma mensagem recebida do número do proprietário (ele mandando do celular pessoal)
-      const isOwnerSendingToBot = !!ownerPhone && senderNumber === ownerPhone && aiConfig?.testMode === true && aiConfig?.enabled === true;
+      // Verifica se é uma mensagem recebida do número do proprietário
+      // Pode ser: 1) fromMe && self-chat, ou 2) de outro número igual ao do dono
+      // Requer que "Secretária Pessoal" (testMode) esteja ativado
+      const isOwnerSendingToBot = isOwnerSelfChat || (isPhoneMatch(senderNumber, ownerPhone) && aiConfig?.enabled === true && aiConfig?.testMode === true);
 
       const isPersonalAssistantMode = isOwnerSendingToBot;
 
       // Log se está em modo secretária pessoal
       if (isPersonalAssistantMode) {
-        this.logger.log(`👤 PERSONAL ASSISTANT MODE: Processing owner message - acting as personal secretary`);
+        this.logger.log(`👤 PERSONAL ASSISTANT MODE: Processing owner message (self-chat: ${isOwnerSelfChat}) - acting as personal secretary`);
       }
 
       // ========================================
@@ -191,6 +218,81 @@ export class WhatsappProcessor extends WorkerHost {
       // MODO SECRETÁRIA PESSOAL - Comandos do dono
       // ========================================
       if (isPersonalAssistantMode) {
+        // ========================================
+        // CRIAÇÃO DE TAREFAS VIA CHAT
+        // ========================================
+        if (this.aiTasksService.isTaskRequest(processedContent)) {
+          this.logger.log(`📋 Detected task creation request from owner`);
+
+          const taskResult = await this.aiTasksService.processTaskRequest(
+            processedContent,
+            instance.companyId,
+          );
+
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, taskResult.response);
+
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: taskResult.response,
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          if (taskResult.taskCreated) {
+            this.logger.log(`✅ Task created via chat: ${taskResult.taskId}`);
+          }
+
+          return { status: 'processed_task_request', messageId: message.id, taskCreated: taskResult.taskCreated };
+        }
+
+        // ========================================
+        // LISTAR TAREFAS (comando "minhas tarefas")
+        // ========================================
+        const lowerContent = processedContent.toLowerCase();
+        if (lowerContent.includes('minhas tarefas') || lowerContent.includes('listar tarefas') || lowerContent.includes('quais tarefas')) {
+          const tasksList = await this.aiTasksService.listTasksForOwner(instance.companyId);
+
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, tasksList);
+
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: tasksList,
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          return { status: 'processed_list_tasks', messageId: message.id };
+        }
+
+        // ========================================
+        // COMANDOS DE GASTOS (Gastometria)
+        // ========================================
+        if (this.aiExpensesService.isExpenseCommand(processedContent)) {
+          this.logger.log(`💰 Detected expense command from owner`);
+
+          const expenseResult = await this.aiExpensesService.processExpenseCommand(
+            processedContent,
+            instance.companyId,
+          );
+
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, expenseResult.response);
+
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: expenseResult.response,
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          return { status: 'processed_expense', messageId: message.id, success: expenseResult.success };
+        }
+
         // ========================================
         // PROCESSAMENTO DE IMAGEM PARA INVENTÁRIO
         // ========================================
@@ -380,9 +482,73 @@ export class WhatsappProcessor extends WorkerHost {
         isPersonalAssistantMode, // Passa o flag indicando se é o dono falando
       );
 
+      // ========================================
+      // VERIFICAR TAREFAS AUTOMATIZADAS
+      // ========================================
+      let finalResponse = secretaryResult.response;
+
+      // Só executar tarefas para mensagens de contatos (não do dono)
+      if (!isPersonalAssistantMode && secretaryResult.shouldRespond) {
+        try {
+          // Verificar se é primeira mensagem do contato
+          const isFirstMessage = await this.prisma.message.count({
+            where: {
+              remoteJid,
+              companyId: instance.companyId,
+              direction: 'incoming',
+            },
+          }) <= 1;
+
+          // Buscar tarefas que correspondem ao contexto atual
+          const matchingTasks = await this.secretaryTasksService.getMatchingTasks(
+            instance.companyId,
+            {
+              messageContent: processedContent,
+              isFirstMessage,
+              currentTime: new Date(),
+            },
+          );
+
+          // Executar tarefas correspondentes
+          for (const task of matchingTasks) {
+            this.logger.log(`📋 Executing task: ${task.name}`);
+
+            const taskResult = await this.secretaryTasksService.executeAction(task, {
+              originalResponse: finalResponse,
+              remoteJid,
+            });
+
+            // Modificar resposta se necessário
+            if (taskResult.modifiedResponse) {
+              finalResponse = taskResult.modifiedResponse;
+            }
+
+            // Enviar mensagem direta se configurado
+            if (taskResult.directMessage) {
+              await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, taskResult.directMessage);
+            }
+
+            // Adicionar tags ao contato se configurado
+            if (taskResult.tagsToAdd && taskResult.tagsToAdd.length > 0) {
+              await this.prisma.contact.updateMany({
+                where: { remoteJid, companyId: instance.companyId },
+                data: {
+                  tags: {
+                    push: taskResult.tagsToAdd,
+                  },
+                },
+              });
+            }
+          }
+        } catch (taskError) {
+          this.logger.error(`Error executing tasks: ${taskError.message}`);
+          // Continua com a resposta original em caso de erro
+        }
+      }
+
       // 7. Se deve responder, enviar resposta
-      if (secretaryResult.shouldRespond && secretaryResult.response) {
-        await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, secretaryResult.response);
+      if (secretaryResult.shouldRespond && finalResponse) {
+        await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, finalResponse);
 
         // Atualizar mensagem com resposta
         await this.prisma.message.update({

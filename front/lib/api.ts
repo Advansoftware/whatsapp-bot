@@ -741,6 +741,92 @@ class ApiClient {
     return `${API_URL}/api/messages/media/${messageId}?token=${this.token}`;
   }
 
+  // ========================================
+  // Secretary Tasks
+  // ========================================
+  async getSecretaryTasks() {
+    return this.request<any[]>('/api/secretary-tasks');
+  }
+
+  async getSecretaryTask(id: string) {
+    return this.request<any>(`/api/secretary-tasks/${id}`);
+  }
+
+  async createSecretaryTask(data: any) {
+    return this.request<any>('/api/secretary-tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSecretaryTask(id: string, data: any) {
+    return this.request<any>(`/api/secretary-tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSecretaryTask(id: string) {
+    return this.request<any>(`/api/secretary-tasks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleSecretaryTask(id: string) {
+    return this.request<any>(`/api/secretary-tasks/${id}/toggle`, {
+      method: 'PATCH',
+    });
+  }
+
+  // ========================================
+  // Integrations - Gastometria
+  // ========================================
+  async getGastometriaStatus() {
+    return this.request<{ connected: boolean; config?: any }>('/api/integrations/gastometria/status');
+  }
+
+  async connectGastometria(email: string, password: string) {
+    return this.request<{ success: boolean; message: string; wallets?: any[] }>('/api/integrations/gastometria/connect', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async disconnectGastometria() {
+    return this.request<{ success: boolean }>('/api/integrations/gastometria', {
+      method: 'DELETE',
+    });
+  }
+
+  async getGastometriaWallets() {
+    return this.request<any[]>('/api/integrations/gastometria/wallets');
+  }
+
+  async setGastometriaConfig(config: { defaultWalletId: string }) {
+    return this.request<{ success: boolean }>('/api/integrations/gastometria/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async getGastometriaBalance() {
+    return this.request<{ success: boolean; balance?: number; wallets?: any[]; message?: string }>('/api/integrations/gastometria/balance');
+  }
+
+  async createGastometriaTransaction(data: {
+    amount: number;
+    type: 'income' | 'expense';
+    category: string;
+    item: string;
+    date?: string;
+    establishment?: string;
+  }) {
+    return this.request<{ success: boolean; message: string; transaction?: any }>('/api/integrations/gastometria/transactions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Logout
   logout() {
     this.setToken(null);

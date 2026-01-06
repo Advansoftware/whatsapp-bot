@@ -24,6 +24,8 @@ import AISecretaryView from "./components/ai-secretary/AISecretaryView";
 import ContactsView from "./components/crm/ContactsView";
 import CampaignsView from "./components/campaigns/CampaignsView";
 import AnalyticsView from "./components/analytics/AnalyticsView";
+import TasksView from "./components/secretary/TasksView";
+import IntegrationsView from "./components/integrations/IntegrationsView";
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID =
@@ -82,6 +84,10 @@ const AppContent: React.FC = () => {
         return <CampaignsView />;
       case "analytics":
         return <AnalyticsView />;
+      case "secretary-tasks":
+        return <TasksView />;
+      case "integrations":
+        return <IntegrationsView />;
       case "subscription":
         return <PlaceholderView title="Gerenciamento de Assinatura" />;
       default:
