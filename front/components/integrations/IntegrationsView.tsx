@@ -57,18 +57,19 @@ const AVAILABLE_INTEGRATIONS = [
   {
     id: "gastometria",
     name: "Gastometria",
-    description: "Controle de gastos pessoais. Registre despesas e receitas via WhatsApp.",
+    description:
+      "Controle de gastos pessoais. Registre despesas e receitas via WhatsApp.",
     icon: "💰",
     url: "https://gastometria.com.br",
   },
-  // Futuras integrações podem ser adicionadas aqui
-  // {
-  //   id: "google_calendar",
-  //   name: "Google Calendar",
-  //   description: "Agende reuniões e compromissos via WhatsApp.",
-  //   icon: "📅",
-  //   url: "https://calendar.google.com",
-  // },
+  {
+    id: "google_calendar",
+    name: "Google Calendar",
+    description:
+      "Agende reuniões e compromissos via WhatsApp. A secretária pode verificar sua agenda e marcar horários.",
+    icon: "📅",
+    url: "https://calendar.google.com",
+  },
 ];
 
 const IntegrationsView: React.FC = () => {
@@ -101,6 +102,17 @@ const IntegrationsView: React.FC = () => {
               config: status.config,
             };
           }
+          if (integration.id === "google_calendar") {
+            try {
+              const status = await api.getGoogleCalendarStatus();
+              return {
+                ...integration,
+                connected: status.connected,
+              };
+            } catch {
+              return { ...integration, connected: false };
+            }
+          }
           return { ...integration, connected: false };
         })
       );
@@ -114,6 +126,18 @@ const IntegrationsView: React.FC = () => {
 
   useEffect(() => {
     loadIntegrations();
+
+    // Verificar se veio de callback do Google Calendar
+    const urlParams = new URLSearchParams(window.location.search);
+    const googleCalendarResult = urlParams.get("google_calendar");
+    if (googleCalendarResult === "success") {
+      setSuccess("Google Calendar conectado com sucesso!");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (googleCalendarResult === "error") {
+      const message = urlParams.get("message") || "Erro ao conectar";
+      setError(`Erro ao conectar Google Calendar: ${message}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [loadIntegrations]);
 
   const handleConnectGastometria = async () => {
@@ -126,7 +150,10 @@ const IntegrationsView: React.FC = () => {
     setError(null);
 
     try {
-      const result = await api.connectGastometria(gastometriaEmail, gastometriaPassword);
+      const result = await api.connectGastometria(
+        gastometriaEmail,
+        gastometriaPassword
+      );
 
       if (result.success) {
         setSuccess("Conta conectada com sucesso!");
@@ -163,6 +190,36 @@ const IntegrationsView: React.FC = () => {
     }
   };
 
+  const handleConnectGoogleCalendar = async () => {
+    try {
+      setConnecting(true);
+      const result = await api.getGoogleCalendarAuthUrl();
+      if (result.authUrl) {
+        // Redirecionar para a página de autorização do Google
+        window.location.href = result.authUrl;
+      } else {
+        setError("Erro ao obter URL de autorização");
+      }
+    } catch (err: any) {
+      setError(err.message || "Erro ao conectar Google Calendar");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!window.confirm("Deseja desconectar sua conta do Google Calendar?"))
+      return;
+
+    try {
+      await api.disconnectGoogleCalendar();
+      setSuccess("Google Calendar desconectado");
+      loadIntegrations();
+    } catch (err) {
+      setError("Erro ao desconectar");
+    }
+  };
+
   const handleSaveWallet = async () => {
     if (!selectedWallet) return;
 
@@ -180,13 +237,13 @@ const IntegrationsView: React.FC = () => {
     try {
       const walletsData = await api.getGastometriaWallets();
       setWallets(walletsData);
-      
+
       // Encontrar carteira atual selecionada
-      const gastometria = integrations.find(i => i.id === "gastometria");
+      const gastometria = integrations.find((i) => i.id === "gastometria");
       if (gastometria?.config?.defaultWalletId) {
         setSelectedWallet(gastometria.config.defaultWalletId);
       }
-      
+
       setWalletDialogOpen(true);
     } catch (err) {
       setError("Erro ao carregar carteiras");
@@ -195,6 +252,7 @@ const IntegrationsView: React.FC = () => {
 
   const getIntegrationCard = (integration: Integration) => {
     const isGastometria = integration.id === "gastometria";
+    const isGoogleCalendar = integration.id === "google_calendar";
 
     return (
       <Card
@@ -203,7 +261,9 @@ const IntegrationsView: React.FC = () => {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          border: integration.connected ? `2px solid ${theme.palette.success.main}` : undefined,
+          border: integration.connected
+            ? `2px solid ${theme.palette.success.main}`
+            : undefined,
         }}
       >
         <CardContent sx={{ flex: 1 }}>
@@ -255,6 +315,17 @@ const IntegrationsView: React.FC = () => {
               )}
             </Box>
           )}
+
+          {isGoogleCalendar && integration.connected && (
+            <Box mt={2}>
+              <Chip
+                icon={<CheckCircle fontSize="small" />}
+                label="Pronto para usar"
+                color="success"
+                size="small"
+              />
+            </Box>
+          )}
         </CardContent>
 
         <CardActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
@@ -273,7 +344,13 @@ const IntegrationsView: React.FC = () => {
                 size="small"
                 color="error"
                 startIcon={<LinkOff />}
-                onClick={isGastometria ? handleDisconnectGastometria : undefined}
+                onClick={
+                  isGastometria
+                    ? handleDisconnectGastometria
+                    : isGoogleCalendar
+                    ? handleDisconnectGoogleCalendar
+                    : undefined
+                }
               >
                 Desconectar
               </Button>
@@ -281,11 +358,24 @@ const IntegrationsView: React.FC = () => {
           ) : (
             <Button
               variant="contained"
-              startIcon={<LinkIcon />}
-              onClick={isGastometria ? () => setGastometriaDialogOpen(true) : undefined}
+              startIcon={
+                connecting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <LinkIcon />
+                )
+              }
+              onClick={
+                isGastometria
+                  ? () => setGastometriaDialogOpen(true)
+                  : isGoogleCalendar
+                  ? handleConnectGoogleCalendar
+                  : undefined
+              }
+              disabled={connecting}
               sx={{ bgcolor: "#00a884", "&:hover": { bgcolor: "#008f72" } }}
             >
-              Conectar
+              {connecting ? "Conectando..." : "Conectar"}
             </Button>
           )}
         </CardActions>
@@ -296,7 +386,11 @@ const IntegrationsView: React.FC = () => {
   return (
     <Box p={4}>
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
+        >
           {success}
         </Alert>
       )}
@@ -312,7 +406,8 @@ const IntegrationsView: React.FC = () => {
           🔗 Integrações
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Conecte serviços externos para expandir as funcionalidades da sua secretária.
+          Conecte serviços externos para expandir as funcionalidades da sua
+          secretária.
         </Typography>
       </Box>
 
@@ -332,7 +427,12 @@ const IntegrationsView: React.FC = () => {
       )}
 
       {/* Gastometria Login Dialog */}
-      <Dialog open={gastometriaDialogOpen} onClose={() => setGastometriaDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={gastometriaDialogOpen}
+        onClose={() => setGastometriaDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
             <span>💰</span>
@@ -341,7 +441,8 @@ const IntegrationsView: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Use suas credenciais do Gastometria para conectar. Você precisa ter um plano Infinity ativo.
+            Use suas credenciais do Gastometria para conectar. Você precisa ter
+            um plano Infinity ativo.
           </Typography>
 
           <TextField
@@ -364,7 +465,10 @@ const IntegrationsView: React.FC = () => {
             autoComplete="current-password"
             InputProps={{
               endAdornment: (
-                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
                   {showPassword ? <VisibilityOff /> : <Visibility />}
                 </IconButton>
               ),
@@ -376,12 +480,16 @@ const IntegrationsView: React.FC = () => {
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setGastometriaDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={() => setGastometriaDialogOpen(false)}>
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             onClick={handleConnectGastometria}
             disabled={connecting}
-            startIcon={connecting ? <CircularProgress size={16} /> : <LinkIcon />}
+            startIcon={
+              connecting ? <CircularProgress size={16} /> : <LinkIcon />
+            }
           >
             {connecting ? "Conectando..." : "Conectar"}
           </Button>
@@ -389,11 +497,17 @@ const IntegrationsView: React.FC = () => {
       </Dialog>
 
       {/* Wallet Selection Dialog */}
-      <Dialog open={walletDialogOpen} onClose={() => setWalletDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={walletDialogOpen}
+        onClose={() => setWalletDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Selecionar Carteira Padrão</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Escolha a carteira onde os gastos serão registrados por padrão via WhatsApp.
+            Escolha a carteira onde os gastos serão registrados por padrão via
+            WhatsApp.
           </Typography>
 
           <FormControl fullWidth margin="normal">
@@ -405,8 +519,15 @@ const IntegrationsView: React.FC = () => {
             >
               {wallets.map((wallet) => (
                 <MenuItem key={wallet.id} value={wallet.id}>
-                  <Box display="flex" justifyContent="space-between" width="100%" alignItems="center">
-                    <span>{wallet.icon || "💳"} {wallet.name}</span>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    width="100%"
+                    alignItems="center"
+                  >
+                    <span>
+                      {wallet.icon || "💳"} {wallet.name}
+                    </span>
                     <Typography variant="body2" color="text.secondary">
                       R$ {wallet.balance.toFixed(2)}
                     </Typography>
@@ -418,7 +539,11 @@ const IntegrationsView: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWalletDialogOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSaveWallet} disabled={!selectedWallet}>
+          <Button
+            variant="contained"
+            onClick={handleSaveWallet}
+            disabled={!selectedWallet}
+          >
             Salvar
           </Button>
         </DialogActions>

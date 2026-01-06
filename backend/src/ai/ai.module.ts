@@ -7,6 +7,7 @@ import { AIMemoryService } from './ai-memory.service';
 import { AITasksService } from './ai-tasks.service';
 import { AIExpensesService } from './ai-expenses.service';
 import { AIExpensesFlowService } from './ai-expenses-flow.service';
+import { AICalendarService } from './ai-calendar.service';
 import { AISecretaryController } from './ai-secretary.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SecretaryTasksModule } from '../secretary-tasks/secretary-tasks.module';
@@ -26,6 +27,7 @@ import { AIAnalysisService } from './ai-analysis.service';
     AITasksService,
     AIExpensesService,
     AIExpensesFlowService,
+    AICalendarService,
     AIResponseService,
     AIAnalysisService,
   ],
@@ -39,6 +41,7 @@ import { AIAnalysisService } from './ai-analysis.service';
     AIAnalysisService,
     AIExpensesService,
     AIExpensesFlowService,
+    AICalendarService,
   ],
 })
 export class AIModule { }

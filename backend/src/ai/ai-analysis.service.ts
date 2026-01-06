@@ -153,6 +153,109 @@ FAÇA UMA ANÁLISE PROFUNDA SOBRE O CONTATO "${contact.pushName || 'CONTATO'}" E
     return jsonMatch ? JSON.parse(jsonMatch[0]) : { hasOpportunity: false };
   }
 
+  /**
+   * OTIMIZADO: Analisa E gera resposta em uma única chamada ao Gemini
+   * Economiza 50% das chamadas de API em modo ativo
+   */
+  async analyzeAndRespond(
+    messageContent: string,
+    context: any,
+    aiConfig: any,
+  ): Promise<{
+    analysis: AIAnalysis;
+    response: string;
+  }> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: {
+          temperature: aiConfig.temperature || 0.7,
+        }
+      });
+
+      const ownerName = aiConfig.ownerName || 'o responsável';
+      const productContext = context.products?.length > 0
+        ? `PRODUTOS DISPONÍVEIS:\n${context.products.map((p: any) => `- ${p.name}: R$${p.price}${p.quantity > 0 ? '' : ' (esgotado)'}`).join('\n')}`
+        : '';
+
+      const conversationHistory = context.conversationHistory?.slice(-5)
+        ?.map((m: any) => `${m.direction === 'incoming' ? 'Cliente' : 'Você'}: ${m.content}`)
+        ?.join('\n') || '';
+
+      const prompt = `Você é Sofia, secretária virtual simpática do ${ownerName}. Analise a mensagem e responda.
+
+MENSAGEM DO CLIENTE: "${messageContent}"
+NOME DO CLIENTE: ${context.contactName || 'Cliente'}
+
+HISTÓRICO RECENTE:
+${conversationHistory || 'Início da conversa'}
+
+${productContext}
+
+${aiConfig.systemPrompt || ''}
+
+RESPONDA EM JSON:
+{
+  "analysis": {
+    "sentiment": "positive" | "neutral" | "negative",
+    "urgency": "low" | "normal" | "high" | "urgent",
+    "intent": "question" | "complaint" | "purchase" | "support" | "greeting" | "other",
+    "confidence": 0.0 a 1.0,
+    "reasoning": "explicação breve",
+    "shouldEscalate": boolean (true se precisar chamar ${ownerName}),
+    "escalationReason": "motivo (se shouldEscalate true)"
+  },
+  "response": "Sua resposta natural e simpática como Sofia para o cliente"
+}
+
+REGRAS:
+- Se o cliente pedir para falar com humano -> shouldEscalate: true
+- Se reclamação séria ou cliente irritado -> shouldEscalate: true
+- Se não souber responder -> shouldEscalate: true
+- Seja simpática, use emojis com moderação
+- Respostas curtas e diretas (ideal para WhatsApp)`;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        // Fallback
+        return {
+          analysis: {
+            sentiment: 'neutral',
+            urgency: 'normal',
+            intent: 'other',
+            confidence: 0,
+            reasoning: 'Falha ao processar',
+            shouldEscalate: false,
+          },
+          response: 'Oi! Desculpa, tive um probleminha aqui. Pode repetir? 😊',
+        };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        analysis: parsed.analysis,
+        response: parsed.response,
+      };
+
+    } catch (error) {
+      this.logger.error(`Error in analyzeAndRespond: ${error.message}`);
+      return {
+        analysis: {
+          sentiment: 'neutral',
+          urgency: 'normal',
+          intent: 'other',
+          confidence: 0,
+          reasoning: 'Erro na API',
+          shouldEscalate: false,
+        },
+        response: 'Oi! Desculpa, estou com um probleminha técnico. Pode tentar de novo? 😅',
+      };
+    }
+  }
+
   async parseProductConfirmation(
     messageContent: string,
     pendingProduct: any,

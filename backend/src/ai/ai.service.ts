@@ -115,6 +115,18 @@ export class AIService {
   }
 
   /**
+   * OTIMIZADO: Analisa E gera resposta em uma única chamada
+   * Economiza 50% das chamadas de API
+   */
+  async analyzeAndRespond(
+    messageContent: string,
+    context: MessageContext,
+    aiConfig: any,
+  ): Promise<{ analysis: AIAnalysis; response: string }> {
+    return this.analysisService.analyzeAndRespond(messageContent, context, aiConfig);
+  }
+
+  /**
    * Gera resposta usando IA
    */
   async generateResponse(
@@ -197,8 +209,8 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
    */
   async sendWhatsAppMessage(instanceKey: string, remoteJid: string, message: string): Promise<void> {
     try {
-      // Formatar número se necessário
-      const formattedJid = remoteJid.includes('@') ? remoteJid : `${remoteJid} @s.whatsapp.net`;
+      // Formatar número se necessário (sem espaço antes do @)
+      const formattedJid = remoteJid.includes('@') ? remoteJid : `${remoteJid}@s.whatsapp.net`;
 
       const response = await fetch(`${this.evolutionApiUrl}/message/sendText/${instanceKey}`, {
         method: 'POST',
@@ -462,12 +474,10 @@ O produto já está disponível no seu inventário! 🎉`;
       };
     }
 
-    // Analisar mensagem (apenas para clientes)
-    const analysis = await this.analyzeMessage(messageContent, context);
-
     // Decidir ação baseado no modo
     if (aiConfig.mode === 'passive') {
-      // Modo passivo: apenas analisa, não responde
+      // Modo passivo: apenas analisa, não responde (1 chamada)
+      const analysis = await this.analyzeMessage(messageContent, context);
       return {
         shouldRespond: false,
         shouldNotifyOwner: analysis.shouldEscalate,
@@ -475,21 +485,21 @@ O produto já está disponível no seu inventário! 🎉`;
       };
     }
 
-    // Verificar se deve escalar
-    if (analysis.shouldEscalate || analysis.urgency === 'urgent' || analysis.intent === 'complaint') {
-      const response = await this.generateResponse(messageContent, context, aiConfig);
-
-      return {
-        shouldRespond: true,
-        response: response + `\n\nVou passar sua mensagem pro ${aiConfig.ownerName || 'responsável'}, tá ? 🙂`,
-        shouldNotifyOwner: true,
-        notificationReason: analysis.escalationReason || analysis.reasoning,
-      };
-    }
-
-    // Modo ativo ou supervisionado: gerar resposta
+    // Modo ativo: OTIMIZADO - análise + resposta em UMA chamada (economiza 50% do custo)
     if (aiConfig.mode === 'active') {
-      const response = await this.generateResponse(messageContent, context, aiConfig);
+      const { analysis, response } = await this.analyzeAndRespond(messageContent, context, aiConfig);
+
+      // Se deve escalar, adiciona mensagem de escalação
+      if (analysis.shouldEscalate || analysis.urgency === 'urgent' || analysis.intent === 'complaint') {
+        const escalationResponse = `Entendi! Vou chamar o ${aiConfig.ownerName || 'responsável'} pra te atender, tá? Só um minutinho! 🙂`;
+        return {
+          shouldRespond: true,
+          response: escalationResponse,
+          shouldNotifyOwner: true,
+          notificationReason: analysis.escalationReason || analysis.reasoning,
+        };
+      }
+
       return {
         shouldRespond: true,
         response,

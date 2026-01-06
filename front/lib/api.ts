@@ -828,6 +828,67 @@ class ApiClient {
   }
 
   // ========================================
+  // Integrations - Google Calendar
+  // ========================================
+  async getGoogleCalendarStatus() {
+    return this.request<{ connected: boolean; expiresAt?: string }>('/api/integrations/google-calendar/status');
+  }
+
+  async getGoogleCalendarAuthUrl() {
+    return this.request<{ authUrl: string }>('/api/integrations/google-calendar/auth-url');
+  }
+
+  async disconnectGoogleCalendar() {
+    return this.request<{ success: boolean }>('/api/integrations/google-calendar', {
+      method: 'DELETE',
+    });
+  }
+
+  async listGoogleCalendarEvents(options?: { timeMin?: string; timeMax?: string; maxResults?: number }) {
+    const params = new URLSearchParams();
+    if (options?.timeMin) params.append('timeMin', options.timeMin);
+    if (options?.timeMax) params.append('timeMax', options.timeMax);
+    if (options?.maxResults) params.append('maxResults', options.maxResults.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<any[]>(`/api/integrations/google-calendar/events${query}`);
+  }
+
+  async createGoogleCalendarEvent(data: {
+    summary: string;
+    description?: string;
+    start: string;
+    end: string;
+    location?: string;
+    attendees?: string[];
+  }) {
+    return this.request<any>('/api/integrations/google-calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteGoogleCalendarEvent(eventId: string) {
+    return this.request<{ success: boolean }>(`/api/integrations/google-calendar/events/${eventId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async scheduleAppointment(data: {
+    title: string;
+    description?: string;
+    date: string;
+    time: string;
+    duration: number;
+    customerName?: string;
+    customerPhone?: string;
+  }) {
+    return this.request<{ success: boolean; event?: any; message: string }>('/api/integrations/google-calendar/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ========================================
   // Notifications
   // ========================================
   async getNotifications(options?: { unreadOnly?: boolean; limit?: number; offset?: number }) {

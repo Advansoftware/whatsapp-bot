@@ -7,6 +7,7 @@ import { AITranscriptionService } from '../ai/ai-transcription.service';
 import { AITasksService } from '../ai/ai-tasks.service';
 import { AIExpensesService } from '../ai/ai-expenses.service';
 import { AIExpensesFlowService } from '../ai/ai-expenses-flow.service';
+import { AICalendarService } from '../ai/ai-calendar.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -43,6 +44,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly aiTasksService: AITasksService,
     private readonly aiExpensesService: AIExpensesService,
     private readonly aiExpensesFlowService: AIExpensesFlowService,
+    private readonly aiCalendarService: AICalendarService,
     private readonly chatbotService: ChatbotService,
     private readonly secretaryTasksService: SecretaryTasksService,
     private readonly notificationsService: NotificationsService,
@@ -552,7 +554,42 @@ export class WhatsappProcessor extends WorkerHost {
           }
         }
 
-        // Verificar se é um comando/instrução
+        // ========================================
+        // VERIFICAR CONSULTAS DE CALENDÁRIO PRIMEIRO (economiza créditos)
+        // A detecção de calendário usa patterns locais, sem chamar IA
+        // ========================================
+        try {
+          const calendarResult = await this.aiCalendarService.processCalendarQuery({
+            messageContent: processedContent,
+            companyId: instance.companyId,
+            contactName: job.data.pushName,
+            contactPhone: remoteJid.replace('@s.whatsapp.net', ''),
+          });
+
+          if (calendarResult.handled && calendarResult.response) {
+            this.logger.log(`📅 Calendar query handled: ${calendarResult.action}`);
+
+            // Enviar resposta do calendário
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, calendarResult.response);
+
+            // Atualizar mensagem
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                response: calendarResult.response,
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+
+            return { status: 'processed_calendar', messageId: message.id };
+          }
+        } catch (calendarError) {
+          this.logger.warn(`Calendar processing failed: ${calendarError.message}`);
+          // Continuar com processamento normal
+        }
+
+        // Verificar se é um comando/instrução (só se não foi calendário)
         const commandResult = await this.aiService.parseOwnerCommand(processedContent, instance.companyId);
 
         if (commandResult.response) {
@@ -615,7 +652,8 @@ export class WhatsappProcessor extends WorkerHost {
         }
       }
 
-      // 6. Se chatbot não respondeu (ou é modo secretária pessoal), processar com Secretária IA
+      // 6. Se chatbot não respondeu, processar com Secretária IA
+
       const secretaryResult = await this.aiService.processSecretaryMessage(
         processedContent, // Usa conteúdo transcrito
         instance.companyId,
@@ -722,6 +760,7 @@ export class WhatsappProcessor extends WorkerHost {
       }
 
       // 8. SISTEMA DE MEMÓRIA: Extrair e salvar memórias da mensagem (pula se for secretária pessoal)
+      // OTIMIZAÇÃO: Extrai apenas a cada 5 mensagens para reduzir custo da IA
       if (!isPersonalAssistantMode) {
         try {
           const contact = await this.prisma.contact.findFirst({
@@ -730,15 +769,19 @@ export class WhatsappProcessor extends WorkerHost {
           });
 
           if (contact) {
-            // Extrair memórias da mensagem
-            await this.aiService.extractAndSaveMemory(contact.id, content, message.id);
-
             // Atualizar contador de mensagens
             const updatedContact = await this.prisma.contact.update({
               where: { id: contact.id },
               data: { totalMessages: { increment: 1 } },
               select: { id: true, totalMessages: true, aiAnalyzedAt: true, pushName: true, remoteJid: true },
             });
+
+            // OTIMIZAÇÃO: Extrair memórias apenas a cada 5 mensagens e se a mensagem tiver conteúdo substancial (>20 chars)
+            const shouldExtractMemory = (updatedContact.totalMessages % 5 === 0) && content.length > 20;
+            if (shouldExtractMemory) {
+              this.logger.log(`Extracting memory for contact ${contact.id} (every 5th message)`);
+              await this.aiService.extractAndSaveMemory(contact.id, content, message.id);
+            }
 
             // Qualificação automática: dispara quando atingir 300 mensagens e ainda não foi analisado
             if (updatedContact.totalMessages >= 300 && !updatedContact.aiAnalyzedAt) {
