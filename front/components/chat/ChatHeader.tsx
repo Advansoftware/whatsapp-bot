@@ -55,6 +55,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             )}&background=00a884&color=fff`
           }
           sx={{ width: 40, height: 40 }}
+          imgProps={{
+            onError: (e: any) => {
+              e.target.onerror = null;
+              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                contactName
+              )}&background=00a884&color=fff`;
+            },
+          }}
         />
         <Box>
           <Typography

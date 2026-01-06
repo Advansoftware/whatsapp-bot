@@ -77,7 +77,7 @@ const AppContent: React.FC = () => {
       case "ai-secretary":
         return <AISecretaryView />;
       case "crm":
-        return <ContactsView />;
+        return <ContactsView onNavigateToChat={handleNavigateToChat} />;
       case "campaigns":
         return <CampaignsView />;
       case "analytics":

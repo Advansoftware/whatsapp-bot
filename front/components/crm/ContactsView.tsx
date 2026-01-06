@@ -82,7 +82,11 @@ interface ContactStats {
   newThisWeek: number;
 }
 
-const ContactsView: React.FC = () => {
+interface ContactsViewProps {
+  onNavigateToChat?: (conversation: any) => void;
+}
+
+const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
   const theme = useTheme();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -450,7 +454,27 @@ const ContactsView: React.FC = () => {
                     <ListItemText
                       primary={
                         <Box display="flex" alignItems="center" gap={1}>
-                          <Typography fontWeight="600">
+                          <Typography
+                            fontWeight="600"
+                            sx={{
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: "primary.main",
+                                textDecoration: "underline",
+                              },
+                            }}
+                            onClick={() => {
+                              // Navigate to live chat with this contact
+                              if (onNavigateToChat) {
+                                onNavigateToChat({
+                                  remoteJid: contact.remoteJid,
+                                  contact: contact.displayName,
+                                  instanceKey: contact.instanceId || "",
+                                  profilePicUrl: contact.profilePicUrl,
+                                });
+                              }
+                            }}
+                          >
                             {contact.displayName}
                           </Typography>
                           {contact.tags?.map((tag) => (

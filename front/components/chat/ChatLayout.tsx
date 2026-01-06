@@ -317,6 +317,14 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                         )}&background=00a884&color=fff`
                       }
                       sx={{ width: 48, height: 48 }}
+                      imgProps={{
+                        onError: (e: any) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            conv.contact
+                          )}&background=00a884&color=fff`;
+                        },
+                      }}
                     />
                   </ListItemAvatar>
                   <ListItemText
