@@ -130,4 +130,160 @@ export class AITranscriptionService {
       return '[Erro na transcrição do áudio]';
     }
   }
+  /**
+   * Processa imagem enviada pelo dono e identifica produto
+   */
+  async processImageForInventory(
+    instanceKey: string,
+    mediaData: any,
+    textMessage: string,
+    companyId: string,
+  ): Promise<{
+    identified: boolean;
+    productInfo?: {
+      name: string;
+      description: string;
+      suggestedPrice?: string;
+      category?: string;
+    };
+    response: string;
+    awaitingConfirmation?: boolean;
+    pendingProduct?: any;
+  }> {
+    try {
+      this.logger.log(`📷 Processing image for inventory from owner`);
+
+      // Preparar payload para Evolution API - mesmo formato do áudio
+      const payload: any = {
+        message: {},
+        key: {},
+      };
+
+      // Extrair key
+      if (mediaData.key) {
+        payload.key = mediaData.key;
+      }
+
+      // Extrair message e garantir que contextInfo existe
+      if (mediaData.message) {
+        const messageType = Object.keys(mediaData.message).find(k => k.endsWith('Message'));
+        if (messageType && mediaData.message[messageType]) {
+          payload.message[messageType] = {
+            ...mediaData.message[messageType],
+          };
+          if (!payload.message[messageType].contextInfo) {
+            payload.message[messageType].contextInfo = {};
+          }
+        } else {
+          payload.message = mediaData.message;
+        }
+      }
+
+      const response = await fetch(`${this.evolutionApiUrl}/chat/getBase64FromMediaMessage/${instanceKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.evolutionApiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Evolution API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      const base64Image = result.base64;
+
+      if (!base64Image) {
+        throw new Error('No base64 image data in response');
+      }
+
+      this.logger.log(`✅ Image downloaded successfully, size: ${base64Image.length} chars`);
+
+      // Usar Gemini para analisar a imagem
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        }
+      });
+
+      const mimeType = result.mimetype || 'image/jpeg';
+
+      // Extrair quantidade do texto se mencionado
+      const quantityMatch = textMessage.match(/(\d+)\s*(unidade|item|peça|produto|un|pç)/i)
+        || textMessage.match(/adiciona(?:r)?\s+(\d+)/i)
+        || textMessage.match(/(\d+)\s*desse/i);
+      const suggestedQuantity = quantityMatch ? parseInt(quantityMatch[1]) : null;
+
+      const prompt = `Analise esta imagem de produto e extraia informações para cadastro de inventário.
+      
+      Texto acompanhante do dono: "${textMessage}"
+      
+      RETORNE APENAS UM JSON (sem markdown) com:
+      {
+        "identified": true/false (se é um produto claro),
+        "name": "Nome curto e claro do produto",
+        "description": "Descrição detalhada visual do produto, cores, marca se visível",
+        "category": "Categoria sugerida",
+        "suggestedPrice": "Sugestão de preço (R$) baseado no tipo de produto (estimativa) ou null se não souber"
+      }`;
+
+      const analysisResult = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Image,
+          },
+        },
+        prompt,
+      ]);
+
+      const analysisText = analysisResult.response.text();
+      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+
+      if (!jsonMatch) {
+        return {
+          identified: false,
+          response: 'Não consegui identificar o produto na imagem. Pode tentar novamente ou descrever o que é?',
+        };
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+
+      if (!analysis.identified) {
+        return {
+          identified: false,
+          response: 'A imagem não parece clara o suficiente. Tente tirar uma foto melhor do produto.',
+        };
+      }
+
+      // Produto identificado
+      return {
+        identified: true,
+        productInfo: {
+          name: analysis.name,
+          description: analysis.description,
+          suggestedPrice: analysis.suggestedPrice,
+          category: analysis.category,
+        },
+        response: `Identifiquei o produto!\n\n📦 *${analysis.name}*\n📝 ${analysis.description}\n🏷️ Categoria: ${analysis.category || 'Geral'}\n${suggestedQuantity ? `🔢 Quantidade: ${suggestedQuantity}` : ''}\n\nPosso cadastrar? Digite "Sim" ou corrija as informações.`,
+        awaitingConfirmation: true,
+        pendingProduct: {
+          ...analysis,
+          quantity: suggestedQuantity || 1,
+        }
+      };
+
+    } catch (error) {
+      this.logger.error(`Image processing failed: ${error.message}`);
+      return {
+        identified: false,
+        response: 'Tive um problema ao processar a imagem. Tente novamente.',
+      };
+    }
+  }
 }

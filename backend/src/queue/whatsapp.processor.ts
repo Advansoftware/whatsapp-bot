@@ -105,8 +105,30 @@ export class WhatsappProcessor extends WorkerHost {
       // Ex: 553584216196 (API) vs 5535984216196 (Config)
       const isPhoneMatch = (phone1: string, phone2: string) => {
         if (!phone1 || !phone2) return false;
+
+        // Se forem iguais, retorna true
         if (phone1 === phone2) return true;
-        // Se um inclui o outro (devido ao 9º dígito extra)
+
+        // Normaliza removendo o 9º dígito se for número brasileiro (começa com 55 e tem 13 dígitos)
+        // 55 35 9 8421 6196 -> remove índice 4 (o '9')
+        const normalize = (p: string) => {
+          if (p.length === 13 && p.startsWith('55') && p[4] === '9') {
+            return p.slice(0, 4) + p.slice(5);
+          }
+          return p;
+        };
+
+        const p1Norm = normalize(phone1);
+        const p2Norm = normalize(phone2);
+
+        if (p1Norm === p2Norm) return true;
+
+        // Fallback: verifica sufixo (últimos 8 dígitos e DDD)
+        // Se ambos tiverem pelo menos 10 dígitos (DDD + 8 números)
+        if (phone1.length >= 10 && phone2.length >= 10) {
+          return phone1.endsWith(phone2.slice(-8)) && phone1.slice(0, 4) === phone2.slice(0, 4); // Mesmo DDD e finais iguais? (simplificado)
+        }
+
         return phone1.includes(phone2) || phone2.includes(phone1);
       };
 
@@ -412,7 +434,7 @@ export class WhatsappProcessor extends WorkerHost {
         // Verificar se é um comando/instrução
         const commandResult = await this.aiService.parseOwnerCommand(processedContent, instance.companyId);
 
-        if (commandResult.isCommand && commandResult.response) {
+        if (commandResult.response) {
           // Responder com confirmação do comando
           await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, commandResult.response);
 

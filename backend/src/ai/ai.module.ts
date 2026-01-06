@@ -11,6 +11,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { SecretaryTasksModule } from '../secretary-tasks/secretary-tasks.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 
+import { AIResponseService } from './ai-response.service';
+import { AIAnalysisService } from './ai-analysis.service';
+
 @Module({
   imports: [ConfigModule, PrismaModule, SecretaryTasksModule, forwardRef(() => IntegrationsModule)],
   controllers: [AISecretaryController],
@@ -21,6 +24,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     AIMemoryService,
     AITasksService,
     AIExpensesService,
+    AIResponseService,
+    AIAnalysisService,
   ],
   exports: [
     AIService,
@@ -28,6 +33,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     AIPromptsService,
     AIMemoryService,
     AITasksService,
+    AIResponseService,
+    AIAnalysisService,
     AIExpensesService,
   ],
 })

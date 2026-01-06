@@ -132,15 +132,29 @@ Se não souber algo, admita e ofereça ajuda.`,
       where: { remoteJid, companyId },
     });
 
-    // Analyze with AI
-    const analysis = await this.aiService.analyzeMessage(lastMessage.content, {
+    // Get AI Config
+    const aiConfig = await this.prisma.aISecretary.findUnique({
+      where: { companyId },
+    }) || { mode: 'passive', temperature: 0.7 };
+
+    const context = {
       conversationHistory: messages.reverse(),
       contactName: contact?.pushName ?? undefined,
       products,
-    });
+    };
+
+    // Analyze with AI
+    const analysis = await this.aiService.analyzeMessage(lastMessage.content, context);
+
+    // Generate Suggestion
+    const suggestedResponse = await this.aiService.generateResponse(
+      lastMessage.content,
+      context,
+      aiConfig
+    );
 
     return {
-      suggestion: analysis.suggestedResponse,
+      suggestion: suggestedResponse,
       confidence: analysis.confidence,
       reasoning: analysis.reasoning,
       intent: analysis.intent,
