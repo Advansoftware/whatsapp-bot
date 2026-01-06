@@ -86,6 +86,11 @@ export class WebhookController {
     if (payload.event === 'messages.upsert') {
       const data = payload.data!;
       const fromMe = data.key.fromMe || false;
+      const remoteJid = data.key.remoteJid;
+
+      // Detectar se é mensagem de grupo
+      const isGroup = remoteJid?.endsWith('@g.us') || false;
+      const participant = isGroup ? data.key.participant : null; // JID do remetente no grupo
 
       // Log message structure for debugging media
       const message = data.message;
@@ -118,7 +123,7 @@ export class WebhookController {
       // Create job data
       const jobData = {
         instanceKey: payload.instance,
-        remoteJid: data.key.remoteJid,
+        remoteJid: remoteJid,
         messageId: data.key.id,
         content: messageData.content,
         mediaUrl: messageData.mediaUrl,
@@ -128,6 +133,10 @@ export class WebhookController {
         timestamp: data.messageTimestamp,
         fromMe,
         isHistory: false,
+        // Campos de grupo
+        isGroup,
+        participant,
+        participantName: isGroup ? data.pushName : null, // Nome de quem enviou no grupo
       };
 
       // Broadcast Real-Time Message
@@ -138,7 +147,7 @@ export class WebhookController {
         jobId: data.key.id,
       });
 
-      this.logger.log(`Job ${job.id} added to queue from ${data.key.remoteJid} (fromMe: ${fromMe})`);
+      this.logger.log(`Job ${job.id} added to queue from ${remoteJid}${isGroup ? ' (GROUP)' : ''} (fromMe: ${fromMe})`);
 
       return {
         status: 'queued',
@@ -259,6 +268,9 @@ export class WebhookController {
       if (instance) {
         for (const contact of contacts) {
           if (contact.remoteJid) {
+            // Detectar se é grupo
+            const isGroup = contact.remoteJid.endsWith('@g.us');
+
             try {
               await this.prisma.contact.upsert({
                 where: {
@@ -269,14 +281,19 @@ export class WebhookController {
                 },
                 create: {
                   remoteJid: contact.remoteJid,
-                  pushName: contact.pushName,
+                  pushName: isGroup ? null : contact.pushName,
                   profilePicUrl: contact.profilePicUrl,
                   companyId: instance.companyId,
                   instanceId: instance.id,
+                  // Campos de grupo
+                  isGroup,
+                  groupName: isGroup ? (contact.pushName || contact.subject || contact.name) : null,
                 },
                 update: {
-                  pushName: contact.pushName || undefined,
+                  pushName: isGroup ? undefined : (contact.pushName || undefined),
                   profilePicUrl: contact.profilePicUrl || undefined,
+                  // Atualizar nome do grupo se for grupo
+                  groupName: isGroup ? (contact.pushName || contact.subject || contact.name || undefined) : undefined,
                 },
               });
             } catch (err) {
@@ -288,6 +305,54 @@ export class WebhookController {
       }
 
       return { status: 'processed_contacts', count: contacts.length };
+    }
+
+    // Handle groups.update - update group info
+    if (payload.event === 'groups.update' || payload.event === 'groups.upsert') {
+      const groups = Array.isArray(payload.data) ? payload.data : [payload.data];
+      this.logger.log(`Processing ${groups.length} groups for ${payload.instance}`);
+
+      const instance = await this.prisma.instance.findUnique({
+        where: { instanceKey: payload.instance },
+        select: { companyId: true, id: true }
+      });
+
+      if (instance) {
+        for (const group of groups) {
+          const groupJid = group.id || group.remoteJid;
+          if (groupJid) {
+            try {
+              await this.prisma.contact.upsert({
+                where: {
+                  remoteJid_companyId: {
+                    remoteJid: groupJid,
+                    companyId: instance.companyId,
+                  }
+                },
+                create: {
+                  remoteJid: groupJid,
+                  profilePicUrl: group.pictureUrl || null,
+                  companyId: instance.companyId,
+                  instanceId: instance.id,
+                  isGroup: true,
+                  groupName: group.subject || group.name || null,
+                  groupDescription: group.desc || group.description || null,
+                },
+                update: {
+                  profilePicUrl: group.pictureUrl || undefined,
+                  groupName: group.subject || group.name || undefined,
+                  groupDescription: group.desc || group.description || undefined,
+                },
+              });
+              this.logger.log(`Updated group: ${groupJid} - ${group.subject || group.name}`);
+            } catch (err) {
+              this.logger.warn(`Failed to upsert group ${groupJid}: ${err.message}`);
+            }
+          }
+        }
+      }
+
+      return { status: 'processed_groups', count: groups.length };
     }
 
     // Handle messages.update - status updates (delivered, read, etc)

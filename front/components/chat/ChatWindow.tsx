@@ -55,7 +55,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     message: string;
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
-  const [transcribingMessageId, setTranscribingMessageId] = useState<string | null>(null);
+  const [transcribingMessageId, setTranscribingMessageId] = useState<
+    string | null
+  >(null);
 
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -531,6 +533,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         aiEnabled={aiEnabled}
         onToggleAI={conversationId ? handleToggleAI : undefined}
         isTogglingAI={isTogglingAI}
+        isGroup={chatId?.endsWith("@g.us")}
         colors={colors}
       />
 
@@ -597,6 +600,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 getMediaSrc={getMediaSrc}
                 onTranscribe={handleTranscribeAudio}
                 isTranscribing={transcribingMessageId === msg.id}
+                isGroupChat={chatId?.endsWith("@g.us")}
               />
             ))}
           </>

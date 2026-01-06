@@ -15,8 +15,9 @@ import {
   CircularProgress,
   Fab,
   Zoom,
+  Badge,
 } from "@mui/material";
-import { Search, Edit, Close } from "@mui/icons-material";
+import { Search, Edit, Close, Group } from "@mui/icons-material";
 import { useRecentConversations } from "../../hooks/useApi";
 import { useSocket } from "../../hooks/useSocket";
 import api from "../../lib/api";
@@ -249,7 +250,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
             onScroll={handleScroll}
             sx={{
               flex: 1,
-              overflow: "auto",
+              overflowY: "auto",
+              overflowX: "hidden",
               p: 0,
               "&::-webkit-scrollbar": { width: "6px" },
               "&::-webkit-scrollbar-thumb": {
@@ -275,85 +277,131 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
               </Box>
             )}
 
-            {displayList.map((conv: any) => (
-              <React.Fragment key={conv.id}>
-                <ListItemButton
-                  selected={selectedChatId === conv.remoteJid}
-                  onClick={() =>
-                    onSelectChat(
-                      conv.remoteJid,
-                      conv.contact,
-                      conv.instanceKey || conv.instanceName,
-                      conv.profilePicUrl
-                    )
-                  }
-                  sx={{
-                    py: 1.5,
-                    "&.Mui-selected": {
-                      bgcolor: isDark
-                        ? "rgba(0, 168, 132, 0.25)"
-                        : "rgba(0, 168, 132, 0.15)",
-                      borderLeft: `4px solid #00a884`,
-                      "&:hover": {
-                        bgcolor: isDark
-                          ? "rgba(0, 168, 132, 0.35)"
-                          : "rgba(0, 168, 132, 0.2)",
-                      },
-                    },
-                    "&:hover": {
-                      bgcolor: isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.04)",
-                    },
-                    transition: "background-color 0.2s ease",
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Avatar
-                      src={
-                        conv.profilePicUrl ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          conv.contact
-                        )}&background=00a884&color=fff`
-                      }
-                      sx={{ width: 48, height: 48 }}
-                      imgProps={{
-                        onError: (e: any) => {
-                          e.target.onerror = null;
-                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            conv.contact
-                          )}&background=00a884&color=fff`;
-                        },
-                      }}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Box display="flex" justifyContent="space-between">
-                        <Typography variant="subtitle2" noWrap fontWeight={600}>
-                          {conv.contact}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatTime(conv.timestamp)}
-                        </Typography>
-                      </Box>
-                    }
-                    secondary={
-                      conv.lastMessage && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          noWrap
-                        >
-                          {conv.lastMessage}
-                        </Typography>
+            {displayList.map((conv: any) => {
+              const isGroup = conv.isGroup || conv.remoteJid?.endsWith("@g.us");
+
+              return (
+                <React.Fragment key={conv.id}>
+                  <ListItemButton
+                    selected={selectedChatId === conv.remoteJid}
+                    onClick={() =>
+                      onSelectChat(
+                        conv.remoteJid,
+                        conv.contact,
+                        conv.instanceKey || conv.instanceName,
+                        conv.profilePicUrl
                       )
                     }
-                  />
-                </ListItemButton>
-                <Divider component="li" />
-              </React.Fragment>
-            ))}
+                    sx={{
+                      py: 1.5,
+                      "&.Mui-selected": {
+                        bgcolor: isDark
+                          ? "rgba(0, 168, 132, 0.25)"
+                          : "rgba(0, 168, 132, 0.15)",
+                        borderLeft: `4px solid #00a884`,
+                        "&:hover": {
+                          bgcolor: isDark
+                            ? "rgba(0, 168, 132, 0.35)"
+                            : "rgba(0, 168, 132, 0.2)",
+                        },
+                      },
+                      "&:hover": {
+                        bgcolor: isDark
+                          ? "rgba(255,255,255,0.05)"
+                          : "rgba(0,0,0,0.04)",
+                      },
+                      transition: "background-color 0.2s ease",
+                    }}
+                  >
+                    <ListItemAvatar sx={{ minWidth: 56 }}>
+                      <Badge
+                        overlap="circular"
+                        anchorOrigin={{
+                          vertical: "bottom",
+                          horizontal: "right",
+                        }}
+                        badgeContent={
+                          isGroup ? (
+                            <Box
+                              sx={{
+                                bgcolor: "#00a884",
+                                borderRadius: "50%",
+                                width: 16,
+                                height: 16,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: `2px solid ${theme.palette.background.paper}`,
+                              }}
+                            >
+                              <Group sx={{ fontSize: 9, color: "white" }} />
+                            </Box>
+                          ) : null
+                        }
+                      >
+                        <Avatar
+                          src={
+                            conv.profilePicUrl ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              conv.contact
+                            )}&background=${
+                              isGroup ? "5865F2" : "00a884"
+                            }&color=fff`
+                          }
+                          sx={{ width: 48, height: 48 }}
+                          imgProps={{
+                            onError: (e: any) => {
+                              e.target.onerror = null;
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                conv.contact
+                              )}&background=${
+                                isGroup ? "5865F2" : "00a884"
+                              }&color=fff`;
+                            },
+                          }}
+                        >
+                          {isGroup && !conv.profilePicUrl && <Group />}
+                        </Avatar>
+                      </Badge>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Typography
+                              variant="subtitle2"
+                              noWrap
+                              fontWeight={600}
+                            >
+                              {conv.contact}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatTime(conv.timestamp)}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={
+                        conv.lastMessage && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            noWrap
+                          >
+                            {conv.lastMessage}
+                          </Typography>
+                        )
+                      }
+                    />
+                  </ListItemButton>
+                  <Divider component="li" />
+                </React.Fragment>
+              );
+            })}
 
             {/* Loading more indicator */}
             {isLoadingMore && !searchResults && (

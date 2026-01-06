@@ -1,6 +1,18 @@
 import React, { memo, useMemo } from "react";
-import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material";
-import { Done, DoneAll, Schedule, ErrorOutline, Mic } from "@mui/icons-material";
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  CircularProgress,
+} from "@mui/material";
+import {
+  Done,
+  DoneAll,
+  Schedule,
+  ErrorOutline,
+  Mic,
+} from "@mui/icons-material";
 
 interface MessageBubbleProps {
   message: {
@@ -11,6 +23,10 @@ interface MessageBubbleProps {
     createdAt: string;
     mediaUrl?: string;
     mediaType?: string;
+    // Campos de grupo
+    isGroup?: boolean;
+    participant?: string;
+    participantName?: string;
   };
   colors: {
     incomingBubble: string;
@@ -22,6 +38,7 @@ interface MessageBubbleProps {
   getMediaSrc: (msg: any) => string;
   onTranscribe?: (messageId: string) => void;
   isTranscribing?: boolean;
+  isGroupChat?: boolean; // Indica se o chat atual é um grupo
 }
 
 // Memoized status icon component
@@ -82,9 +99,41 @@ const renderMessageContent = (content: string): React.ReactNode => {
   });
 };
 
+// Gera uma cor consistente baseada no nome/telefone para identificar participantes
+const getParticipantColor = (name: string): string => {
+  const colors = [
+    "#e91e63",
+    "#9c27b0",
+    "#673ab7",
+    "#3f51b5",
+    "#2196f3",
+    "#03a9f4",
+    "#00bcd4",
+    "#009688",
+    "#4caf50",
+    "#8bc34a",
+    "#ff9800",
+    "#ff5722",
+    "#795548",
+    "#607d8b",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 // Main component - memoized to prevent unnecessary re-renders
 const MessageBubble = memo<MessageBubbleProps>(
-  ({ message: msg, colors, getMediaSrc, onTranscribe, isTranscribing }) => {
+  ({
+    message: msg,
+    colors,
+    getMediaSrc,
+    onTranscribe,
+    isTranscribing,
+    isGroupChat,
+  }) => {
     const isSender = useMemo(
       () =>
         msg.direction === "outgoing" ||
@@ -92,6 +141,20 @@ const MessageBubble = memo<MessageBubbleProps>(
         msg.status === "sended",
       [msg.direction, msg.status]
     );
+
+    // Nome do participante em grupos (para mensagens recebidas)
+    const participantDisplay = useMemo(() => {
+      if (!isGroupChat || isSender) return null;
+      const name =
+        msg.participantName ||
+        msg.participant?.replace("@s.whatsapp.net", "") ||
+        null;
+      if (!name) return null;
+      return {
+        name,
+        color: getParticipantColor(name),
+      };
+    }, [isGroupChat, isSender, msg.participantName, msg.participant]);
 
     const formattedTime = useMemo(
       () =>
@@ -140,6 +203,22 @@ const MessageBubble = memo<MessageBubbleProps>(
             wordBreak: "break-word",
           }}
         >
+          {/* Nome do participante em grupos */}
+          {participantDisplay && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: participantDisplay.color,
+                fontWeight: 600,
+                fontSize: "13px",
+                display: "block",
+                mb: 0.5,
+              }}
+            >
+              {participantDisplay.name}
+            </Typography>
+          )}
+
           {/* Image/Sticker */}
           {isImage ? (
             <>
@@ -223,7 +302,9 @@ const MessageBubble = memo<MessageBubbleProps>(
                 <Button
                   size="small"
                   variant="text"
-                  startIcon={isTranscribing ? <CircularProgress size={14} /> : <Mic />}
+                  startIcon={
+                    isTranscribing ? <CircularProgress size={14} /> : <Mic />
+                  }
                   disabled={isTranscribing}
                   onClick={() => onTranscribe?.(msg.id)}
                   sx={{

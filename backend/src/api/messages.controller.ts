@@ -69,6 +69,10 @@ export class MessagesController {
         pushName: msg.pushName,
         mediaUrl: msg.mediaUrl,
         mediaType: msg.mediaType,
+        // Campos de grupo
+        isGroup: msg.isGroup || false,
+        participant: msg.participant || null,
+        participantName: msg.participantName || null,
       })),
       pagination: {
         page: pageNum,
@@ -302,9 +306,19 @@ export class MessagesController {
     return {
       data: conversations.map((msg) => {
         const contact = contactMap.get(msg.remoteJid);
+        const isGroup = msg.remoteJid.endsWith('@g.us') || contact?.isGroup || false;
+
+        // Para grupos, usar o nome do grupo; para contatos, usar pushName
+        let displayName: string;
+        if (isGroup) {
+          displayName = contact?.groupName || 'Grupo';
+        } else {
+          displayName = contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid);
+        }
+
         return {
           id: msg.id,
-          contact: contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid),
+          contact: displayName,
           remoteJid: msg.remoteJid,
           lastMessage: msg.content.substring(0, 100),
           status: msg.status,
@@ -313,6 +327,9 @@ export class MessagesController {
           timestamp: msg.createdAt,
           pushName: contact?.pushName || msg.pushName,
           profilePicUrl: contact?.profilePicUrl || null,
+          // Campos de grupo
+          isGroup,
+          groupName: contact?.groupName || null,
         };
       }),
       pagination: {

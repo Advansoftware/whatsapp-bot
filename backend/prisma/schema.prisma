@@ -55,7 +55,12 @@ model Contact {
   notes         String?  @db.Text
   tags          String[] @default([])
 
-  // Campos demográficos para segmentação
+  // Campos para identificação de grupos
+  isGroup          Boolean @default(false) @map("is_group") // true se for um grupo
+  groupName        String? @map("group_name") // Nome do grupo (subject)
+  groupDescription String? @map("group_description") @db.Text // Descrição do grupo
+
+  // Campos demográficos para segmentação (apenas para contatos individuais)
   cep          String? // CEP para auto-preencher cidade/estado via ViaCEP
   birthDate    DateTime? @map("birth_date")
   gender       String? // 'male' | 'female' | 'other'
@@ -208,6 +213,11 @@ model Message {
   companyId   String    @map("company_id")
   instanceId  String    @map("instance_id")
   createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Campos para suporte a grupos
+  isGroup         Boolean @default(false) @map("is_group") // Se a mensagem é de um grupo
+  participant     String? @map("participant") // JID do remetente dentro do grupo (ex: 5535999999999@s.whatsapp.net)
+  participantName String? @map("participant_name") // Nome do remetente dentro do grupo
 
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)

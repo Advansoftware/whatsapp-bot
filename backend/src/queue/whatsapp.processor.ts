@@ -1,6 +1,7 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from '../ai/ai.service';
 import { AITranscriptionService } from '../ai/ai-transcription.service';
@@ -25,6 +26,10 @@ export interface WhatsappJobData {
   timestamp: number;
   fromMe?: boolean;
   isHistory?: boolean;
+  // Campos para grupos
+  isGroup?: boolean;
+  participant?: string; // JID do remetente no grupo
+  participantName?: string; // Nome do remetente no grupo
 }
 
 @Processor(WHATSAPP_QUEUE, {
@@ -53,10 +58,10 @@ export class WhatsappProcessor extends WorkerHost {
   }
 
   async process(job: Job<WhatsappJobData>): Promise<any> {
-    const { instanceKey, remoteJid, messageId, content, mediaUrl, mediaType, mediaData, fromMe, isHistory } = job.data;
+    const { instanceKey, remoteJid, messageId, content, mediaUrl, mediaType, mediaData, fromMe, isHistory, isGroup, participant, participantName } = job.data;
     const direction = fromMe ? 'outgoing' : 'incoming';
 
-    this.logger.log(`Processing job ${job.id} from ${remoteJid} (History: ${!!isHistory})`);
+    this.logger.log(`Processing job ${job.id} from ${remoteJid}${isGroup ? ' (GROUP)' : ''} (History: ${!!isHistory})`);
 
     try {
       // 1. Find instance and company
@@ -92,6 +97,10 @@ export class WhatsappProcessor extends WorkerHost {
               processedAt: new Date(job.data.timestamp * 1000), // Use actual timestamp
               createdAt: new Date(job.data.timestamp * 1000),
               pushName: job.data.pushName, // Save contact name
+              // Campos de grupo
+              isGroup: isGroup || false,
+              participant: participant || null,
+              participantName: participantName || null,
             },
           });
         }
@@ -226,8 +235,17 @@ export class WhatsappProcessor extends WorkerHost {
           companyId: instance.companyId,
           instanceId: instance.id,
           pushName: job.data.pushName, // Save contact name
+          // Campos de grupo
+          isGroup: isGroup || false,
+          participant: participant || null,
+          participantName: participantName || null,
         },
       });
+
+      // 3.1 Se for grupo, buscar e atualizar o nome do grupo
+      if (isGroup) {
+        await this.fetchAndUpdateGroupName(instanceKey, remoteJid, instance.companyId, instance.id);
+      }
 
       // 4. Atualizar ou criar conversa e verificar se IA está habilitada
       const conversation = await this.updateOrCreateConversation(instance.companyId, instance.id, remoteJid);
@@ -893,6 +911,75 @@ export class WhatsappProcessor extends WorkerHost {
         select: { id: true, aiEnabled: true, summary: true },
       });
       return newConversation;
+    }
+  }
+
+  /**
+   * Busca o nome do grupo via Evolution API e atualiza o contato
+   */
+  private async fetchAndUpdateGroupName(
+    instanceKey: string,
+    remoteJid: string,
+    companyId: string,
+    instanceId: string,
+  ): Promise<string | null> {
+    try {
+      // Primeiro verifica se já temos o nome do grupo
+      const existingContact = await this.prisma.contact.findFirst({
+        where: { companyId, remoteJid },
+        select: { groupName: true },
+      });
+
+      if (existingContact?.groupName) {
+        return existingContact.groupName;
+      }
+
+      // Buscar informações do grupo via Evolution API
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+      const response = await axios.post(
+        `${evolutionUrl}/group/fetchAllGroups/${instanceKey}`,
+        { getParticipants: 'false' },
+        { headers: { 'apikey': evolutionApiKey } }
+      );
+
+      // Encontrar o grupo específico
+      const groups = response.data || [];
+      const group = groups.find((g: any) => g.id === remoteJid);
+
+      if (group?.subject) {
+        // Atualizar ou criar o contato com o nome do grupo
+        await this.prisma.contact.upsert({
+          where: {
+            remoteJid_companyId: {
+              remoteJid,
+              companyId,
+            }
+          },
+          create: {
+            remoteJid,
+            companyId,
+            instanceId,
+            isGroup: true,
+            groupName: group.subject,
+            groupDescription: group.desc || null,
+          },
+          update: {
+            isGroup: true,
+            groupName: group.subject,
+            groupDescription: group.desc || undefined,
+          },
+        });
+
+        this.logger.log(`📛 Updated group name: ${group.subject}`);
+        return group.subject;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(`Failed to fetch group name: ${error.message}`);
+      return null;
     }
   }
 

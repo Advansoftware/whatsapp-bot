@@ -7,8 +7,9 @@ import {
   CircularProgress,
   Tooltip,
   Chip,
+  Badge,
 } from "@mui/material";
-import { MoreVert, SmartToy, Person } from "@mui/icons-material";
+import { MoreVert, SmartToy, Person, Group } from "@mui/icons-material";
 
 interface ChatHeaderProps {
   contactName: string;
@@ -18,6 +19,8 @@ interface ChatHeaderProps {
   aiEnabled?: boolean;
   onToggleAI?: () => void;
   isTogglingAI?: boolean;
+  isGroup?: boolean;
+  participantCount?: number;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -35,8 +38,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   aiEnabled,
   onToggleAI,
   isTogglingAI,
+  isGroup,
+  participantCount,
   colors,
 }) => {
+  const avatarBgColor = isGroup ? "#5865F2" : "#00a884";
+
   return (
     <Box
       p={1.5}
@@ -47,30 +54,70 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       borderLeft={`1px solid ${colors.divider}`}
     >
       <Box display="flex" alignItems="center" gap={2}>
-        <Avatar
-          src={
-            profilePicUrl ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              contactName
-            )}&background=00a884&color=fff`
+        <Badge
+          overlap="circular"
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          badgeContent={
+            isGroup ? (
+              <Box
+                sx={{
+                  bgcolor: "#5865F2",
+                  borderRadius: "50%",
+                  width: 18,
+                  height: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid",
+                  borderColor: colors.headerBg,
+                }}
+              >
+                <Group sx={{ fontSize: 10, color: "#fff" }} />
+              </Box>
+            ) : null
           }
-          sx={{ width: 40, height: 40 }}
-          imgProps={{
-            onError: (e: any) => {
-              e.target.onerror = null;
-              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        >
+          <Avatar
+            src={
+              profilePicUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
                 contactName
-              )}&background=00a884&color=fff`;
-            },
-          }}
-        />
-        <Box>
-          <Typography
-            variant="subtitle1"
-            sx={{ color: colors.incomingText, lineHeight: 1.2 }}
+              )}&background=${avatarBgColor.replace("#", "")}&color=fff`
+            }
+            sx={{ width: 40, height: 40, bgcolor: avatarBgColor }}
+            imgProps={{
+              onError: (e: any) => {
+                e.target.onerror = null;
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  contactName
+                )}&background=${avatarBgColor.replace("#", "")}&color=fff`;
+              },
+            }}
           >
-            {contactName}
-          </Typography>
+            {isGroup && <Group />}
+          </Avatar>
+        </Badge>
+        <Box>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Typography
+              variant="subtitle1"
+              sx={{ color: colors.incomingText, lineHeight: 1.2 }}
+            >
+              {contactName}
+            </Typography>
+            {isGroup && (
+              <Chip
+                label="Grupo"
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: "0.65rem",
+                  bgcolor: "rgba(88, 101, 242, 0.2)",
+                  color: "#5865F2",
+                }}
+              />
+            )}
+          </Box>
           <Typography
             variant="caption"
             sx={{
@@ -90,7 +137,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   : "normal",
             }}
           >
-            {presenceText ? (
+            {isGroup && !presenceText && !isSyncing ? (
+              participantCount ? (
+                `${participantCount} participantes`
+              ) : (
+                "Grupo"
+              )
+            ) : presenceText ? (
               <>
                 {presenceText === "online" && (
                   <Box
