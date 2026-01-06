@@ -6,6 +6,7 @@ import { AIService } from '../ai/ai.service';
 import { AITranscriptionService } from '../ai/ai-transcription.service';
 import { AITasksService } from '../ai/ai-tasks.service';
 import { AIExpensesService } from '../ai/ai-expenses.service';
+import { AIExpensesFlowService } from '../ai/ai-expenses-flow.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
 import { WHATSAPP_QUEUE } from './constants';
@@ -40,6 +41,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly aiTranscriptionService: AITranscriptionService,
     private readonly aiTasksService: AITasksService,
     private readonly aiExpensesService: AIExpensesService,
+    private readonly aiExpensesFlowService: AIExpensesFlowService,
     private readonly chatbotService: ChatbotService,
     private readonly secretaryTasksService: SecretaryTasksService,
   ) {
@@ -241,6 +243,37 @@ export class WhatsappProcessor extends WorkerHost {
       // ========================================
       if (isPersonalAssistantMode) {
         // ========================================
+        // VERIFICAR FLUXO ATIVO (Despesas, etc)
+        // ========================================
+        const hasActiveExpenseFlow = await this.aiExpensesFlowService.hasActiveFlow(
+          instance.companyId,
+          remoteJid,
+        );
+
+        if (hasActiveExpenseFlow) {
+          this.logger.log(`💬 Processing expense flow response from owner`);
+
+          const flowResult = await this.aiExpensesFlowService.processFlowMessage(
+            instance.companyId,
+            remoteJid,
+            processedContent,
+          );
+
+          await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, flowResult.response);
+
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              response: flowResult.response,
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+
+          return { status: 'processed_expense_flow', messageId: message.id, flowEnded: flowResult.flowEnded };
+        }
+
+        // ========================================
         // CRIAÇÃO DE TAREFAS VIA CHAT
         // ========================================
         if (this.aiTasksService.isTaskRequest(processedContent)) {
@@ -365,6 +398,42 @@ export class WhatsappProcessor extends WorkerHost {
 
             return { status: 'processed_inventory_image', messageId: message.id };
           }
+
+          // Verificação de Recibo/Despesa (Imagem) - Usa novo fluxo com itens individuais
+          const isExpenseReceipt = lowerContent.includes('nota') ||
+            lowerContent.includes('recibo') ||
+            lowerContent.includes('gasto') ||
+            lowerContent.includes('compra') ||
+            lowerContent.includes('pagamento') ||
+            lowerContent.includes('carteira') ||
+            lowerContent.includes('lance') ||
+            lowerContent.includes('lança');
+
+          if (isExpenseReceipt || !isInventoryRequest) {
+            // Se não for inventário, tenta como despesa usando novo fluxo com confirmação
+            this.logger.log(`📷 Starting expense flow with image from owner`);
+
+            const expenseResult = await this.aiExpensesFlowService.startExpenseFlowFromImage(
+              instance.companyId,
+              remoteJid,
+              instanceKey,
+              mediaData,
+              content || '',
+            );
+
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, expenseResult.response);
+
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                response: expenseResult.response,
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+
+            return { status: 'processed_expense_flow', messageId: message.id };
+          }
         }
 
         // ========================================
@@ -426,8 +495,58 @@ export class WhatsappProcessor extends WorkerHost {
                 });
               }
             }
+
           } catch (e) {
-            // summary não é JSON de produto pendente, ignorar
+            // summary não é JSON, ignorar
+          }
+        }
+
+        // ========================================
+        // VERIFICAR SE É CONFIRMAÇÃO DE DESPESA PENDENTE (CARTEIRA)
+        // ========================================
+        if (conversation?.summary) {
+          try {
+            const pendingData = JSON.parse(conversation.summary);
+            if (pendingData.type === 'pending_expense' && pendingData.data) {
+              const resolveResult = await this.aiExpensesService.resolvePendingExpense(
+                instance.companyId,
+                processedContent, // O texto do usuário é a seleção da carteira
+                pendingData.data
+              );
+
+              if (resolveResult.success) {
+                // Limpar estado
+                await this.prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: { summary: null },
+                });
+              }
+
+              // Se falhar (ex: carteira n encontrada), mantemos o estado para ele tentar de novo?
+              // Decisão: Manter, a menos que ele diga "cancelar". 
+              if (processedContent.toLowerCase() === 'cancelar') {
+                await this.prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: { summary: null },
+                });
+                resolveResult.response = '❌ Operação cancelada.';
+              }
+
+              await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, resolveResult.response);
+
+              await this.prisma.message.update({
+                where: { id: message.id },
+                data: {
+                  response: resolveResult.response,
+                  status: 'processed',
+                  processedAt: new Date(),
+                },
+              });
+
+              return { status: 'processed_pending_expense', messageId: message.id };
+            }
+          } catch (e) {
+            // erro ao parsear ou processar
           }
         }
 

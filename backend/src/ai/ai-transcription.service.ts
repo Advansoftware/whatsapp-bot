@@ -62,14 +62,16 @@ export class AITranscriptionService {
     try {
       this.logger.log(`📥 Downloading media for instance ${instanceKey}`);
 
-      // Evolution API DTO: getBase64FromMediaMessageDto { message: proto.WebMessageInfo }
-      // O mediaData é o WebMessageInfo completo do webhook, então enviamos diretamente
-      const payload = {
-        message: mediaData,
+      // Preparar payload para Evolution API - formato: { message: WebMessageInfo }
+      const payload: any = {
+        message: {
+          key: mediaData.key,
+          message: mediaData.message,
+        },
         convertToMp4: false,
       };
 
-      this.logger.debug(`Payload message keys: ${JSON.stringify(Object.keys(mediaData))}`);
+      this.logger.debug(`Payload: key=${JSON.stringify(mediaData.key?.id)}, messageType=${mediaData.messageType || 'unknown'}`);
 
       // Baixar mídia via Evolution API
       this.logger.debug(`Request to Evolution API getBase64FromMediaMessage/${instanceKey}`);
@@ -171,8 +173,13 @@ export class AITranscriptionService {
           payload.message[messageType] = {
             ...mediaData.message[messageType],
           };
+          // Garantir que contextInfo existe com ephemeralMessage
           if (!payload.message[messageType].contextInfo) {
             payload.message[messageType].contextInfo = {};
+          }
+          // Adicionar ephemeralMessage se não existir (Evolution API espera isso)
+          if (payload.message[messageType].contextInfo.ephemeralMessage === undefined) {
+            payload.message[messageType].contextInfo.ephemeralMessage = null;
           }
         } else {
           payload.message = mediaData.message;

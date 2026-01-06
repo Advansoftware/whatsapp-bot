@@ -299,6 +299,57 @@ export class GastometriaService {
   }
 
   /**
+   * Cria uma nova carteira
+   */
+  async createWallet(
+    companyId: string,
+    data: {
+      name: string;
+      type: string;
+      balance?: number;
+      icon?: string;
+      color?: string;
+    },
+  ): Promise<{ success: boolean; message: string; wallet?: GastometriaWallet }> {
+    const token = await this.getValidToken(companyId);
+    if (!token) {
+      return { success: false, message: 'Conta Gastometria não conectada' };
+    }
+
+    try {
+      const response = await fetch(`${GASTOMETRIA_BASE_URL}/wallets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: data.name,
+          type: data.type,
+          balance: data.balance || 0,
+          icon: data.icon,
+          color: data.color,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        return { success: false, message: error.message || 'Erro ao criar carteira' };
+      }
+
+      const wallet = await response.json();
+      return {
+        success: true,
+        message: `✅ Carteira "${data.name}" criada com sucesso!`,
+        wallet,
+      };
+    } catch (error) {
+      this.logger.error(`Error creating wallet: ${error.message}`);
+      return { success: false, message: 'Erro ao conectar com Gastometria' };
+    }
+  }
+
+  /**
    * Configura carteira padrão
    */
   async setDefaultWallet(companyId: string, walletId: string): Promise<boolean> {
