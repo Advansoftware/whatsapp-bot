@@ -827,10 +827,59 @@ class ApiClient {
     });
   }
 
+  // ========================================
+  // Notifications
+  // ========================================
+  async getNotifications(options?: { unreadOnly?: boolean; limit?: number; offset?: number }) {
+    const params = new URLSearchParams();
+    if (options?.unreadOnly) params.append('unreadOnly', 'true');
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{
+      notifications: Notification[];
+      total: number;
+      unreadCount: number;
+    }>(`/api/notifications${query}`);
+  }
+
+  async getNotificationCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(id: string) {
+    return this.request<any>(`/api/notifications/${id}/read`, { method: 'POST' });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request<{ success: boolean }>('/api/notifications/read-all', { method: 'POST' });
+  }
+
+  async deleteNotification(id: string) {
+    return this.request<any>(`/api/notifications/${id}`, { method: 'DELETE' });
+  }
+
   // Logout
   logout() {
     this.setToken(null);
   }
+}
+
+// Notification interface
+export interface Notification {
+  id: string;
+  companyId: string;
+  userId?: string;
+  type: 'hot_lead' | 'escalation' | 'integration_error' | 'campaign_complete' | 'low_balance' | 'system' | 'task_reminder' | 'new_contact' | 'message_failed';
+  category: 'info' | 'warning' | 'error' | 'success';
+  title: string;
+  message: string;
+  metadata?: Record<string, any>;
+  actionUrl?: string;
+  actionLabel?: string;
+  read: boolean;
+  readAt?: string;
+  createdAt: string;
 }
 
 export const api = new ApiClient();

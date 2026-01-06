@@ -127,7 +127,15 @@ const AppContent: React.FC = () => {
           />
 
           <Box flex={1} display="flex" flexDirection="column" overflow="hidden">
-            <Header toggleTheme={toggleTheme} isDarkMode={mode === "dark"} />
+            <Header
+              toggleTheme={toggleTheme}
+              isDarkMode={mode === "dark"}
+              onNavigate={(url) => {
+                // Parse url to view name (e.g., /chat/123 -> chat)
+                const view = url.replace("/", "").split("/")[0] || "dashboard";
+                setCurrentView(view);
+              }}
+            />
 
             <Box flex={1} overflow="auto" p={{ xs: 2, md: 4 }}>
               {renderView()}

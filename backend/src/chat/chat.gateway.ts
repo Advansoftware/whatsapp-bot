@@ -17,12 +17,48 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
+  // Mapeia clientes conectados por companyId
+  private clientsByCompany: Map<string, Set<string>> = new Map();
+
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
+
+    // Cliente pode enviar companyId na query ou via evento
+    const companyId = client.handshake.query.companyId as string;
+    if (companyId) {
+      this.joinCompanyRoom(client, companyId);
+    }
   }
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    // Limpa referências
+    this.clientsByCompany.forEach((clients, companyId) => {
+      clients.delete(client.id);
+      if (clients.size === 0) {
+        this.clientsByCompany.delete(companyId);
+      }
+    });
+  }
+
+  /**
+   * Cliente entra na sala da empresa para receber notificações
+   */
+  @SubscribeMessage('join_company')
+  handleJoinCompany(client: Socket, companyId: string) {
+    this.joinCompanyRoom(client, companyId);
+    return { success: true };
+  }
+
+  private joinCompanyRoom(client: Socket, companyId: string) {
+    client.join(`company:${companyId}`);
+
+    if (!this.clientsByCompany.has(companyId)) {
+      this.clientsByCompany.set(companyId, new Set());
+    }
+    this.clientsByCompany.get(companyId)!.add(client.id);
+
+    this.logger.log(`Client ${client.id} joined company room: ${companyId}`);
   }
 
   /**
@@ -59,6 +95,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   broadcastPresence(presenceData: any) {
     this.server.emit('presence_update', presenceData);
+  }
+
+  // ========================================
+  // MÉTODOS DE NOTIFICAÇÃO
+  // ========================================
+
+  /**
+   * Envia notificação para todos os clientes (ou para empresa específica)
+   */
+  broadcastNotification(notification: any) {
+    const companyId = notification.companyId;
+
+    if (companyId) {
+      // Envia para sala específica da empresa
+      this.server.to(`company:${companyId}`).emit('notification', notification);
+    } else {
+      // Broadcast global
+      this.server.emit('notification', notification);
+    }
+
+    this.logger.debug(`Notification broadcast: ${notification.type} - ${notification.title}`);
+  }
+
+  /**
+   * Envia atualização de contagem de notificações não lidas
+   */
+  broadcastNotificationCount(companyId: string, count: number) {
+    this.server.to(`company:${companyId}`).emit('notification_count', { count });
   }
 
   @SubscribeMessage('message')

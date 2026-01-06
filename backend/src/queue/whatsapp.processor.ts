@@ -9,6 +9,7 @@ import { AIExpensesService } from '../ai/ai-expenses.service';
 import { AIExpensesFlowService } from '../ai/ai-expenses-flow.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -44,6 +45,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly aiExpensesFlowService: AIExpensesFlowService,
     private readonly chatbotService: ChatbotService,
     private readonly secretaryTasksService: SecretaryTasksService,
+    private readonly notificationsService: NotificationsService,
   ) {
     super();
   }
@@ -735,13 +737,23 @@ export class WhatsappProcessor extends WorkerHost {
             const updatedContact = await this.prisma.contact.update({
               where: { id: contact.id },
               data: { totalMessages: { increment: 1 } },
-              select: { id: true, totalMessages: true, aiAnalyzedAt: true },
+              select: { id: true, totalMessages: true, aiAnalyzedAt: true, pushName: true, remoteJid: true },
             });
 
             // Qualificação automática: dispara quando atingir 300 mensagens e ainda não foi analisado
             if (updatedContact.totalMessages >= 300 && !updatedContact.aiAnalyzedAt) {
               this.logger.log(`Auto-qualifying lead ${contact.id} with ${updatedContact.totalMessages} messages`);
-              await this.aiService.analyzeAndQualifyLead(contact.id, instance.companyId);
+              const qualificationResult = await this.aiService.analyzeAndQualifyLead(contact.id, instance.companyId);
+
+              // Se for lead quente, notificar!
+              if (qualificationResult.status === 'hot' || qualificationResult.score >= 80) {
+                await this.notificationsService.notifyHotLead(
+                  instance.companyId,
+                  updatedContact.pushName || 'Cliente',
+                  updatedContact.remoteJid,
+                  `Score: ${qualificationResult.score}/100 - ${qualificationResult.analysis.substring(0, 100)}...`,
+                );
+              }
             }
           }
         } catch (memoryError) {
@@ -752,6 +764,18 @@ export class WhatsappProcessor extends WorkerHost {
 
       // 9. Se deve notificar o dono (nunca notifica no modo secretária pessoal)
       if (secretaryResult.shouldNotifyOwner && !isPersonalAssistantMode) {
+        const customerName = job.data.pushName || 'Cliente';
+        const reason = secretaryResult.notificationReason || 'Atenção necessária';
+
+        // Criar notificação no painel
+        await this.notificationsService.notifyEscalation(
+          instance.companyId,
+          customerName,
+          remoteJid,
+          reason,
+        );
+
+        // Também notifica via WhatsApp se configurado
         if (aiConfig?.ownerPhone) {
           // Buscar últimas mensagens para resumo
           const recentMessages = await this.prisma.message.findMany({
@@ -768,9 +792,9 @@ export class WhatsappProcessor extends WorkerHost {
           await this.aiService.notifyOwner({
             instanceKey,
             ownerPhone: aiConfig.ownerPhone,
-            customerName: job.data.pushName || 'Cliente',
+            customerName,
             customerPhone: remoteJid.replace('@s.whatsapp.net', ''),
-            reason: secretaryResult.notificationReason || 'Atenção necessária',
+            reason,
             summary,
           });
         }

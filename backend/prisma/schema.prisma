@@ -388,6 +388,37 @@ model ExpenseFlowState {
   @@map("expense_flow_states")
 }
 
+// Notificações em tempo real
+model Notification {
+  id        String  @id @default(cuid())
+  companyId String  @map("company_id")
+  userId    String? @map("user_id") // Null = todos os usuários da empresa
+
+  // Tipo e categoria
+  type     String // 'hot_lead' | 'escalation' | 'integration_error' | 'campaign_complete' | 'low_balance' | 'system' | 'task_reminder'
+  category String @default("info") // 'info' | 'warning' | 'error' | 'success'
+
+  // Conteúdo
+  title    String
+  message  String @db.Text
+  metadata Json? // Dados extras (contactId, conversationId, etc)
+
+  // Links para ação
+  actionUrl   String? @map("action_url") // Ex: /chat/5535999999999
+  actionLabel String? @map("action_label") // Ex: "Ver conversa"
+
+  // Status
+  read   Boolean   @default(false)
+  readAt DateTime? @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, read])
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("notifications")
+}
+
 // Integrações externas (Gastometria, etc)
 model ExternalIntegration {
   id        String @id @default(cuid())
