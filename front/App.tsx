@@ -17,6 +17,7 @@ import SettingsView from "./components/SettingsView";
 import PlaceholderView from "./components/PlaceholderView";
 import LandingPage from "./components/LandingPage";
 import LoginView from "./components/LoginView";
+import ProfileView from "./components/ProfileView";
 import { View } from "./types";
 import LiveChatView from "./components/chat/LiveChatView";
 import ChatbotView from "./components/chatbot/ChatbotView";
@@ -94,6 +95,8 @@ const AppContent: React.FC = () => {
         return <GroupAutomationsView />;
       case "team":
         return <TeamView />;
+      case "profile":
+        return <ProfileView />;
       case "subscription":
         return <PlaceholderView title="Gerenciamento de Assinatura" />;
       default:

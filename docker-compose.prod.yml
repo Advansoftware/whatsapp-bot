@@ -193,6 +193,6 @@ volumes:
 networks:
   internal-network:
     driver: bridge
-    internal: true
+    # Removido 'internal: true' para permitir que Evolution acesse servidores do WhatsApp
   proxy-network:
     external: true

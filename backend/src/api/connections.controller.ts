@@ -226,4 +226,124 @@ export class ConnectionsController {
       };
     }
   }
+
+  @Post(':id/reconnect')
+  async reconnectInstance(@Request() req: any, @Param('id') id: string) {
+    const companyId = req.user.companyId;
+
+    const instance = await this.prisma.instance.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!instance) {
+      throw new HttpException('Instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+
+    try {
+      // 1. Tentar logout da sessão atual (desvincula do celular)
+      console.log(`[Reconnect] Logging out instance: ${instance.instanceKey}`);
+      try {
+        await axios.delete(
+          `${evolutionUrl}/instance/logout/${instance.instanceKey}`,
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+        console.log(`[Reconnect] Logout successful for ${instance.instanceKey}`);
+      } catch (logoutError: any) {
+        console.log(`[Reconnect] Logout warning for ${instance.instanceKey}: ${logoutError.message}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 2. Verificar se a instância existe na Evolution API
+      let instanceExists = true;
+      try {
+        await axios.get(
+          `${evolutionUrl}/instance/fetchInstances?instanceName=${instance.instanceKey}`,
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+      } catch (fetchError: any) {
+        if (fetchError.response?.status === 404) {
+          instanceExists = false;
+        }
+      }
+
+      let qrCodeUrl: string | undefined;
+
+      // 3. Se a instância não existe, recriar na Evolution (mantendo o mesmo instanceKey)
+      if (!instanceExists) {
+        console.log(`[Reconnect] Instance not found in Evolution, recreating: ${instance.instanceKey}`);
+
+        try {
+          const createResponse = await axios.post(
+            `${evolutionUrl}/instance/create`,
+            {
+              instanceName: instance.instanceKey,
+              token: instance.instanceKey,
+              qrcode: true,
+              integration: 'WHATSAPP-BAILEYS',
+            },
+            { headers: { 'apikey': evolutionApiKey } }
+          );
+
+          console.log('[Reconnect] Create Response:', JSON.stringify(createResponse.data, null, 2));
+
+          const qrData = createResponse.data?.qrcode;
+          qrCodeUrl = qrData?.base64 || qrData?.code || qrData?.pairingCode;
+
+          // Se não veio o QR no create, buscar no connect
+          if (!qrCodeUrl) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const connectResponse = await axios.get(
+              `${evolutionUrl}/instance/connect/${instance.instanceKey}`,
+              { headers: { 'apikey': evolutionApiKey } }
+            );
+            const connectQrData = connectResponse.data?.qrcode || connectResponse.data;
+            qrCodeUrl = connectQrData?.base64 || connectQrData?.code || connectQrData?.pairingCode;
+          }
+        } catch (createError: any) {
+          console.error('[Reconnect] Create error:', createError.response?.data || createError.message);
+          throw createError;
+        }
+      } else {
+        // 4. Se a instância existe, apenas buscar novo QR
+        console.log(`[Reconnect] Requesting new QR code for: ${instance.instanceKey}`);
+        const connectResponse = await axios.get(
+          `${evolutionUrl}/instance/connect/${instance.instanceKey}`,
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+
+        console.log('[Reconnect] Connect Response:', JSON.stringify(connectResponse.data, null, 2));
+
+        const qrData = connectResponse.data?.qrcode || connectResponse.data;
+        qrCodeUrl = qrData?.base64 || qrData?.code || qrData?.pairingCode;
+      }
+
+      // 5. Atualizar status no banco (mantém todos os dados, só muda status)
+      await this.prisma.instance.update({
+        where: { id },
+        data: { status: 'disconnected' },
+      });
+
+      console.log(`[Reconnect] Successfully initiated reconnect for ${instance.instanceKey}, QR: ${qrCodeUrl ? 'obtained' : 'not available'}`);
+
+      return {
+        success: true,
+        id: instance.id,
+        name: instance.name,
+        instanceKey: instance.instanceKey,
+        status: 'disconnected',
+        qrCodeUrl: qrCodeUrl || 'Aguardando QR Code...',
+        message: 'Escaneie o novo QR Code para reconectar.',
+      };
+    } catch (error: any) {
+      console.error('[Reconnect] Error:', error.response?.data || error.message);
+      throw new HttpException(
+        'Falha ao reconectar instância. Tente novamente.',
+        HttpStatus.BAD_GATEWAY
+      );
+    }
+  }
 }

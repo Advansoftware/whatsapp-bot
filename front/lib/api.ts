@@ -195,6 +195,20 @@ class ApiClient {
     });
   }
 
+  async reconnectInstance(id: string) {
+    return this.request<{
+      success: boolean;
+      id: string;
+      name: string;
+      instanceKey: string;
+      status: string;
+      qrCodeUrl: string;
+      message: string;
+    }>(`/api/connections/${id}/reconnect`, {
+      method: 'POST',
+    });
+  }
+
   // Messages endpoints
   async getMessages(page = 1, limit = 20, instanceId?: string, remoteJid?: string) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });

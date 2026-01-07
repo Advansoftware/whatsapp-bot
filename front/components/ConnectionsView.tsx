@@ -33,7 +33,9 @@ import {
   Refresh,
   Add,
   Delete,
-  Sync
+  Sync,
+  LinkOff,
+  QrCode2
 } from '@mui/icons-material';
 import { useConnections } from '../hooks/useApi';
 import { useSocket } from '../hooks/useSocket';
@@ -107,6 +109,9 @@ const ConnectionsView: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<any>(null);
   const [syncingInstances, setSyncingInstances] = useState<Record<string, string>>({});
+  const [reconnecting, setReconnecting] = useState<string | null>(null);
+  const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
+  const [instanceToReconnect, setInstanceToReconnect] = useState<any>(null);
 
   const steps = ['Inicializando Cliente', 'Gerando QR Code', 'Conectado'];
 
@@ -216,6 +221,37 @@ const ConnectionsView: React.FC = () => {
     }
   };
 
+  const confirmReconnect = (conn: any) => {
+    setInstanceToReconnect(conn);
+    setReconnectDialogOpen(true);
+  };
+
+  const handleReconnect = async () => {
+    if (!instanceToReconnect) return;
+    
+    setReconnecting(instanceToReconnect.id);
+    setReconnectDialogOpen(false);
+    
+    try {
+      const result = await api.reconnectInstance(instanceToReconnect.id);
+      console.log('[Reconnect] Result:', result);
+      
+      // Selecionar a instância para mostrar o QR code
+      setSelectedInstance({
+        ...instanceToReconnect,
+        ...result,
+      });
+      
+      setSyncingInstances(prev => ({...prev, [result.instanceKey]: 'qr_ready'}));
+      refetch();
+    } catch (err) {
+      console.error('Error reconnecting:', err);
+    } finally {
+      setReconnecting(null);
+      setInstanceToReconnect(null);
+    }
+  };
+
   const getStatusStep = (status: string) => {
     switch (status) {
       case 'connected':
@@ -277,10 +313,18 @@ const ConnectionsView: React.FC = () => {
       {/* Existing Connections */}
       {connections && connections.length > 0 && (
         <Paper elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
-          <Box p={3} borderBottom={`1px solid ${theme.palette.divider}`}>
+          <Box p={3} borderBottom={`1px solid ${theme.palette.divider}`} display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight="bold">
               Suas Conexões ({connections.length})
             </Typography>
+            <IconButton 
+              onClick={() => refetch()} 
+              size="small" 
+              title="Atualizar status"
+              color="primary"
+            >
+              <Refresh fontSize="small" />
+            </IconButton>
           </Box>
           <Box>
             {connections.map((conn) => (
@@ -322,8 +366,22 @@ const ConnectionsView: React.FC = () => {
                   )}
                   <IconButton
                     size="small"
+                    onClick={() => confirmReconnect(conn)}
+                    color="primary"
+                    disabled={reconnecting === conn.id}
+                    title="Reconectar (gerar novo QR code)"
+                  >
+                    {reconnecting === conn.id ? (
+                      <CircularProgress size={18} />
+                    ) : (
+                      <QrCode2 fontSize="small" />
+                    )}
+                  </IconButton>
+                  <IconButton
+                    size="small"
                     onClick={() => confirmDeleteConnection(conn.id)}
                     color="error"
+                    title="Excluir conexão"
                   >
                     <Delete fontSize="small" />
                   </IconButton>
@@ -504,6 +562,42 @@ const ConnectionsView: React.FC = () => {
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
           <Button onClick={handleDeleteConnection} color="error" variant="contained">
             Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reconnect Confirmation Dialog */}
+      <Dialog open={reconnectDialogOpen} onClose={() => setReconnectDialogOpen(false)}>
+        <DialogTitle>Reconectar WhatsApp?</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Esta ação irá:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+            <li>
+              <Typography variant="body2" color="text.secondary">
+                Desconectar a sessão atual do WhatsApp
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2" color="text.secondary">
+                Gerar um novo QR Code para reconexão
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2" color="success.main" fontWeight={500}>
+                Manter todos os seus dados (mensagens, contatos, etc.)
+              </Typography>
+            </li>
+          </Box>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Você precisará escanear o novo QR Code com seu celular.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReconnectDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleReconnect} color="primary" variant="contained" startIcon={<QrCode2 />}>
+            Reconectar
           </Button>
         </DialogActions>
       </Dialog>

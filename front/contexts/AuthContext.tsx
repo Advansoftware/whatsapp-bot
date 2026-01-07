@@ -21,6 +21,7 @@ interface AuthContextType {
   login: (data: any) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -99,6 +100,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const profile = await api.getProfile();
+      setUser(profile);
+    } catch (error) {
+      console.error('Refresh user failed:', error);
+    }
+  }, []);
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -107,6 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
   };
 
   return (

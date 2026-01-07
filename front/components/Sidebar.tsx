@@ -30,6 +30,7 @@ import {
   Extension,
   AutoAwesome,
   Groups,
+  Person,
 } from "@mui/icons-material";
 import { View } from "../types";
 
@@ -118,13 +119,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         <>
           <Box sx={{ p: 2 }}>
             <Box
+              onClick={() => onNavigate("profile")}
               sx={{
                 display: "flex",
                 alignItems: "center",
                 gap: 2,
                 p: 1.5,
                 borderRadius: 2,
-                bgcolor: "action.hover",
+                bgcolor: currentView === "profile" ? "primary.main" : "action.hover",
+                color: currentView === "profile" ? "primary.contrastText" : "inherit",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                "&:hover": {
+                  bgcolor: currentView === "profile" ? "primary.dark" : "action.selected",
+                },
               }}
             >
               <Avatar
@@ -134,14 +142,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 {user.name?.charAt(0)}
               </Avatar>
-              <Box sx={{ overflow: "hidden" }}>
+              <Box sx={{ overflow: "hidden", flex: 1 }}>
                 <Typography variant="body2" fontWeight={500} noWrap>
                   {user.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
+                <Typography variant="caption" color={currentView === "profile" ? "inherit" : "text.secondary"} noWrap>
                   {user.email}
                 </Typography>
               </Box>
+              <Person sx={{ opacity: 0.7, fontSize: 20 }} />
             </Box>
           </Box>
           <Divider />
