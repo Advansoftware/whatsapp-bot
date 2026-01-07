@@ -29,6 +29,7 @@ import {
   Checklist,
   Extension,
   AutoAwesome,
+  Groups,
 } from "@mui/icons-material";
 import { View } from "../types";
 
@@ -57,6 +58,7 @@ const menuItems = [
   { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
   { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },
   { id: "analytics" as View, label: "Analytics", icon: <BarChart /> },
+  { id: "team" as View, label: "Equipe", icon: <Groups /> },
   { id: "inventory" as View, label: "Inventário", icon: <Inventory /> },
 ];
 
@@ -94,16 +96,18 @@ const Sidebar: React.FC<SidebarProps> = ({
             width: 40,
             height: 40,
             borderRadius: 2,
-            bgcolor: "primary.main",
+            background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(0, 168, 132, 0.3)",
           }}
         >
-          <SmartToy sx={{ color: "white" }} />
+          <AutoAwesome sx={{ color: "white" }} />
         </Box>
         <Typography variant="h6" fontWeight="bold">
-          WA Automator
+          <span>Respond</span>
+          <span style={{ color: "#00a884" }}>IA</span>
         </Typography>
       </Box>
 

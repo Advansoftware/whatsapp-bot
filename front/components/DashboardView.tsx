@@ -104,7 +104,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToChat }) => {
           component="span"
           sx={{ color: "text.secondary", fontSize: "0.75rem" }}
         >
-          © 2024 WA Automator. Todos os direitos reservados.
+          © 2026 RespondIA. Todos os direitos reservados.
           <Box
             component="span"
             sx={{ color: "primary.main", ml: 1, cursor: "pointer" }}

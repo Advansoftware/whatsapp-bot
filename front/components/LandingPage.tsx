@@ -20,16 +20,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-600 shadow-lg shadow-primary/20">
                 <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: "24px" }}
+                  className="material-symbols-outlined text-white"
+                  style={{ fontSize: "22px" }}
                 >
-                  smart_toy
+                  auto_awesome
                 </span>
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">
-                AutoMsg
+              <span className="text-xl font-bold tracking-tight">
+                <span className="text-white">Respond</span>
+                <span className="text-primary">IA</span>
               </span>
             </div>
             {/* Desktop Navigation */}
@@ -140,17 +141,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               <div className="relative w-full max-w-sm bg-surface rounded-2xl shadow-2xl border border-surface-hover overflow-hidden flex flex-col h-[480px]">
                 {/* Chat Header */}
                 <div className="bg-[#202c33] px-4 py-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
                     <span
-                      className="material-symbols-outlined text-primary"
-                      style={{ fontSize: "24px" }}
+                      className="material-symbols-outlined text-white"
+                      style={{ fontSize: "22px" }}
                     >
-                      smart_toy
+                      auto_awesome
                     </span>
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-white">
-                      Secretária IA
+                      RespondIA
                     </h3>
                     <p className="text-xs text-primary flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
@@ -399,7 +400,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-8">
             <div className="flex flex-col items-center gap-2 text-white">
               <span className="material-symbols-outlined text-2xl md:text-3xl text-primary">
-                smart_toy
+                auto_awesome
               </span>
               <span className="font-medium text-sm md:text-base">
                 IA Avançada
@@ -1219,7 +1220,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                 </span>
               </div>
               <a
-                href="https://wa.me/5535984216196?text=Olá!%20Tenho%20interesse%20no%20plano%20Empresarial%20do%20AutoMsg."
+                href="https://wa.me/5535984216196?text=Olá!%20Tenho%20interesse%20no%20plano%20Empresarial%20do%20RespondIA."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-3 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold transition-colors mb-6 md:mb-8 text-sm md:text-base flex items-center justify-center gap-2"
@@ -1296,9 +1297,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             >
               Criar Conta Grátis
             </button>
-            <button className="flex items-center justify-center px-8 h-14 rounded-lg bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-white text-lg font-medium transition-all">
+            <a
+              href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20RespondIA."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 px-8 h-14 rounded-lg bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-white text-lg font-medium transition-all"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: "22px" }}
+              >
+                chat
+              </span>
               Falar com Vendas
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1309,17 +1321,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "28px" }}
-                >
-                  smart_toy
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-600 shadow-lg shadow-primary/20">
+                  <span
+                    className="material-symbols-outlined text-white"
+                    style={{ fontSize: "20px" }}
+                  >
+                    auto_awesome
+                  </span>
+                </div>
+                <span className="text-xl font-bold">
+                  <span className="text-white">Respond</span>
+                  <span className="text-primary">IA</span>
                 </span>
-                <span className="text-xl font-bold text-white">AutoMsg</span>
               </div>
               <p className="text-text-secondary text-sm leading-relaxed mb-6">
-                A plataforma líder em automação de WhatsApp para empresas
-                inovadoras.
+                Sua secretária IA no WhatsApp. Automatize atendimento, agenda e
+                muito mais.
               </p>
             </div>
 
@@ -1370,7 +1387,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
 
           <div className="border-t border-surface-hover pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-text-secondary text-sm">
-              © 2026 AutoMsg. Todos os direitos reservados.
+              © 2026 RespondIA. Todos os direitos reservados.
             </p>
           </div>
         </div>

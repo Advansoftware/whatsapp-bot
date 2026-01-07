@@ -15,10 +15,13 @@ model User {
   password  String?  @map("password")
   googleId  String?  @unique @map("google_id")
   companyId String   @map("company_id")
+  role      String   @default("admin") // 'admin' | 'manager' | 'agent'
+  isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company               Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedConversations Conversation[] @relation("AssignedAgent")
 
   @@map("users")
 }
@@ -254,23 +257,28 @@ model AISecretary {
 }
 
 model Conversation {
-  id            String   @id @default(cuid())
-  remoteJid     String   @map("remote_jid")
-  companyId     String   @map("company_id")
-  instanceId    String   @map("instance_id")
-  status        String   @default("active") // 'active' | 'resolved' | 'archived'
-  assignedTo    String?  @map("assigned_to") // 'ai' | 'human' | null
-  priority      String   @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
-  summary       String?  @db.Text
-  aiEnabled     Boolean  @default(true) @map("ai_enabled") // IA habilitada nesta conversa
-  lastMessageAt DateTime @map("last_message_at")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id              String    @id @default(cuid())
+  remoteJid       String    @map("remote_jid")
+  companyId       String    @map("company_id")
+  instanceId      String    @map("instance_id")
+  status          String    @default("active") // 'active' | 'waiting' | 'in_progress' | 'resolved' | 'archived'
+  assignedTo      String?   @map("assigned_to") // 'ai' | userId
+  assignedAgentId String?   @map("assigned_agent_id") // FK to User when assigned to human
+  priority        String    @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
+  summary         String?   @db.Text
+  aiEnabled       Boolean   @default(true) @map("ai_enabled") // IA habilitada nesta conversa
+  lastMessageAt   DateTime  @map("last_message_at")
+  assignedAt      DateTime? @map("assigned_at") // Quando foi atribuída
+  resolvedAt      DateTime? @map("resolved_at") // Quando foi resolvida
+  createdAt       DateTime  @default(now()) @map("created_at")
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instance      Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  assignedAgent User?    @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
 
   @@index([companyId, status])
   @@index([remoteJid, companyId])
+  @@index([assignedAgentId])
   @@map("conversations")
 }
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Avatar,
@@ -8,8 +8,25 @@ import {
   Tooltip,
   Chip,
   Badge,
+  Menu,
+  MenuItem,
+  Divider,
 } from "@mui/material";
-import { MoreVert, SmartToy, Person, Group } from "@mui/icons-material";
+import {
+  MoreVert,
+  SmartToy,
+  Person,
+  Group,
+  PersonAdd,
+  AutoMode,
+} from "@mui/icons-material";
+
+interface TeamMember {
+  id: string;
+  name: string;
+  picture?: string;
+  activeConversations: number;
+}
 
 interface ChatHeaderProps {
   contactName: string;
@@ -21,6 +38,9 @@ interface ChatHeaderProps {
   isTogglingAI?: boolean;
   isGroup?: boolean;
   participantCount?: number;
+  assignedAgent?: { id: string; name: string; picture?: string } | null;
+  teamMembers?: TeamMember[];
+  onAssignAgent?: (agentId: string | null) => void;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -40,9 +60,29 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   isTogglingAI,
   isGroup,
   participantCount,
+  assignedAgent,
+  teamMembers,
+  onAssignAgent,
   colors,
 }) => {
   const avatarBgColor = isGroup ? "#5865F2" : "#00a884";
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(anchorEl);
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleAssign = (agentId: string | null) => {
+    if (onAssignAgent) {
+      onAssignAgent(agentId);
+    }
+    handleMenuClose();
+  };
 
   return (
     <Box
@@ -173,6 +213,35 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </Box>
       </Box>
       <Box display="flex" alignItems="center" gap={1}>
+        {/* Assigned Agent indicator */}
+        {assignedAgent && (
+          <Tooltip title={`Atribuído a ${assignedAgent.name}`}>
+            <Chip
+              avatar={
+                assignedAgent.picture ? (
+                  <Avatar
+                    src={assignedAgent.picture}
+                    sx={{ width: 20, height: 20 }}
+                  />
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      fontSize: 10,
+                      bgcolor: "#00a884",
+                    }}
+                  >
+                    {assignedAgent.name.charAt(0)}
+                  </Avatar>
+                )
+              }
+              label={assignedAgent.name.split(" ")[0]}
+              size="small"
+              sx={{ bgcolor: "rgba(0, 168, 132, 0.2)", color: "#00a884" }}
+            />
+          </Tooltip>
+        )}
         {/* AI Toggle */}
         {onToggleAI && (
           <Tooltip
@@ -200,6 +269,66 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               sx={{ cursor: "pointer" }}
             />
           </Tooltip>
+        )}
+        {/* Assignment Menu */}
+        {onAssignAgent && teamMembers && teamMembers.length > 0 && (
+          <>
+            <Tooltip title="Atribuir conversa">
+              <IconButton
+                onClick={handleMenuClick}
+                sx={{ color: colors.iconColor }}
+              >
+                <PersonAdd />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={anchorEl}
+              open={menuOpen}
+              onClose={handleMenuClose}
+              PaperProps={{
+                sx: {
+                  bgcolor: colors.headerBg,
+                  color: colors.incomingText,
+                  minWidth: 200,
+                },
+              }}
+            >
+              <MenuItem onClick={() => handleAssign(null)}>
+                <AutoMode sx={{ mr: 1, color: "#00a884" }} />
+                Devolver para IA
+              </MenuItem>
+              <Divider />
+              <Typography
+                variant="caption"
+                sx={{ px: 2, py: 1, color: colors.timeText, display: "block" }}
+              >
+                Atribuir a:
+              </Typography>
+              {teamMembers.map((member) => (
+                <MenuItem
+                  key={member.id}
+                  onClick={() => handleAssign(member.id)}
+                  selected={assignedAgent?.id === member.id}
+                >
+                  <Avatar
+                    src={member.picture}
+                    sx={{ width: 24, height: 24, mr: 1, fontSize: 12 }}
+                  >
+                    {member.name.charAt(0)}
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="body2">{member.name}</Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: colors.timeText }}
+                    >
+                      {member.activeConversations} conversas
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Menu>
+          </>
         )}
         <IconButton sx={{ color: colors.iconColor }}>
           <MoreVert />

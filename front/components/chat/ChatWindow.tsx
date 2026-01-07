@@ -59,6 +59,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     string | null
   >(null);
 
+  // Team assignment state
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [assignedAgent, setAssignedAgent] = useState<any>(null);
+
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -130,6 +134,48 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         .finally(() => setProductsLoading(false));
     }
   }, [inventoryOpen, products.length]);
+
+  // Fetch team members for assignment
+  useEffect(() => {
+    api
+      .get("/api/team/members")
+      .then((data) => setTeamMembers(data))
+      .catch((err) => console.error("Failed to fetch team members:", err));
+  }, []);
+
+  // Handle agent assignment
+  const handleAssignAgent = async (agentId: string | null) => {
+    if (!conversationId) return;
+    try {
+      await api.post(`/api/team/conversations/${conversationId}/assign`, {
+        agentId,
+      });
+      if (agentId) {
+        const agent = teamMembers.find((m) => m.id === agentId);
+        setAssignedAgent(agent);
+        setAiEnabled(false);
+        setSnackbar({
+          open: true,
+          message: `Conversa atribuída a ${agent?.name}`,
+          severity: "success",
+        });
+      } else {
+        setAssignedAgent(null);
+        setAiEnabled(true);
+        setSnackbar({
+          open: true,
+          message: "Conversa devolvida para IA",
+          severity: "success",
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Erro ao atribuir conversa",
+        severity: "error",
+      });
+    }
+  };
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -534,6 +580,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onToggleAI={conversationId ? handleToggleAI : undefined}
         isTogglingAI={isTogglingAI}
         isGroup={chatId?.endsWith("@g.us")}
+        assignedAgent={assignedAgent}
+        teamMembers={teamMembers}
+        onAssignAgent={conversationId ? handleAssignAgent : undefined}
         colors={colors}
       />
 

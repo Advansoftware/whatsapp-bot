@@ -1,6 +1,6 @@
-# WhatsApp Bot SaaS
+# RespondIA
 
-Sistema completo de automação para WhatsApp com processamento de mensagens via IA, arquitetura escalável com filas e painel administrativo moderno.
+Sua secretária IA no WhatsApp. Sistema completo de automação para WhatsApp com processamento de mensagens via IA, arquitetura escalável com filas e painel administrativo moderno.
 
 ## 🏗️ Arquitetura
 
@@ -25,14 +25,14 @@ whatsapp-bot/
 
 ### Stack Técnica
 
-| Camada | Tecnologia |
-|--------|------------|
-| Frontend | React 19, Material UI 7, Vite, @react-oauth/google |
-| Backend | NestJS, Prisma, BullMQ, Passport JWT |
-| Banco de Dados | PostgreSQL 15 |
-| Fila/Cache | Redis 7 |
-| WhatsApp | Evolution API v2.1.1 |
-| Autenticação | Google OAuth 2.0 + JWT |
+| Camada         | Tecnologia                                         |
+| -------------- | -------------------------------------------------- |
+| Frontend       | React 19, Material UI 7, Vite, @react-oauth/google |
+| Backend        | NestJS, Prisma, BullMQ, Passport JWT               |
+| Banco de Dados | PostgreSQL 15                                      |
+| Fila/Cache     | Redis 7                                            |
+| WhatsApp       | Evolution API v2.1.1                               |
+| Autenticação   | Google OAuth 2.0 + JWT                             |
 
 ## 🚀 Início Rápido
 
@@ -107,36 +107,36 @@ O sistema usa **Google OAuth** como único método de login:
 ## 📡 Endpoints da API
 
 ### Autenticação
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/auth/google` | Login com Google ID Token |
-| GET | `/auth/me` | Perfil do usuário atual |
-| GET | `/auth/verify` | Verificar validade do JWT |
+| Método | Rota           | Descrição                 |
+| ------ | -------------- | ------------------------- |
+| POST   | `/auth/google` | Login com Google ID Token |
+| GET    | `/auth/me`     | Perfil do usuário atual   |
+| GET    | `/auth/verify` | Verificar validade do JWT |
 
 ### Dashboard
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/dashboard/stats` | Estatísticas gerais |
-| GET | `/api/dashboard/activity` | Atividade dos últimos 7 dias |
+| Método | Rota                      | Descrição                    |
+| ------ | ------------------------- | ---------------------------- |
+| GET    | `/api/dashboard/stats`    | Estatísticas gerais          |
+| GET    | `/api/dashboard/activity` | Atividade dos últimos 7 dias |
 
 ### Conexões WhatsApp
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/connections` | Listar instâncias |
-| POST | `/api/connections` | Criar nova instância |
-| DELETE | `/api/connections/:id` | Excluir instância |
-| POST | `/api/connections/:id/refresh-qr` | Recarregar QR Code |
+| Método | Rota                              | Descrição            |
+| ------ | --------------------------------- | -------------------- |
+| GET    | `/api/connections`                | Listar instâncias    |
+| POST   | `/api/connections`                | Criar nova instância |
+| DELETE | `/api/connections/:id`            | Excluir instância    |
+| POST   | `/api/connections/:id/refresh-qr` | Recarregar QR Code   |
 
 ### Mensagens
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/messages` | Listar mensagens (paginado) |
-| GET | `/api/messages/recent` | Conversas recentes |
+| Método | Rota                   | Descrição                   |
+| ------ | ---------------------- | --------------------------- |
+| GET    | `/api/messages`        | Listar mensagens (paginado) |
+| GET    | `/api/messages/recent` | Conversas recentes          |
 
 ### Webhook
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/webhook/evolution` | Recebe eventos da Evolution API |
+| Método | Rota                 | Descrição                       |
+| ------ | -------------------- | ------------------------------- |
+| POST   | `/webhook/evolution` | Recebe eventos da Evolution API |
 
 ## 🔄 Fluxo de Processamento
 
