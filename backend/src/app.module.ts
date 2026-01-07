@@ -12,6 +12,7 @@ import { AIModule } from './ai/ai.module';
 import { SecretaryTasksModule } from './secretary-tasks/secretary-tasks.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { GroupAutomationsModule } from './group-automations/group-automations.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     SecretaryTasksModule,
     IntegrationsModule,
     NotificationsModule,
+    GroupAutomationsModule,
   ],
 })
 export class AppModule { }

@@ -26,6 +26,7 @@ import CampaignsView from "./components/campaigns/CampaignsView";
 import AnalyticsView from "./components/analytics/AnalyticsView";
 import TasksView from "./components/secretary/TasksView";
 import IntegrationsView from "./components/integrations/IntegrationsView";
+import GroupAutomationsView from "./components/group-automations/GroupAutomationsView";
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID =
@@ -88,6 +89,8 @@ const AppContent: React.FC = () => {
         return <TasksView />;
       case "integrations":
         return <IntegrationsView />;
+      case "group-automations":
+        return <GroupAutomationsView />;
       case "subscription":
         return <PlaceholderView title="Gerenciamento de Assinatura" />;
       default:

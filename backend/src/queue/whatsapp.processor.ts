@@ -12,6 +12,7 @@ import { AICalendarService } from '../ai/ai-calendar.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { GroupAutomationsService } from '../group-automations/group-automations.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -53,6 +54,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly chatbotService: ChatbotService,
     private readonly secretaryTasksService: SecretaryTasksService,
     private readonly notificationsService: NotificationsService,
+    private readonly groupAutomationsService: GroupAutomationsService,
   ) {
     super();
   }
@@ -243,8 +245,55 @@ export class WhatsappProcessor extends WorkerHost {
       });
 
       // 3.1 Se for grupo, buscar e atualizar o nome do grupo
+      let groupName: string | null = null;
       if (isGroup) {
-        await this.fetchAndUpdateGroupName(instanceKey, remoteJid, instance.companyId, instance.id);
+        groupName = await this.fetchAndUpdateGroupName(instanceKey, remoteJid, instance.companyId, instance.id);
+      }
+
+      // 3.2 AUTOMAÇÕES DE GRUPO - Verificar se há automações aplicáveis
+      if (isGroup && participant) {
+        try {
+          const automationResult = await this.groupAutomationsService.processGroupMessage(
+            instance.companyId,
+            remoteJid,
+            groupName,
+            participant,
+            participantName || null,
+            processedContent,
+            messageId,
+            instanceKey,
+          );
+
+          if (automationResult.matched) {
+            this.logger.log(`🤖 Group automation matched: ${automationResult.automation?.name}`);
+
+            // Se tem resposta, enviar no grupo
+            if (automationResult.response) {
+              await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, automationResult.response);
+
+              await this.prisma.message.update({
+                where: { id: message.id },
+                data: {
+                  response: automationResult.response,
+                  status: 'processed',
+                  processedAt: new Date(),
+                },
+              });
+            }
+
+            // Se deve pular IA após a automação
+            if (automationResult.skipAi) {
+              return {
+                status: 'automation_processed',
+                messageId: message.id,
+                automationName: automationResult.automation?.name
+              };
+            }
+          }
+        } catch (automationError) {
+          this.logger.warn(`Group automation error: ${automationError.message}`);
+          // Continuar processamento normal se automação falhar
+        }
       }
 
       // 4. Atualizar ou criar conversa e verificar se IA está habilitada

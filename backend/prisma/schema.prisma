@@ -34,15 +34,16 @@ model Company {
   users     User[]
   instances Instance[]
 
-  messages       Message[]
-  chatFlows      ChatFlow[]
-  products       Product[]
-  contacts       Contact[]
-  aiSecretary    AISecretary?
-  conversations  Conversation[]
-  campaigns      Campaign[]
-  secretaryTasks SecretaryTask[]
-  integrations   ExternalIntegration[]
+  messages         Message[]
+  chatFlows        ChatFlow[]
+  products         Product[]
+  contacts         Contact[]
+  aiSecretary      AISecretary?
+  conversations    Conversation[]
+  campaigns        Campaign[]
+  secretaryTasks   SecretaryTask[]
+  integrations     ExternalIntegration[]
+  groupAutomations GroupAutomation[]
 
   @@map("companies")
 }
@@ -456,4 +457,83 @@ model ExternalIntegration {
 
   @@unique([companyId, provider])
   @@map("external_integrations")
+}
+
+// ================================
+// AUTOMAÇÕES DE GRUPO
+// ================================
+
+// Regras de automação para grupos específicos
+model GroupAutomation {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  // Identificação do grupo
+  groupRemoteJid String? @map("group_remote_jid") // JID específico do grupo (opcional)
+  groupNameMatch String? @map("group_name_match") // Padrão para match no nome do grupo (regex ou exato)
+
+  // Configuração da regra
+  name        String // Nome amigável da automação (ex: "Bolão Mega da Virada")
+  description String? @db.Text // Descrição do que a automação faz
+  isActive    Boolean @default(true) @map("is_active")
+
+  // Padrão para capturar dados (regex)
+  capturePattern String? @map("capture_pattern") @db.Text // Regex para capturar dados da mensagem
+
+  // Tipo de ação
+  actionType String @map("action_type") // 'collect_data' | 'auto_reply' | 'webhook' | 'aggregate' | 'ai_process'
+
+  // Configuração da ação (JSON)
+  actionConfig Json @default("{}") @map("action_config")
+  // Para collect_data: { "dataType": "lottery_numbers", "fields": ["numbers", "participant"] }
+  // Para auto_reply: { "replyTemplate": "Números registrados: {{numbers}}" }
+  // Para webhook: { "url": "https://...", "method": "POST" }
+  // Para aggregate: { "operation": "count" | "sum", "field": "value" }
+  // Para ai_process: { "prompt": "Extrair números do bolão e confirmar" }
+
+  // Validade temporal
+  startsAt  DateTime? @map("starts_at")
+  expiresAt DateTime? @map("expires_at")
+
+  // Prioridade (maior = processado primeiro)
+  priority Int @default(0)
+
+  // Opções de resposta
+  shouldReply   Boolean @default(true) @map("should_reply") // Se deve responder no grupo
+  replyOnlyOnce Boolean @default(false) @map("reply_only_once") // Responder só 1x por participante
+  skipAiAfter   Boolean @default(true) @map("skip_ai_after") // Pular processamento de IA após match
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  collectedData GroupAutomationData[]
+
+  @@index([companyId, isActive])
+  @@index([groupRemoteJid])
+  @@map("group_automations")
+}
+
+// Dados coletados pelas automações
+model GroupAutomationData {
+  id           String @id @default(cuid())
+  automationId String @map("automation_id")
+
+  // Origem
+  groupRemoteJid  String  @map("group_remote_jid")
+  participantJid  String  @map("participant_jid") // Quem enviou
+  participantName String? @map("participant_name")
+  messageId       String? @map("message_id")
+
+  // Dados coletados (JSON flexível)
+  data Json // { "numbers": [1,2,3,4,5,6], "raw": "01 02 03 04 05 06" }
+
+  // Metadados
+  createdAt DateTime @default(now()) @map("created_at")
+
+  automation GroupAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([automationId])
+  @@index([groupRemoteJid, participantJid])
+  @@map("group_automation_data")
 }

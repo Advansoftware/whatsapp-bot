@@ -920,6 +920,48 @@ class ApiClient {
     return this.request<any>(`/api/notifications/${id}`, { method: 'DELETE' });
   }
 
+  // ================================
+  // Group Automations
+  // ================================
+
+  async getGroupAutomations() {
+    return this.request<any[]>('/api/group-automations');
+  }
+
+  async getGroupAutomation(id: string) {
+    return this.request<any>(`/api/group-automations/${id}`);
+  }
+
+  async getGroupAutomationData(id: string) {
+    return this.request<any[]>(`/api/group-automations/${id}/data`);
+  }
+
+  async getAvailableGroups() {
+    return this.request<any[]>('/api/group-automations/groups');
+  }
+
+  async createGroupAutomation(data: any) {
+    return this.request<any>('/api/group-automations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateGroupAutomation(id: string, data: any) {
+    return this.request<any>(`/api/group-automations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteGroupAutomation(id: string) {
+    return this.request<any>(`/api/group-automations/${id}`, { method: 'DELETE' });
+  }
+
+  async toggleGroupAutomation(id: string) {
+    return this.request<any>(`/api/group-automations/${id}/toggle`, { method: 'POST' });
+  }
+
   // Logout
   logout() {
     this.setToken(null);

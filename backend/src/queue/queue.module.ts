@@ -6,6 +6,7 @@ import { AIModule } from '../ai/ai.module';
 import { ChatbotModule } from '../chatbot/chatbot.module';
 import { SecretaryTasksModule } from '../secretary-tasks/secretary-tasks.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { GroupAutomationsModule } from '../group-automations/group-automations.module';
 
 export { WHATSAPP_QUEUE } from './constants';
 
@@ -27,6 +28,7 @@ export { WHATSAPP_QUEUE } from './constants';
     ChatbotModule,
     SecretaryTasksModule,
     NotificationsModule,
+    GroupAutomationsModule,
   ],
   providers: [WhatsappProcessor],
   exports: [BullModule],
