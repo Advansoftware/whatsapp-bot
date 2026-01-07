@@ -34,6 +34,25 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Stripe Subscription fields
+  stripeCustomerId        String?   @unique @map("stripe_customer_id")
+  subscriptionId          String?   @unique @map("subscription_id")
+  subscriptionStatus      String?   @map("subscription_status") // 'active' | 'past_due' | 'canceled' | 'trialing'
+  planId                  String?   @map("plan_id") // 'starter' | 'professional' | 'business' | 'enterprise'
+  billingPeriod           String?   @map("billing_period") // 'monthly' | 'yearly'
+  subscriptionPeriodStart DateTime? @map("subscription_period_start")
+  subscriptionPeriodEnd   DateTime? @map("subscription_period_end")
+  cancelAtPeriodEnd       Boolean   @default(false) @map("cancel_at_period_end")
+
+  // Usage limits based on plan
+  maxInstances        Int @default(1) @map("max_instances")
+  maxMessagesPerMonth Int @default(1000) @map("max_messages_per_month")
+  maxContacts         Int @default(500) @map("max_contacts")
+  maxCampaigns        Int? @map("max_campaigns") // null = unlimited
+  maxTeamMembers      Int @default(1) @map("max_team_members")
+  aiCreditsLimit      Int @default(100) @map("ai_credits_limit")
+  aiCreditsUsed       Int @default(0) @map("ai_credits_used")
+
   users     User[]
   instances Instance[]
 

@@ -13,6 +13,7 @@ import { SecretaryTasksModule } from './secretary-tasks/secretary-tasks.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GroupAutomationsModule } from './group-automations/group-automations.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { HealthController } from './health.controller';
     IntegrationsModule,
     NotificationsModule,
     GroupAutomationsModule,
+    SubscriptionModule,
   ],
   controllers: [HealthController],
 })

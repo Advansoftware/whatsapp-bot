@@ -29,6 +29,7 @@ import TasksView from "./components/secretary/TasksView";
 import IntegrationsView from "./components/integrations/IntegrationsView";
 import GroupAutomationsView from "./components/group-automations/GroupAutomationsView";
 import { TeamView } from "./components/team/TeamView";
+import PricingView from "./components/subscription/PricingView";
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID =
@@ -98,7 +99,7 @@ const AppContent: React.FC = () => {
       case "profile":
         return <ProfileView />;
       case "subscription":
-        return <PlaceholderView title="Gerenciamento de Assinatura" />;
+        return <PricingView />;
       default:
         return <DashboardView onNavigateToChat={handleNavigateToChat} />;
     }

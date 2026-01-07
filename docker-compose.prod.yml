@@ -124,6 +124,13 @@ services:
       - EVOLUTION_API_URL=http://evolution:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - FRONTEND_URL=https://respondia.pro
+      # Stripe
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PRICE_ESSENCIAL_MONTHLY=${STRIPE_PRICE_ESSENCIAL_MONTHLY}
+      - STRIPE_PRICE_ESSENCIAL_YEARLY=${STRIPE_PRICE_ESSENCIAL_YEARLY}
+      - STRIPE_PRICE_PROFISSIONAL_MONTHLY=${STRIPE_PRICE_PROFISSIONAL_MONTHLY}
+      - STRIPE_PRICE_PROFISSIONAL_YEARLY=${STRIPE_PRICE_PROFISSIONAL_YEARLY}
     networks:
       - internal-network
       - proxy-network
@@ -156,6 +163,7 @@ services:
       args:
         - VITE_API_URL=https://api.respondia.pro
         - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+        - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
     image: respondia-frontend:latest
     container_name: respondia-frontend
     restart: always
