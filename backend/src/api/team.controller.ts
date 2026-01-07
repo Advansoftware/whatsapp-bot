@@ -7,13 +7,44 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { User, Conversation, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+
+// Interface para o payload do JWT
+interface JwtPayload {
+  userId: string;
+  companyId: string;
+  email: string;
+}
+
+interface RequestWithUser {
+  user: JwtPayload;
+}
+
+// DTOs
+interface AddMemberDto {
+  email: string;
+  name: string;
+  password: string;
+  role?: 'admin' | 'manager' | 'agent';
+}
+
+interface UpdateMemberDto {
+  name?: string;
+  role?: 'admin' | 'manager' | 'agent';
+  isActive?: boolean;
+  password?: string;
+}
+
+interface AssignConversationDto {
+  agentId: string | null;
+}
 
 @Controller('api/team')
 @UseGuards(JwtAuthGuard)
@@ -22,42 +53,48 @@ export class TeamController {
 
   // Listar todos os membros da equipe
   @Get('members')
-  async getMembers(@Request() req) {
+  async getMembers(@Request() req: RequestWithUser) {
     const members = await this.prisma.user.findMany({
       where: { companyId: req.user.companyId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        picture: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        _count: {
-          select: {
-            assignedConversations: {
-              where: { status: { in: ['active', 'in_progress', 'waiting'] } },
-            },
-          },
-        },
-      },
       orderBy: { createdAt: 'asc' },
     });
 
-    return members.map((m) => ({
-      ...m,
-      activeConversations: m._count.assignedConversations,
-      _count: undefined,
-    }));
+    // Contar conversas ativas para cada membro
+    const membersWithStats = await Promise.all(
+      members.map(async (member: User) => {
+        const activeConversations = await this.prisma.conversation.count({
+          where: {
+            assignedAgentId: member.id,
+            status: { in: ['active', 'in_progress', 'waiting'] },
+          },
+        });
+        return {
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          picture: member.picture,
+          role: member.role,
+          isActive: member.isActive,
+          createdAt: member.createdAt,
+          activeConversations,
+        };
+      }),
+    );
+
+    return membersWithStats;
   }
 
   // Adicionar membro à equipe
   @Post('members')
-  async addMember(@Request() req, @Body() body: any) {
+  async addMember(@Request() req: RequestWithUser, @Body() body: AddMemberDto) {
     // Apenas admin pode adicionar membros
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
+
+    if (!currentUser) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
 
     if (currentUser.role !== 'admin') {
       throw new ForbiddenException('Apenas administradores podem adicionar membros');
@@ -100,10 +137,18 @@ export class TeamController {
 
   // Atualizar membro
   @Put('members/:id')
-  async updateMember(@Request() req, @Param('id') id: string, @Body() body: any) {
+  async updateMember(
+    @Request() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() body: UpdateMemberDto,
+  ) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
+
+    if (!currentUser) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
 
     if (currentUser.role !== 'admin' && currentUser.id !== id) {
       throw new ForbiddenException('Sem permissão para editar este usuário');
@@ -116,9 +161,9 @@ export class TeamController {
 
     const { name, role, isActive, password } = body;
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (role && currentUser.role === 'admin') updateData.role = role;
+    const updateData: Prisma.UserUpdateInput = {};
+    if (name !== undefined) updateData.name = name;
+    if (role !== undefined && currentUser.role === 'admin') updateData.role = role;
     if (typeof isActive === 'boolean' && currentUser.role === 'admin') {
       updateData.isActive = isActive;
     }
@@ -144,10 +189,14 @@ export class TeamController {
 
   // Remover membro
   @Delete('members/:id')
-  async removeMember(@Request() req, @Param('id') id: string) {
+  async removeMember(@Request() req: RequestWithUser, @Param('id') id: string) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
+
+    if (!currentUser) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
 
     if (currentUser.role !== 'admin') {
       throw new ForbiddenException('Apenas administradores podem remover membros');
@@ -176,9 +225,9 @@ export class TeamController {
   // Atribuir conversa a um membro
   @Post('conversations/:conversationId/assign')
   async assignConversation(
-    @Request() req,
+    @Request() req: RequestWithUser,
     @Param('conversationId') conversationId: string,
-    @Body() body: any,
+    @Body() body: AssignConversationDto,
   ) {
     const { agentId } = body; // null para devolver para IA
 
@@ -224,12 +273,16 @@ export class TeamController {
 
   // Listar conversas por atendente
   @Get('conversations')
-  async getTeamConversations(@Request() req) {
+  async getTeamConversations(@Request() req: RequestWithUser) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
 
-    const where: any = {
+    if (!currentUser) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
+
+    const where: Prisma.ConversationWhereInput = {
       companyId: req.user.companyId,
       status: { in: ['active', 'waiting', 'in_progress'] },
     };
@@ -254,10 +307,14 @@ export class TeamController {
 
   // Estatísticas da equipe
   @Get('stats')
-  async getTeamStats(@Request() req) {
+  async getTeamStats(@Request() req: RequestWithUser) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
+
+    if (!currentUser) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
 
     if (currentUser.role === 'agent') {
       throw new ForbiddenException('Sem permissão para ver estatísticas da equipe');
@@ -294,13 +351,15 @@ export class TeamController {
 
     return {
       members: members.map((m) => ({
-        ...m,
+        id: m.id,
+        name: m.name,
+        picture: m.picture,
+        role: m.role,
         totalConversations: m._count.assignedConversations,
-        _count: undefined,
       })),
       conversationStats: conversationStats.reduce(
         (acc, s) => ({ ...acc, [s.status]: s._count }),
-        {},
+        {} as Record<string, number>,
       ),
       aiHandledConversations: aiHandled,
     };

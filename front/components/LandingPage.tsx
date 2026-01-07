@@ -102,7 +102,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                 >
                   Testar Grátis
                 </button>
-                <button className="flex items-center justify-center gap-2 px-8 h-12 rounded-lg bg-surface hover:bg-surface-hover border border-surface-hover text-text-main text-base font-medium transition-all">
+                <button
+                  onClick={() => scrollToSection("demo")}
+                  className="flex items-center justify-center gap-2 px-8 h-12 rounded-lg bg-surface hover:bg-surface-hover border border-surface-hover text-text-main text-base font-medium transition-all"
+                >
                   <span
                     className="material-symbols-outlined text-primary"
                     style={{ fontSize: "20px" }}
@@ -135,7 +138,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             </div>
 
             {/* Hero Visual - Hidden on mobile, shown on lg+ */}
-            <div className="hidden lg:flex relative lg:h-[550px] w-full items-center justify-center lg:justify-end">
+            <div
+              id="demo"
+              className="hidden lg:flex relative lg:h-[550px] w-full items-center justify-center lg:justify-end"
+            >
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px]"></div>
 
               <div className="relative w-full max-w-sm bg-surface rounded-2xl shadow-2xl border border-surface-hover overflow-hidden flex flex-col h-[480px]">
@@ -879,8 +885,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               <p className="text-gray-400 text-base md:text-lg mb-6 max-w-xl">
                 O <strong className="text-violet-400">Gastometria</strong> é o
                 app de gestão financeira pessoal com IA que categoriza seus
-                gastos automaticamente, cria metas, gera relatórios e conecta
-                com seu banco via Open Finance.
+                gastos automaticamente, cria metas e gera relatórios completos.
+                Importe seus extratos bancários de forma simples e segura - por
+                questões de segurança, não solicitamos documentos ou senhas.
                 <span className="text-white font-medium">
                   {" "}
                   Clientes Gastometria integram o controle financeiro ao
@@ -899,7 +906,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                   🤖 IA Categoriza Tudo
                 </span>
                 <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                  🏦 Open Finance
+                  📁 Importa Extratos
                 </span>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -983,7 +990,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                       >
                         check_circle
                       </span>
-                      <span className="text-gray-300">Open Finance</span>
+                      <span className="text-gray-300">Importa extratos</span>
                     </div>
                   </div>
                 </div>
@@ -1344,20 +1351,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               <h3 className="text-white font-semibold mb-4">Produto</h3>
               <ul className="space-y-3">
                 <li>
-                  <a
+                  <button
+                    onClick={() => scrollToSection("features")}
                     className="text-text-secondary hover:text-primary text-sm transition-colors"
-                    href="#"
                   >
                     Funcionalidades
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a
+                  <button
+                    onClick={() => scrollToSection("pricing")}
                     className="text-text-secondary hover:text-primary text-sm transition-colors"
-                    href="#"
                   >
                     Preços
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -1367,18 +1374,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               <ul className="space-y-3">
                 <li>
                   <a
+                    href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20RespondIA."
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-text-secondary hover:text-primary text-sm transition-colors"
-                    href="#"
                   >
-                    Sobre
+                    Contato
                   </a>
                 </li>
                 <li>
                   <a
+                    href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20falar%20com%20vendas."
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-text-secondary hover:text-primary text-sm transition-colors"
-                    href="#"
                   >
-                    Contato
+                    Vendas
                   </a>
                 </li>
               </ul>
