@@ -50,7 +50,7 @@ whatsapp-bot/
 5. Selecione **Web application**
 6. Adicione as origens autorizadas:
    - `http://localhost:5173` (desenvolvimento)
-   - `http://localhost:3000` (backend)
+   - `http://localhost:4000` (backend)
 7. Copie o **Client ID** e **Client Secret**
 
 ### Instalação com Docker (Recomendado)
@@ -69,9 +69,8 @@ docker-compose up -d
 
 # Acesse:
 # Frontend: http://localhost:5173
-# Backend: http://localhost:3000
-# pgAdmin: http://localhost:5050
-# Evolution: http://localhost:8080
+# Backend: http://localhost:4000
+# (pgAdmin e Evolution são internos, sem acesso externo)
 ```
 
 ### Instalação Manual

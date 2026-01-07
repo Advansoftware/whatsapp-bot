@@ -41,7 +41,7 @@ export class GoogleCalendarService {
   ) {
     const clientId = this.config.get('GOOGLE_CLIENT_ID');
     const clientSecret = this.config.get('GOOGLE_CLIENT_SECRET');
-    const redirectUri = this.config.get('GOOGLE_REDIRECT_URI') || 'http://localhost:3000/api/integrations/google-calendar/callback';
+    const redirectUri = this.config.get('GOOGLE_REDIRECT_URI') || 'http://localhost:4000/api/integrations/google-calendar/callback';
 
     this.oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
   }
