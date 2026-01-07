@@ -890,10 +890,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                 questões de segurança, não solicitamos documentos ou senhas.
                 <span className="text-white font-medium">
                   {" "}
-                  Clientes Gastometria integram o controle financeiro ao
-                  WhatsApp{" "}
+                  Clientes Gastometria com{" "}
+                  <span className="text-violet-400 font-bold">plano Infinity</span>{" "}
+                  integram o controle financeiro ao WhatsApp{" "}
                   <span className="text-emerald-400">sem custo adicional!</span>
                 </span>
+              </p>
+              <p className="text-amber-400/80 text-sm mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>info</span>
+                Integração disponível apenas para assinantes do plano Infinity do Gastometria (libera acesso à API).
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
@@ -1150,12 +1155,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
                 🎁 GRÁTIS
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Já usa Gastometria?
+              <div className="absolute top-0 left-0 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg rounded-tl-lg">
+                PLANO INFINITY
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 mt-4">
+                Já usa Gastometria Infinity?
               </h3>
-              <p className="text-text-secondary text-sm mb-6">
+              <p className="text-text-secondary text-sm mb-4">
                 Integre o controle financeiro ao WhatsApp usando seus próprios
                 créditos de IA.
+              </p>
+              <p className="text-amber-400/80 text-xs mb-6 flex items-start gap-2">
+                <span className="material-symbols-outlined" style={{ fontSize: "14px", marginTop: "2px" }}>info</span>
+                <span>Requer plano <strong>Infinity</strong> do Gastometria para acesso à API.</span>
               </p>
               <div className="mb-6">
                 <span className="text-4xl font-bold text-emerald-400">
