@@ -114,6 +114,7 @@ services:
       - /app/node_modules
     networks:
       - saas-network
+      - proxy-network
     depends_on:
       - backend
 
@@ -145,6 +146,7 @@ services:
       - /app/node_modules
     networks:
       - saas-network
+      - proxy-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -159,3 +161,5 @@ volumes:
 networks:
   saas-network:
     driver: bridge
+  proxy-network:
+    external: true
