@@ -30,3 +30,8 @@ dist-ssr
 backend/.env
 front/.env
 front/.env.local
+
+# Database backups (contain sensitive data)
+*.dump
+*.sql
+backup_*
