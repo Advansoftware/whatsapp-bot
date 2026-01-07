@@ -107,6 +107,8 @@ services:
     image: respondia-backend:latest
     container_name: respondia-backend
     restart: always
+    ports:
+      - "4000:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
@@ -157,6 +159,8 @@ services:
     image: respondia-frontend:latest
     container_name: respondia-frontend
     restart: always
+    ports:
+      - "5173:80"
     networks:
       - proxy-network
     depends_on:

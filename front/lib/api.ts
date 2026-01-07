@@ -57,6 +57,32 @@ class ApiClient {
     return response.json();
   }
 
+  // Generic GET method
+  async get<T = any>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  // Generic POST method
+  async post<T = any>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  // Generic PUT method
+  async put<T = any>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  // Generic DELETE method
+  async delete<T = any>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
   // Auth endpoints
   async loginWithGoogle(idToken: string) {
     const response = await this.request<{ accessToken: string; user: any }>('/auth/google', {
@@ -87,6 +113,24 @@ class ApiClient {
 
   async getProfile() {
     return this.request<any>('/auth/me');
+  }
+
+  async updateProfile(data: { name?: string; email?: string; picture?: string }) {
+    return this.request<any>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  async hasPassword() {
+    return this.request<{ hasPassword: boolean }>('/auth/has-password');
   }
 
   async verifyToken() {

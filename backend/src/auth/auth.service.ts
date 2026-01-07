@@ -223,4 +223,65 @@ export class AuthService {
       include: { company: true },
     });
   }
+
+  async updateProfile(userId: string, data: { name?: string; email?: string; picture?: string }) {
+    // Check if email is being changed and if it's already taken
+    if (data.email) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          email: data.email,
+          id: { not: userId },
+        },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email already in use');
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
+        ...(data.picture && { picture: data.picture }),
+      },
+      include: { company: true },
+    });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // If user has no password (Google-only auth), allow setting one
+    if (user.password) {
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async hasPassword(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+    return !!user?.password;
+  }
 }

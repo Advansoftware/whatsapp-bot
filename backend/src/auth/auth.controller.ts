@@ -1,7 +1,7 @@
-import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, UpdateProfileDto, ChangePasswordDto } from './dto/auth.dto';
 
 class GoogleAuthDto {
   idToken: string;
@@ -48,6 +48,38 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req: any) {
     return this.authService.getProfile(req.user.sub);
+  }
+
+  /**
+   * PUT /auth/profile
+   * Update user profile
+   */
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(req.user.sub, dto);
+  }
+
+  /**
+   * POST /auth/change-password
+   * Change user password
+   */
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.sub, dto.currentPassword, dto.newPassword);
+  }
+
+  /**
+   * GET /auth/has-password
+   * Check if user has a password set
+   */
+  @Get('has-password')
+  @UseGuards(JwtAuthGuard)
+  async hasPassword(@Request() req: any) {
+    const hasPassword = await this.authService.hasPassword(req.user.sub);
+    return { hasPassword };
   }
 
   /**
