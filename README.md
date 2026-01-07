@@ -165,6 +165,8 @@ npm run preview  # Testar build
 
 ## 🐳 Docker
 
+### Desenvolvimento
+
 ```bash
 # Iniciar todos os serviços
 docker-compose up -d
@@ -179,6 +181,31 @@ docker-compose restart backend
 # Parar tudo
 docker-compose down
 ```
+
+### Produção (respondia.pro)
+
+```bash
+# Criar rede externa (apenas primeira vez)
+docker network create proxy-network
+
+# Copiar e configurar variáveis de ambiente
+cp .env.prod.example .env.prod
+# Edite .env.prod com senhas fortes!
+
+# Build e deploy
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# Ver logs
+docker-compose -f docker-compose.prod.yml logs -f backend
+docker-compose -f docker-compose.prod.yml logs -f frontend
+
+# Parar produção
+docker-compose -f docker-compose.prod.yml down
+```
+
+**URLs de Produção:**
+- Frontend: https://respondia.pro
+- Backend API: https://api.respondia.pro
 
 ## 📄 Licença
 

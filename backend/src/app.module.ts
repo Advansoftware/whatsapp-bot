@@ -13,6 +13,7 @@ import { SecretaryTasksModule } from './secretary-tasks/secretary-tasks.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GroupAutomationsModule } from './group-automations/group-automations.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -44,5 +45,6 @@ import { GroupAutomationsModule } from './group-automations/group-automations.mo
     NotificationsModule,
     GroupAutomationsModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule { }
