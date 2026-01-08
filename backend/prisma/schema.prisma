@@ -242,12 +242,18 @@ model Message {
   participant     String? @map("participant") // JID do remetente dentro do grupo (ex: 5535999999999@s.whatsapp.net)
   participantName String? @map("participant_name") // Nome do remetente dentro do grupo
 
+  // Relations
+  quotedMessageId String?   @map("quoted_message_id")
+  quotedMessage   Message?  @relation("MessageReplies", fields: [quotedMessageId], references: [id])
+  replies         Message[] @relation("MessageReplies")
+
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([instanceId])
   @@index([remoteJid])
+  @@index([quotedMessageId])
   @@map("messages")
 }
 

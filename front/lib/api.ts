@@ -239,10 +239,10 @@ class ApiClient {
     }>(`/api/messages?${params}`);
   }
 
-  async sendMessage(instanceKey: string, remoteJid: string, content: string) {
+  async sendMessage(instanceKey: string, remoteJid: string, content: string, options?: { quotedMessageId?: string; mediaUrl?: string; mediaType?: string }) {
     return this.request<{ success: boolean; messageId?: string }>(`/api/messages/send`, {
       method: 'POST',
-      body: JSON.stringify({ instanceKey, remoteJid, content }),
+      body: JSON.stringify({ instanceKey, remoteJid, content, options }),
     });
   }
 

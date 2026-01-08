@@ -19,7 +19,10 @@ import {
   Image as ImageIcon,
   Inventory as InventoryIcon,
   Close,
+  EmojiEmotions,
 } from "@mui/icons-material";
+import { StickerPicker } from "./media";
+import { ReplyQuote } from "./message";
 
 interface ChatInputProps {
   newMessage: string;
@@ -28,6 +31,13 @@ interface ChatInputProps {
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onOpenInventory: () => void;
   onPasteImage?: (file: File, caption?: string) => void;
+  onSendSticker?: (url: string) => void;
+  replyingTo?: {
+    id: string;
+    content: string;
+    senderName: string;
+  } | null;
+  onCancelReply?: () => void;
   colors: {
     headerBg: string;
     inputBg: string;
@@ -44,11 +54,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onFileChange,
   onOpenInventory,
   onPasteImage,
+  onSendSticker,
+  replyingTo,
+  onCancelReply,
   colors,
   isDark,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickerAnchorEl, setStickerAnchorEl] = useState<null | HTMLElement>(null);
   const openMenu = Boolean(anchorEl);
 
   // Estado para preview de imagem colada
@@ -62,8 +76,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
     setAnchorEl(event.currentTarget);
   };
 
+  const handleStickerClick = (event: React.MouseEvent<HTMLElement>) => {
+    setStickerAnchorEl(event.currentTarget);
+  };
+
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleStickerClose = () => {
+    setStickerAnchorEl(null);
   };
 
   const handlePhotoSelect = () => {
@@ -114,14 +136,50 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <>
+    <Box
+      display="flex"
+      flexDirection="column"
+      bgcolor={colors.headerBg}
+    >
+      {/* Area de Reply */}
+      {replyingTo && (
+        <Box
+          sx={{
+            p: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            bgcolor: "rgba(0,0,0,0.05)",
+            borderLeft: "4px solid #00a884",
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" sx={{ color: "#00a884", fontWeight: 600 }}>
+              Respondendo a {replyingTo.senderName}
+            </Typography>
+            <Typography variant="body2" noWrap sx={{ color: "text.secondary" }}>
+              {replyingTo.content}
+            </Typography>
+          </Box>
+          <IconButton onClick={onCancelReply} size="small">
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
+
       <Box
         p={1.5}
-        bgcolor={colors.headerBg}
         display="flex"
         alignItems="center"
         gap={1}
       >
+        <IconButton
+          onClick={handleStickerClick}
+          sx={{ color: colors.iconColor }}
+        >
+          <EmojiEmotions />
+        </IconButton>
+
         <IconButton
           onClick={handleAttachClick}
           sx={{ color: colors.iconColor }}
@@ -155,6 +213,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <ListItemText>Produtos (Inventário)</ListItemText>
           </MenuItem>
         </Menu>
+
+        <StickerPicker
+          anchorEl={stickerAnchorEl}
+          onClose={handleStickerClose}
+          onSelectSticker={(url) => {
+            onSendSticker?.(url);
+            handleStickerClose();
+          }}
+        />
 
         <input
           type="file"
@@ -283,7 +350,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </IconButton>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 };
 

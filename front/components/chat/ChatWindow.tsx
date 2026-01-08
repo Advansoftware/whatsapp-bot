@@ -20,9 +20,11 @@ import api from "../../lib/api";
 // Sub-components
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
-import MessageBubble from "./MessageBubble";
+import MessageBubble from "./message/MessageBubble";
 import InventoryModal from "./InventoryModal";
-import ScrollToBottomButton from "./ScrollToBottomButton";
+import ScrollToBottomButton from "./common/ScrollToBottom";
+import ContactDetailsPanel from "./ContactDetailsPanel";
+import ContextMenu from "./common/ContextMenu";
 
 interface ChatWindowProps {
   chatId: string;
@@ -73,6 +75,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+
+  // New features state
+  const [showContactDetails, setShowContactDetails] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{
+    id: string;
+    content: string;
+    senderName: string;
+  } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    mouseX: number;
+    mouseY: number;
+    message: any;
+  } | null>(null);
 
   const {
     data: messagesData,
@@ -310,6 +325,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             pushName: data.pushName,
             mediaUrl: data.mediaUrl,
             mediaType: data.mediaType,
+            quotedMessage: data.quotedMessage,
           };
           addMessage(newMsg);
         } else {
@@ -400,9 +416,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         pushName: null,
         mediaUrl: null,
         mediaType: null,
+        quotedMessage: replyingTo ? {
+          id: replyingTo.id,
+          content: replyingTo.content,
+          senderName: replyingTo.senderName
+        } : null
       };
 
       addMessage(optimisticMessage);
+      
+      // Clear reply state immediately
+      const currentAddressReply = replyingTo;
+      setReplyingTo(null);
 
       setTimeout(() => {
         if (messagesEndRef.current) {
@@ -411,7 +436,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }, 50);
 
       try {
-        const result = await api.sendMessage(instanceKey, chatId, textToSend);
+        const result = await api.sendMessage(instanceKey, chatId, textToSend, {
+          quotedMessageId: currentAddressReply?.id
+        });
         if (result?.messageId) {
           replaceMessageId(tempId, result.messageId, "sent");
         } else {
@@ -557,19 +584,109 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     [refetch]
   );
 
+  // Handle context menu
+  const handleContextMenu = useCallback((event: React.MouseEvent, message: any) => {
+    event.preventDefault();
+    setContextMenu({
+      mouseX: event.clientX - 2,
+      mouseY: event.clientY - 4,
+      message,
+    });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Handle reply
+  const handleReply = useCallback(() => {
+    if (contextMenu?.message) {
+      setReplyingTo({
+        id: contextMenu.message.id,
+        content: contextMenu.message.content || '[Mídia]',
+        senderName: contextMenu.message.pushName || (contextMenu.message.direction === 'outgoing' ? 'Você' : contactName),
+      });
+      handleCloseContextMenu();
+    }
+  }, [contextMenu, contactName]);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
+
+  // Handle send sticker
+  const handleSendSticker = useCallback(async (stickerUrl: string) => {
+    // Stickers are sent as media with type 'sticker'
+    // For now, we simulate sending by treating it as an image URL
+    // In a real implementation, you would upload the sticker or send its ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      id: tempId,
+      remoteJid: chatId,
+      content: '[Sticker]',
+      direction: 'outgoing',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      mediaUrl: stickerUrl,
+      mediaType: 'sticker',
+      pushName: 'Você',
+    };
+
+    addMessage(optimisticMessage);
+    scrollToBottomSmooth();
+
+    try {
+      // Use existing sendMedia or specialized endpoint
+      // Assuming api.sendMedia can handle URL or we need a new method
+      await api.sendMessage(instanceKey, chatId, '', {
+        mediaUrl: stickerUrl,
+        mediaType: 'sticker'
+      });
+      // Mock success for now
+      updateMessageStatus(tempId, 'sent');
+    } catch (err) {
+      console.error('Error sending sticker:', err);
+      updateMessageStatus(tempId, 'error');
+    }
+  }, [chatId, instanceKey, addMessage, scrollToBottomSmooth, updateMessageStatus]);
+
+  // Handle scroll to message (for reply click)
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    // Simple implementation - in a virtualized list this is complex
+    // Here we just try to find the element
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Flash effect
+      element.style.backgroundColor = 'rgba(0, 168, 132, 0.1)';
+      setTimeout(() => {
+        element.style.backgroundColor = 'transparent';
+      }, 1000);
+    } else {
+      setSnackbar({
+        open: true,
+        message: 'Mensagem antiga não carregada',
+        severity: 'success', // Info/warning actually
+      });
+    }
+  }, []);
+
   return (
-    <Box
-      display="flex"
-      flexDirection="column"
-      height="100%"
-      sx={{
-        bgcolor: colors.bg,
-        backgroundImage: colors.bgImage,
-        backgroundRepeat: "repeat",
-        backgroundSize: "400px",
-        position: "relative",
-      }}
-    >
+    <Box display="flex" width="100%" height="100%">
+      <Box
+        flex={1}
+        display="flex"
+        flexDirection="column"
+        height="100%"
+        sx={{
+          bgcolor: colors.bg,
+          backgroundImage: colors.bgImage,
+          backgroundRepeat: "repeat",
+          backgroundSize: "400px",
+          position: "relative",
+          borderRight: showContactDetails ? `1px solid ${colors.divider}` : 'none',
+        }}
+      >
       {/* Header */}
       <ChatHeader
         contactName={contactName}
@@ -584,6 +701,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         teamMembers={teamMembers}
         onAssignAgent={conversationId ? handleAssignAgent : undefined}
         colors={colors}
+        onClick={() => setShowContactDetails(!showContactDetails)}
       />
 
       {/* Messages Area */}
@@ -641,36 +759,66 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
 
             {/* Messages */}
-            {sortedMessages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                colors={colors}
-                getMediaSrc={getMediaSrc}
-                onTranscribe={handleTranscribeAudio}
-                isTranscribing={transcribingMessageId === msg.id}
-                isGroupChat={chatId?.endsWith("@g.us")}
-              />
-            ))}
-          </>
+            {sortedMessages.map((msg, index) => (
+          <Box 
+            key={msg.id || index} 
+            id={`message-${msg.id}`}
+            onContextMenu={(e) => handleContextMenu(e, msg)}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100%',
+            }}
+          >
+            <MessageBubble
+              message={msg}
+              colors={colors}
+              getMediaSrc={getMediaSrc}
+              onTranscribe={handleTranscribeAudio}
+              isTranscribing={transcribingMessageId === msg.id}
+              isGroupChat={chatId?.endsWith("@g.us")}
+              onReply={() => {
+                setReplyingTo({
+                  id: msg.id,
+                  content: msg.content || '[Mídia]',
+                  senderName: msg.pushName || (msg.direction === 'outgoing' ? 'Você' : contactName),
+                });
+              }}
+              onScrollToMessage={handleScrollToMessage}
+            />
+          </Box>
+        ))}
+        {uploadingMedia && (
+          <Box display="flex" justifyContent="flex-end" mb={1}>
+            <CircularProgress size={20} />
+          </Box>
         )}
         <div ref={messagesEndRef} />
+          </>
+        )}
       </Box>
 
       {/* Scroll to bottom button */}
       <ScrollToBottomButton
         visible={showScrollButton}
-        onClick={scrollToBottomForce}
+        onClick={() => scrollToBottomSmooth(true)}
       />
 
       {/* Input Area */}
       <ChatInput
         newMessage={newMessage}
         setNewMessage={setNewMessage}
-        onSendMessage={handleSendMessage}
+        onSendMessage={(content) => {
+          // Add quotes support here if api supports it
+          handleSendMessage(content);
+          setReplyingTo(null);
+        }}
         onFileChange={handleFileChange}
         onOpenInventory={openInventory}
         onPasteImage={handlePasteImage}
+        onSendSticker={handleSendSticker}
+        replyingTo={replyingTo}
+        onCancelReply={handleCancelReply}
         colors={colors}
         isDark={isDark}
       />
@@ -681,7 +829,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onClose={closeInventory}
         products={products}
         loading={productsLoading}
-        onSelectProduct={handleSendProduct}
+        onSendProduct={handleSendProduct}
         colors={colors}
         isDark={isDark}
       />
@@ -725,6 +873,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </Typography>
           </Box>
         </Box>
+      )}
+      </Box>
+
+      {/* Context Menu */}
+      <ContextMenu
+        anchorEl={null}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+        onClose={handleCloseContextMenu}
+        onReply={handleReply}
+        onCopy={() => {
+          navigator.clipboard.writeText(contextMenu?.message?.content || '');
+          handleCloseContextMenu();
+        }}
+        onDelete={contextMenu?.message?.direction === 'outgoing' ? () => {
+          // Implement delete if API supports it
+          handleCloseContextMenu();
+        } : undefined}
+        isOwnMessage={contextMenu?.message?.direction === 'outgoing'}
+      />
+
+      {/* Contact Details Panel Sidebar */}
+      {showContactDetails && (
+        <ContactDetailsPanel
+          remoteJid={chatId}
+          contactName={contactName}
+          profilePicUrl={profilePicUrl}
+          onClose={() => setShowContactDetails(false)}
+        />
       )}
     </Box>
   );

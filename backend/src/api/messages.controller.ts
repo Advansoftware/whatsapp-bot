@@ -48,6 +48,14 @@ export class MessagesController {
           instance: {
             select: { name: true },
           },
+          quotedMessage: {
+            select: {
+              id: true,
+              content: true,
+              pushName: true,
+              direction: true,
+            }
+          },
         },
       }),
       this.prisma.message.count({ where }),
@@ -75,6 +83,12 @@ export class MessagesController {
         isGroup: msg.isGroup || false,
         participant: msg.participant || null,
         participantName: msg.participantName || null,
+        // Mensagem respondida
+        quotedMessage: msg.quotedMessage ? {
+          id: msg.quotedMessage.id,
+          content: msg.quotedMessage.content,
+          senderName: msg.quotedMessage.pushName || (msg.quotedMessage.direction === 'outgoing' ? 'Você' : null),
+        } : null,
       })),
       pagination: {
         page: pageNum,
@@ -141,12 +155,13 @@ export class MessagesController {
   }
 
   @Post('send')
-  async sendMessage(@Request() req: any, @Body() body: { instanceKey: string, remoteJid: string, content: string }) {
-    const companyId = req.user.companyId;
-    const { instanceKey, remoteJid, content } = body;
+  async sendMessage(
+    @Body() body: { instanceKey: string; remoteJid: string; content: string; options?: { quotedMessageId?: string; mediaUrl?: string; mediaType?: string } }
+  ) {
+    const { instanceKey, remoteJid, content, options } = body;
 
     const instance = await this.prisma.instance.findFirst({
-      where: { instanceKey, companyId },
+      where: { instanceKey },
     });
 
     if (!instance) {
@@ -157,21 +172,54 @@ export class MessagesController {
     const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
     try {
-      const response = await axios.post(
-        `${evolutionUrl}/message/sendText/${instanceKey}`,
-        {
-          number: remoteJid.replace(/\D/g, ''), // Evolution usually expects number or jid. If number, it formats.
+      let response;
+
+      // Determine if sending media (sticker) or text
+      if (options?.mediaUrl && options?.mediaType === 'sticker') {
+        response = await axios.post(
+          `${evolutionUrl}/message/sendSticker/${instanceKey}`,
+          {
+            number: remoteJid.replace(/\D/g, ''),
+            sticker: options.mediaUrl,
+          },
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+      } else {
+        // Prepare text payload
+        const payload: any = {
+          number: remoteJid.replace(/\D/g, ''),
           text: content,
           delay: 1200,
           linkPreview: true
-        },
-        { headers: { 'apikey': evolutionApiKey } }
-      );
+        };
+
+        // Add quote if replying
+        if (options?.quotedMessageId) {
+          // Fetch the original message to get its WhatsApp ID
+          const quotedMsg = await this.prisma.message.findUnique({
+            where: { id: options.quotedMessageId },
+            select: { messageId: true }
+          });
+
+          if (quotedMsg?.messageId) {
+            payload.quoted = {
+              key: {
+                id: quotedMsg.messageId,
+              }
+            };
+          }
+        }
+
+        response = await axios.post(
+          `${evolutionUrl}/message/sendText/${instanceKey}`,
+          payload,
+          { headers: { 'apikey': evolutionApiKey } }
+        );
+      }
 
       const messageId = response.data?.key?.id;
 
-      // Save message immediately to DB so it persists when switching chats
-      // The webhook may update it later with more info, but it will already exist
+      // Save message immediately
       if (messageId) {
         try {
           const savedMsg = await this.prisma.message.upsert({
@@ -184,34 +232,57 @@ export class MessagesController {
               status: 'sent',
               companyId: instance.companyId,
               instanceId: instance.id,
+              mediaUrl: options?.mediaUrl,
+              mediaType: options?.mediaType,
+              quotedMessageId: options?.quotedMessageId,
             },
             update: {
-              // If webhook already created it, just update status
               status: 'sent',
+              mediaUrl: options?.mediaUrl,
+              mediaType: options?.mediaType,
             },
           });
 
-          // Emit WebSocket event to update sidebar in real-time
+          // Fetch quoted message details for broadcast if needed
+          let quotedMessageData = null;
+          if (options?.quotedMessageId) {
+            const qm = await this.prisma.message.findUnique({
+              where: { id: options.quotedMessageId }
+            });
+            if (qm) {
+              quotedMessageData = {
+                id: qm.id,
+                content: qm.content,
+                senderName: qm.pushName || (qm.direction === 'outgoing' ? 'Você' : null)
+              };
+            }
+          }
+
+          // Emit WebSocket event
           this.chatGateway.broadcastMessage({
             id: savedMsg.id,
             remoteJid,
             content,
             direction: 'outgoing',
             status: 'sent',
-            createdAt: savedMsg.createdAt.toISOString(),
-            instanceKey,
-            companyId: instance.companyId,
+            mediaUrl: options?.mediaUrl,
+            mediaType: options?.mediaType,
+            quotedMessageId: options?.quotedMessageId,
+            quotedMessage: quotedMessageData,
+            createdAt: savedMsg.createdAt,
           });
         } catch (dbError) {
-          // Log but don't fail - the webhook will handle it
-          console.warn('Could not save message to DB:', dbError.message);
+          console.error('Error saving sent message to DB:', dbError);
         }
       }
 
       return { success: true, messageId };
-    } catch (error) {
-      console.error('Error sending message:', error.message);
-      throw new HttpException('Failed to send message', HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+      console.error('Error sending message:', error.response?.data || error.message);
+      throw new HttpException(
+        error.response?.data || 'Failed to send message',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
