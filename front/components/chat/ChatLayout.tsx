@@ -187,7 +187,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   const displayList = searchResults || conversations;
 
   return (
-    <Box display="flex" height="calc(100vh - 100px)" gap={2}>
+    <Box display="flex" height="calc(100vh - 145px)" gap={2}>
       {/* Sidebar List */}
       <Paper
         elevation={0}

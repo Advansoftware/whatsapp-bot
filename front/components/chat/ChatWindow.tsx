@@ -160,7 +160,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Handle agent assignment
   const handleAssignAgent = async (agentId: string | null) => {
-    if (!conversationId) return;
+    let targetId = conversationId;
+    if (!targetId) {
+       try {
+          const result = await api.getConversationByJid(chatId);
+          if (result && result.id) {
+            setConversationId(result.id);
+            targetId = result.id;
+          }
+       } catch (err) {
+         console.error("Failed to fetch conversation for assignment:", err);
+       }
+    }
+
+    if (!targetId) {
+       setSnackbar({
+          open: true,
+          message: "Erro: Conversa não sincronizada. Tente recarregar.",
+          severity: "warning"
+       });
+       return;
+    }
     try {
       await api.post(`/api/team/conversations/${conversationId}/assign`, {
         agentId,
@@ -277,7 +297,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Toggle AI for this conversation
   const handleToggleAI = useCallback(async () => {
-    if (!conversationId) return;
+    let targetId = conversationId;
+    if (!targetId) {
+        try {
+            const result = await api.getConversationByJid(chatId);
+            if (result && result.id) {
+                setConversationId(result.id);
+                targetId = result.id;
+            }
+        } catch (err) {
+            console.error("Failed to fetch conversation for AI toggle:", err);
+        }
+    }
+
+    if (!targetId) {
+        setSnackbar({
+            open: true,
+            message: "Erro: Conversa não sincronizada. Tente recarregar page.",
+            severity: "warning"
+        });
+        return;
+    }
 
     setIsTogglingAI(true);
     try {
@@ -731,12 +771,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         presenceText={presenceText}
         isSyncing={isSyncing}
         aiEnabled={aiEnabled}
-        onToggleAI={conversationId ? handleToggleAI : undefined}
+        onToggleAI={handleToggleAI}
         isTogglingAI={isTogglingAI}
         isGroup={chatId?.endsWith("@g.us")}
         assignedAgent={assignedAgent}
         teamMembers={teamMembers}
-        onAssignAgent={conversationId ? handleAssignAgent : undefined}
+        onAssignAgent={handleAssignAgent}
         colors={colors}
         onClick={() => setShowContactDetails(!showContactDetails)}
       />
