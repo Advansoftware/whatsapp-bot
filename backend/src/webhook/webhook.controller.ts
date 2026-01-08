@@ -87,6 +87,19 @@ export class WebhookController {
       const data = payload.data!;
       const fromMe = data.key.fromMe || false;
       const remoteJid = data.key.remoteJid;
+      const messageId = data.key.id;
+
+      // IMPORTANT: Skip processing if this is an outgoing message that already exists
+      // This prevents loop when AI responses are captured by webhook
+      if (fromMe) {
+        const existingMsg = await this.prisma.message.findFirst({
+          where: { messageId, direction: 'outgoing' }
+        });
+        if (existingMsg) {
+          this.logger.log(`Skipping message ${messageId} - already exists as outgoing (AI response)`);
+          return { status: 'skipped', reason: 'already_processed_outgoing' };
+        }
+      }
 
       // Detectar se é mensagem de grupo
       const isGroup = remoteJid?.endsWith('@g.us') || false;
@@ -124,7 +137,7 @@ export class WebhookController {
       const jobData = {
         instanceKey: payload.instance,
         remoteJid: remoteJid,
-        messageId: data.key.id,
+        messageId: messageId,
         content: messageData.content,
         mediaUrl: messageData.mediaUrl,
         mediaType: messageData.mediaType,
@@ -144,7 +157,7 @@ export class WebhookController {
 
       // Add to queue immediately
       const job = await this.whatsappQueue.add('process-message', jobData, {
-        jobId: data.key.id,
+        jobId: messageId,
       });
 
       this.logger.log(`Job ${job.id} added to queue from ${remoteJid}${isGroup ? ' (GROUP)' : ''} (fromMe: ${fromMe})`);

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { AITranscriptionService } from '../ai/ai-transcription.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import * as FormData from 'form-data';
 
 @Controller('api/messages')
@@ -13,6 +14,7 @@ export class MessagesController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiTranscriptionService: AITranscriptionService,
+    private readonly chatGateway: ChatGateway,
   ) { }
 
   @Get()
@@ -172,7 +174,7 @@ export class MessagesController {
       // The webhook may update it later with more info, but it will already exist
       if (messageId) {
         try {
-          await this.prisma.message.upsert({
+          const savedMsg = await this.prisma.message.upsert({
             where: { messageId },
             create: {
               messageId,
@@ -187,6 +189,18 @@ export class MessagesController {
               // If webhook already created it, just update status
               status: 'sent',
             },
+          });
+
+          // Emit WebSocket event to update sidebar in real-time
+          this.chatGateway.broadcastMessage({
+            id: savedMsg.id,
+            remoteJid,
+            content,
+            direction: 'outgoing',
+            status: 'sent',
+            createdAt: savedMsg.createdAt.toISOString(),
+            instanceKey,
+            companyId: instance.companyId,
           });
         } catch (dbError) {
           // Log but don't fail - the webhook will handle it
@@ -280,16 +294,21 @@ export class MessagesController {
     const total = Number(totalResult[0].count);
 
     // Get unique contacts with their last message usando subquery otimizada
+    // Usando subquery para ordenar por createdAt DESC após o DISTINCT ON
     const conversations = await this.prisma.$queryRaw<any[]>`
-      SELECT DISTINCT ON (m.remote_jid) 
-        m.id, m.remote_jid as "remoteJid", m.content, m.direction, 
-        m.push_name as "pushName", m.created_at as "createdAt",
-        m.instance_id as "instanceId", m.is_group as "isGroup",
-        i.name as "instanceName", i.instance_key as "instanceKey"
-      FROM messages m
-      LEFT JOIN instances i ON m.instance_id = i.id
-      WHERE m.company_id = ${companyId}
-      ORDER BY m.remote_jid, m.created_at DESC
+      SELECT * FROM (
+        SELECT DISTINCT ON (m.remote_jid) 
+          m.id, m.remote_jid as "remoteJid", m.content, m.direction, 
+          m.push_name as "pushName", m.created_at as "createdAt",
+          m.instance_id as "instanceId", m.is_group as "isGroup",
+          m.status as "status",
+          i.name as "instanceName", i.instance_key as "instanceKey"
+        FROM messages m
+        LEFT JOIN instances i ON m.instance_id = i.id
+        WHERE m.company_id = ${companyId}
+        ORDER BY m.remote_jid, m.created_at DESC
+      ) sub
+      ORDER BY sub."createdAt" DESC
       LIMIT ${limitNum} OFFSET ${skip}
     `;
 
@@ -323,11 +342,14 @@ export class MessagesController {
         const isGroup = msg.remoteJid.endsWith('@g.us') || contact?.isGroup || false;
 
         // Para grupos, usar o nome do grupo; para contatos, usar pushName
+        // Ignorar pushName se for "Você" (próprio usuário salvo nos contatos)
         let displayName: string;
         if (isGroup) {
           displayName = contact?.groupName || 'Grupo';
         } else {
-          displayName = contact?.pushName || msg.pushName || this.formatPhoneNumber(msg.remoteJid);
+          const contactName = contact?.pushName && contact.pushName !== 'Você' ? contact.pushName : null;
+          const msgName = msg.pushName && msg.pushName !== 'Você' ? msg.pushName : null;
+          displayName = contactName || msgName || this.formatPhoneNumber(msg.remoteJid);
         }
 
         return {

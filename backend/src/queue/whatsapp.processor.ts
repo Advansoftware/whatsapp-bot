@@ -159,6 +159,18 @@ export class WhatsappProcessor extends WorkerHost {
       // Requer que "Secretária Pessoal" (testMode) esteja ativado
       const isOwnerSelfChat = fromMe && isPhoneMatch(senderNumber, ownerPhone) && aiConfig?.enabled === true && aiConfig?.testMode === true;
 
+      // IMPORTANTE: Verificar se esta mensagem já foi processada como outgoing
+      // Isso previne loop infinito quando respostas da IA são captadas pelo webhook
+      if (isOwnerSelfChat) {
+        const existingMsg = await this.prisma.message.findFirst({
+          where: { messageId, direction: 'outgoing' }
+        });
+        if (existingMsg) {
+          this.logger.log(`Skipping message ${messageId} - already exists as outgoing (AI response)`);
+          return { status: 'skipped_already_processed' };
+        }
+      }
+
       // Mensagens fromMe (enviadas por você) NUNCA devem ser respondidas pela IA
       // EXCETO: quando é o dono mandando para si mesmo (self-chat como secretária pessoal)
       if (fromMe && !isOwnerSelfChat) {

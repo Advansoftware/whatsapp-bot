@@ -99,10 +99,13 @@ export class AICalendarService {
       /\btem\s+algo\s+(na\s+)?(minha\s+)?agenda\s*(de\s+)?hoje\b/,
       /\bcompromissos?\s*(de\s+)?hoje\b/,
       /\breunião\s*(de\s+)?hoje\b/,
-      /\beverificar?\s*(minha\s+)?agenda\b/,
-      /\bver\s*(minha\s+)?agenda\b/,
-      /\bcomo\s+(tá|está)\s+(minha\s+)?agenda\b/,
+      /\b(ver|verificar?|checar?|consultar?)\s*(a\s+)?(minha\s+)?agenda\b/,
+      /\bcomo\s+(tá|está)\s+(a\s+)?(minha\s+)?agenda\b/,
       /\bquais?\s+(são\s+)?(os\s+)?(meus\s+)?compromissos\b/,
+      /\bminha\s+agenda\b/,              // "minha agenda" genérico = hoje
+      /\bagenda\s+do\s+dia\b/,           // "agenda do dia" = hoje
+      /\bo\s+que\s+tenho\s+(pra|para)\s+fazer\b/, // "o que tenho pra fazer"
+      /\bmeus\s+eventos\b/,              // "meus eventos"
     ];
 
     for (const pattern of todayListPatterns) {

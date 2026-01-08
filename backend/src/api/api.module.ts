@@ -8,9 +8,10 @@ import { CampaignsController } from './campaigns.controller';
 import { TeamController } from './team.controller';
 import { AuthModule } from '../auth/auth.module';
 import { AIModule } from '../ai/ai.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [AuthModule, AIModule],
+  imports: [AuthModule, AIModule, ChatModule],
   controllers: [DashboardController, ConnectionsController, MessagesController, ProductsController, ContactsController, CampaignsController, TeamController],
 })
 export class ApiModule { }
