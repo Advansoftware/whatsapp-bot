@@ -47,6 +47,7 @@ import {
 } from "@mui/icons-material";
 import api from "../../lib/api";
 import ContactDetailsModal from "../ContactDetailsModal";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 interface Contact {
   id: string;
@@ -103,6 +104,9 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState({ title: "", content: "" });
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -206,16 +210,22 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
     }
   };
 
-  const handleDeleteContact = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir este contato?")) return;
-
-    try {
-      await api.deleteCRMContact(id);
-      setSuccess("Contato excluído com sucesso!");
-      loadContacts();
-    } catch (err) {
-      setError("Erro ao excluir contato");
-    }
+  const handleDeleteContact = (id: string) => {
+    setConfirmMessage({
+      title: "Excluir Contato",
+      content: "Tem certeza que deseja excluir este contato? Esta ação não pode ser desfeita."
+    });
+    setConfirmAction(() => async () => {
+      try {
+        await api.deleteCRMContact(id);
+        setSuccess("Contato excluído com sucesso!");
+        loadContacts();
+      } catch (err) {
+        setError("Erro ao excluir contato");
+      }
+      setConfirmOpen(false);
+    });
+    setConfirmOpen(true);
   };
 
   const addTag = () => {
@@ -832,6 +842,15 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
         contactId={detailsContactId || ""}
         isOpen={!!detailsContactId}
         onClose={() => setDetailsContactId(null)}
+      />
+      <ConfirmDialog
+        open={confirmOpen}
+        title={confirmMessage.title}
+        content={confirmMessage.content}
+        onConfirm={confirmAction || (() => {})}
+        onCancel={() => setConfirmOpen(false)}
+        confirmColor="error"
+        confirmText="Excluir"
       />
     </Box>
   );

@@ -9,8 +9,9 @@ import {
   UseGuards,
   BadRequestException,
   ForbiddenException,
+  Req,
 } from '@nestjs/common';
-import { Request } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Conversation, Prisma } from '@prisma/client';
@@ -23,28 +24,30 @@ interface JwtPayload {
   email: string;
 }
 
-interface RequestWithUser {
+interface RequestWithUser extends Request {
   user: JwtPayload;
 }
 
-// DTOs
-interface AddMemberDto {
+// DTOs para validação
+class AddMemberDto {
   email: string;
   name: string;
   password: string;
-  role?: 'admin' | 'manager' | 'agent';
+  role?: string;
 }
 
-interface UpdateMemberDto {
+class UpdateMemberDto {
   name?: string;
-  role?: 'admin' | 'manager' | 'agent';
+  role?: string;
   isActive?: boolean;
   password?: string;
 }
 
-interface AssignConversationDto {
-  agentId: string | null;
+class AssignConversationDto {
+  agentId?: string | null;
 }
+
+// @Controller('api/team') logic...
 
 @Controller('api/team')
 @UseGuards(JwtAuthGuard)
@@ -53,7 +56,7 @@ export class TeamController {
 
   // Listar todos os membros da equipe
   @Get('members')
-  async getMembers(@Request() req: RequestWithUser) {
+  async getMembers(@Req() req: RequestWithUser) {
     const members = await this.prisma.user.findMany({
       where: { companyId: req.user.companyId },
       orderBy: { createdAt: 'asc' },
@@ -86,7 +89,7 @@ export class TeamController {
 
   // Adicionar membro à equipe
   @Post('members')
-  async addMember(@Request() req: RequestWithUser, @Body() body: AddMemberDto) {
+  async addMember(@Req() req: RequestWithUser, @Body() body: AddMemberDto) {
     // Apenas admin pode adicionar membros
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
@@ -138,7 +141,7 @@ export class TeamController {
   // Atualizar membro
   @Put('members/:id')
   async updateMember(
-    @Request() req: RequestWithUser,
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
     @Body() body: UpdateMemberDto,
   ) {
@@ -189,7 +192,7 @@ export class TeamController {
 
   // Remover membro
   @Delete('members/:id')
-  async removeMember(@Request() req: RequestWithUser, @Param('id') id: string) {
+  async removeMember(@Req() req: RequestWithUser, @Param('id') id: string) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
@@ -225,7 +228,7 @@ export class TeamController {
   // Atribuir conversa a um membro
   @Post('conversations/:conversationId/assign')
   async assignConversation(
-    @Request() req: RequestWithUser,
+    @Req() req: RequestWithUser,
     @Param('conversationId') conversationId: string,
     @Body() body: AssignConversationDto,
   ) {
@@ -273,7 +276,7 @@ export class TeamController {
 
   // Listar conversas por atendente
   @Get('conversations')
-  async getTeamConversations(@Request() req: RequestWithUser) {
+  async getTeamConversations(@Req() req: RequestWithUser) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });
@@ -307,7 +310,7 @@ export class TeamController {
 
   // Estatísticas da equipe
   @Get('stats')
-  async getTeamStats(@Request() req: RequestWithUser) {
+  async getTeamStats(@Req() req: RequestWithUser) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
     });

@@ -4,7 +4,6 @@ import {
   Typography,
   IconButton,
   Avatar,
-  Divider,
   List,
   ListItem,
   ListItemIcon,
@@ -15,12 +14,13 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   Close,
   Email,
   LocationOn,
-  Business,
   Notes,
   Label,
   ExpandMore,
@@ -76,21 +76,21 @@ interface ContactDetails {
   };
 }
 
-const memoryTypeConfig: Record<string, { label: string; icon: any; color: string }> = {
-  fact: { label: "Fatos", icon: CheckCircle, color: "#60a5fa" }, // blue-400
-  preference: { label: "Preferências", icon: Star, color: "#facc15" }, // yellow-400
-  need: { label: "Necessidades", icon: Warning, color: "#f87171" }, // red-400
-  objection: { label: "Objeções", icon: Block, color: "#fb923c" }, // orange-400
-  interest: { label: "Interesses", icon: TrendingUp, color: "#4ade80" }, // green-400
-  context: { label: "Contexto", icon: ChatBubble, color: "#a78bfa" }, // purple-400
+const memoryTypeConfig: Record<string, { label: string; icon: any; color: "info" | "warning" | "error" | "success" | "secondary" | "primary" }> = {
+  fact: { label: "Fatos", icon: CheckCircle, color: "info" },
+  preference: { label: "Preferências", icon: Star, color: "warning" },
+  need: { label: "Necessidades", icon: Warning, color: "error" },
+  objection: { label: "Objeções", icon: Block, color: "warning" },
+  interest: { label: "Interesses", icon: TrendingUp, color: "success" },
+  context: { label: "Contexto", icon: ChatBubble, color: "secondary" },
 };
 
-const leadStatusConfig: Record<string, { label: string; color: string; bgcolor: string }> = {
-  cold: { label: "Frio", color: "#60a5fa", bgcolor: "rgba(59, 130, 246, 0.2)" },
-  warm: { label: "Morno", color: "#facc15", bgcolor: "rgba(234, 179, 8, 0.2)" },
-  hot: { label: "Quente", color: "#fb923c", bgcolor: "rgba(249, 115, 22, 0.2)" },
-  qualified: { label: "Qualificado", color: "#4ade80", bgcolor: "rgba(34, 197, 94, 0.2)" },
-  unqualified: { label: "Não Qualificado", color: "#9ca3af", bgcolor: "rgba(107, 114, 128, 0.2)" },
+const leadStatusConfig: Record<string, { label: string; color: "info" | "warning" | "error" | "success" | "default" }> = {
+  cold: { label: "Frio", color: "info" },
+  warm: { label: "Morno", color: "warning" },
+  hot: { label: "Quente", color: "error" },
+  qualified: { label: "Qualificado", color: "success" },
+  unqualified: { label: "Não Qualificado", color: "default" },
 };
 
 // Função para renderizar markdown básico adaptado para MUI
@@ -100,21 +100,21 @@ const renderMarkdown = (text: string) => {
     // Headers
     if (line.startsWith("### ")) {
       return (
-        <Typography key={index} variant="subtitle1" sx={{ color: '#a78bfa', fontWeight: 'bold', mt: 2, mb: 1 }}>
+        <Typography key={index} variant="subtitle1" color="secondary.main" fontWeight="bold" mt={2} mb={1}>
           {line.replace("### ", "")}
         </Typography>
       );
     }
     if (line.startsWith("## ")) {
       return (
-        <Typography key={index} variant="h6" sx={{ color: '#d8b4fe', fontWeight: 'bold', mt: 2, mb: 1 }}>
+        <Typography key={index} variant="h6" color="secondary.light" fontWeight="bold" mt={2} mb={1}>
           {line.replace("## ", "")}
         </Typography>
       );
     }
     if (line.startsWith("# ")) {
       return (
-        <Typography key={index} variant="h5" sx={{ color: '#e9d5ff', fontWeight: 'bold', mt: 2, mb: 1 }}>
+        <Typography key={index} variant="h5" color="secondary.light" fontWeight="bold" mt={2} mb={1}>
           {line.replace("# ", "")}
         </Typography>
       );
@@ -126,7 +126,7 @@ const renderMarkdown = (text: string) => {
       const parts = line.split(/\*\*(.*?)\*\*/g);
       formattedLine = parts.map((part, i) =>
         i % 2 === 1 ? (
-          <Box component="span" key={i} sx={{ fontWeight: 'bold', color: '#e9edef' }}>
+          <Box component="span" key={i} fontWeight="bold" color="text.primary">
             {part}
           </Box>
         ) : (
@@ -141,7 +141,7 @@ const renderMarkdown = (text: string) => {
     }
 
     return (
-      <Typography key={index} variant="body2" sx={{ color: '#d1d7db', mb: 0.5 }}>
+      <Typography key={index} variant="body2" color="text.secondary" mb={0.5}>
         {formattedLine}
       </Typography>
     );
@@ -154,6 +154,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
   profilePicUrl,
   onClose,
 }) => {
+  const theme = useTheme();
   const [contact, setContact] = useState<ContactDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [qualifying, setQualifying] = useState(false);
@@ -219,17 +220,17 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
   };
 
   const getScoreColor = (score?: number) => {
-    if (!score) return "#9ca3af";
-    if (score >= 80) return "#4ade80";
-    if (score >= 60) return "#facc15";
-    if (score >= 40) return "#fb923c";
-    return "#f87171";
+    if (!score) return "text.disabled";
+    if (score >= 80) return "success.main";
+    if (score >= 60) return "warning.main";
+    if (score >= 40) return "warning.light";
+    return "error.main";
   };
 
   if (loading) {
     return (
-      <Box sx={{ width: 340, height: '100%', bgcolor: '#111b21', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress sx={{ color: '#00a884' }} />
+      <Box sx={{ width: 340, height: '100%', bgcolor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: 1, borderColor: 'divider' }}>
+        <CircularProgress />
       </Box>
     );
   }
@@ -237,13 +238,13 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
   const statusConfig = contact?.leadStatus ? leadStatusConfig[contact.leadStatus] : null;
 
   return (
-    <Box sx={{ width: 340, height: '100%', bgcolor: '#111b21', borderLeft: '1px solid #2a3942', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: 340, height: '100%', bgcolor: 'background.paper', borderLeft: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: '#202c33', zIndex: 10 }}>
-        <IconButton onClick={onClose} sx={{ mr: 2, color: '#aebac1' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.default', zIndex: 10, borderBottom: 1, borderColor: 'divider' }}>
+        <IconButton onClick={onClose} sx={{ mr: 2 }}>
           <Close />
         </IconButton>
-        <Typography variant="h6" sx={{ color: '#e9edef' }}>Detalhes do contato</Typography>
+        <Typography variant="h6" color="text.primary">Detalhes do contato</Typography>
       </Box>
 
       <Box sx={{ 
@@ -256,23 +257,25 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
             background: 'transparent',
         },
         '&::-webkit-scrollbar-thumb': {
-            backgroundColor: 'rgba(134, 150, 160, 0.3)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: '3px',
         },
         '&::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: 'rgba(134, 150, 160, 0.5)',
+            backgroundColor: theme.palette.action.selected,
         },
       }}>
         {/* Profile Section */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4, borderBottom: '1px solid #202c33' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4, borderBottom: 1, borderColor: 'divider' }}>
             <Avatar
             src={contact?.profilePicUrl}
-            sx={{ width: 120, height: 120, mb: 2, border: '2px solid #00a884' }}
-            />
-            <Typography variant="h6" sx={{ color: '#e9edef', textAlign: 'center' }}>
+            sx={{ width: 120, height: 120, mb: 2, border: `2px solid ${theme.palette.primary.main}`, fontSize: '2rem' }}
+            >
+                 {contact?.name?.charAt(0)?.toUpperCase()}
+            </Avatar>
+            <Typography variant="h6" align="center" color="text.primary">
             {contact?.name}
             </Typography>
-            <Typography variant="body2" sx={{ color: '#8696a0', mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
             {contact?.phone}
             </Typography>
         </Box>
@@ -286,17 +289,17 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                 disableGutters
                 sx={{ 
                     bgcolor: 'transparent', 
-                    color: '#e9edef', 
                     boxShadow: 'none',
                     '&:before': { display: 'none' },
-                    borderBottom: '1px solid #2a3942'
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#8696a0' }} />}>
+                <AccordionSummary expandIcon={<ExpandMore color="action" />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', pr: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SmartToy sx={{ color: '#a78bfa' }} />
-                            <Typography sx={{ fontWeight: 500 }}>Análise de Lead</Typography>
+                            <SmartToy color="secondary" />
+                            <Typography fontWeight={500} color="text.primary">Análise de Lead</Typography>
                         </Box>
                         {/* Qualify button inside summary */}
                         <Button 
@@ -305,49 +308,47 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                             onClick={handleQualify}
                             disabled={qualifying}
                             sx={{ 
-                                bgcolor: '#00a884', 
-                                '&:hover': { bgcolor: '#008f6f' },
                                 textTransform: 'none',
                                 fontSize: '0.75rem',
                                 minWidth: 'auto',
                                 px: 1.5,
                                 py: 0.5,
-                                height: 24
+                                height: 24,
+                                color: 'white' // Always white for contrast
                             }}
                         >
                             {qualifying ? '...' : (contact?.aiAnalyzedAt ? 'Reanalisar' : 'Qualificar')}
                         </Button>
                     </Box>
                 </AccordionSummary>
-                <AccordionDetails sx={{ bgcolor: 'rgba(11, 20, 26, 0.3)', p: 2 }}>
+                <AccordionDetails sx={{ bgcolor: 'action.hover', p: 2 }}>
                      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 2 }}>
-                        <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: 1, textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ color: '#8696a0' }}>Score</Typography>
-                            <Typography variant="h5" sx={{ color: getScoreColor(contact?.leadScore), fontWeight: 'bold' }}>
+                        <Box sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1, textAlign: 'center', boxShadow: 1 }}>
+                            <Typography variant="caption" color="text.secondary">Score</Typography>
+                            <Typography variant="h5" color={getScoreColor(contact?.leadScore)} fontWeight="bold">
                                 {contact?.leadScore ?? '-'}
                             </Typography>
                         </Box>
-                        <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: 1, textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ color: '#8696a0' }}>Status</Typography>
+                        <Box sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1, textAlign: 'center', boxShadow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <Typography variant="caption" color="text.secondary">Status</Typography>
                             {statusConfig ? (
                                 <Chip 
                                     label={statusConfig.label} 
-                                    size="small" 
+                                    size="small"
+                                    color={statusConfig.color}
                                     sx={{ 
                                         height: 20, 
                                         fontSize: '0.65rem', 
-                                        bgcolor: statusConfig.bgcolor, 
-                                        color: statusConfig.color,
                                         mt: 0.5
                                     }} 
                                 />
                             ) : (
-                                <Typography variant="body2" sx={{ color: '#e9edef' }}>-</Typography>
+                                <Typography variant="body2" color="text.primary">-</Typography>
                             )}
                         </Box>
-                        <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: 1, textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ color: '#8696a0' }}>Msgs</Typography>
-                            <Typography variant="h6" sx={{ color: '#e9edef' }}>
+                        <Box sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1, textAlign: 'center', boxShadow: 1 }}>
+                            <Typography variant="caption" color="text.secondary">Msgs</Typography>
+                            <Typography variant="h6" color="text.primary">
                                 {contact?.totalMessages || 0}
                             </Typography>
                         </Box>
@@ -355,11 +356,12 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
 
                      {contact?.aiAnalysis && (
                         <Box sx={{ 
-                            bgcolor: 'rgba(0,0,0,0.2)', 
+                            bgcolor: 'background.paper',
                             p: 1.5, 
                             borderRadius: 1, 
                             maxHeight: 300, 
                             overflowY: 'auto',
+                            boxShadow: 1,
                             '&::-webkit-scrollbar': {
                                 width: '6px',
                             },
@@ -367,11 +369,11 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                                 background: 'transparent',
                             },
                             '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: 'rgba(134, 150, 160, 0.3)',
+                                backgroundColor: theme.palette.action.hover,
                                 borderRadius: '3px',
                             },
                             '&::-webkit-scrollbar-thumb:hover': {
-                                backgroundColor: 'rgba(134, 150, 160, 0.5)',
+                                backgroundColor: theme.palette.action.selected,
                             },
                         }}>
                             {renderMarkdown(contact.aiAnalysis)}
@@ -387,54 +389,54 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                 disableGutters
                 sx={{ 
                     bgcolor: 'transparent', 
-                    color: '#e9edef', 
                     boxShadow: 'none',
                     '&:before': { display: 'none' },
-                    borderBottom: '1px solid #2a3942'
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#8696a0' }} />}>
+                <AccordionSummary expandIcon={<ExpandMore color="action" />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Person sx={{ color: '#8696a0' }} />
-                        <Typography sx={{ fontWeight: 500 }}>Informações</Typography>
+                        <Person color="action" />
+                        <Typography fontWeight={500} color="text.primary">Informações</Typography>
                     </Box>
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 0 }}>
                     <List dense>
                         <ListItem>
-                            <ListItemIcon><Email sx={{ fontSize: 20, color: '#8696a0' }} /></ListItemIcon>
+                            <ListItemIcon><Email sx={{ fontSize: 20 }} /></ListItemIcon>
                             <ListItemText 
                                 primary="Email" 
                                 secondary={contact?.email || '-'} 
-                                primaryTypographyProps={{ color: '#8696a0', fontSize: '0.75rem' }}
-                                secondaryTypographyProps={{ color: '#e9edef' }}
+                                primaryTypographyProps={{ color: 'text.secondary', fontSize: '0.75rem' }}
+                                secondaryTypographyProps={{ color: 'text.primary' }}
                             />
                         </ListItem>
                         <ListItem>
-                            <ListItemIcon><Cake sx={{ fontSize: 20, color: '#8696a0' }} /></ListItemIcon>
+                            <ListItemIcon><Cake sx={{ fontSize: 20 }} /></ListItemIcon>
                             <ListItemText 
                                 primary="Nascimento" 
                                 secondary={formatDate(contact?.birthDate)} 
-                                primaryTypographyProps={{ color: '#8696a0', fontSize: '0.75rem' }}
-                                secondaryTypographyProps={{ color: '#e9edef' }}
+                                primaryTypographyProps={{ color: 'text.secondary', fontSize: '0.75rem' }}
+                                secondaryTypographyProps={{ color: 'text.primary' }}
                             />
                         </ListItem>
                         <ListItem>
-                            <ListItemIcon><LocationOn sx={{ fontSize: 20, color: '#8696a0' }} /></ListItemIcon>
+                            <ListItemIcon><LocationOn sx={{ fontSize: 20 }} /></ListItemIcon>
                             <ListItemText 
                                 primary="Localização" 
                                 secondary={[contact?.city, contact?.state].filter(Boolean).join(', ') || '-'} 
-                                primaryTypographyProps={{ color: '#8696a0', fontSize: '0.75rem' }}
-                                secondaryTypographyProps={{ color: '#e9edef' }}
+                                primaryTypographyProps={{ color: 'text.secondary', fontSize: '0.75rem' }}
+                                secondaryTypographyProps={{ color: 'text.primary' }}
                             />
                         </ListItem>
                          <ListItem>
-                            <ListItemIcon><Work sx={{ fontSize: 20, color: '#8696a0' }} /></ListItemIcon>
+                            <ListItemIcon><Work sx={{ fontSize: 20 }} /></ListItemIcon>
                             <ListItemText 
                                 primary="Ocupação" 
                                 secondary={contact?.occupation || '-'} 
-                                primaryTypographyProps={{ color: '#8696a0', fontSize: '0.75rem' }}
-                                secondaryTypographyProps={{ color: '#e9edef' }}
+                                primaryTypographyProps={{ color: 'text.secondary', fontSize: '0.75rem' }}
+                                secondaryTypographyProps={{ color: 'text.primary' }}
                             />
                         </ListItem>
                     </List>
@@ -448,29 +450,29 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                 disableGutters
                 sx={{ 
                     bgcolor: 'transparent', 
-                    color: '#e9edef', 
                     boxShadow: 'none',
                     '&:before': { display: 'none' },
-                    borderBottom: '1px solid #2a3942'
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#8696a0' }} />}>
+                <AccordionSummary expandIcon={<ExpandMore color="action" />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SmartToy sx={{ color: '#a78bfa' }} />
-                        <Typography sx={{ fontWeight: 500 }}>Memória da IA</Typography>
+                        <SmartToy color="secondary" />
+                        <Typography fontWeight={500} color="text.primary">Memória da IA</Typography>
                     </Box>
                 </AccordionSummary>
-                <AccordionDetails sx={{ p: 2, bgcolor: 'rgba(11, 20, 26, 0.3)' }}>
+                <AccordionDetails sx={{ p: 2, bgcolor: 'action.hover' }}>
                     {contact?.memoriesByType && Object.entries(contact.memoriesByType).map(([type, memories]) => {
                         if (!memories || memories.length === 0) return null;
-                        const config = memoryTypeConfig[type] || { label: type, icon: Star, color: '#fff' };
+                        const config = memoryTypeConfig[type] || { label: type, icon: Star, color: "info" as const };
                         const Icon = config.icon;
 
                         return (
                             <Box key={type} sx={{ mb: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                    <Icon sx={{ fontSize: 16, color: config.color }} />
-                                    <Typography variant="subtitle2" sx={{ color: '#e9edef', fontSize: '0.8rem' }}>
+                                    <Icon sx={{ fontSize: 16 }} color={config.color} />
+                                    <Typography variant="subtitle2" sx={{ fontSize: '0.8rem' }} color="text.primary">
                                         {config.label}
                                     </Typography>
                                 </Box>
@@ -478,14 +480,16 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                                     <Box key={i} sx={{ 
                                         p: 1, 
                                         mb: 0.5, 
-                                        bgcolor: 'rgba(255,255,255,0.05)', 
+                                        bgcolor: 'background.paper', 
                                         borderRadius: 1,
-                                        fontSize: '0.75rem'
+                                        fontSize: '0.75rem',
+                                        border: 1,
+                                        borderColor: 'divider'
                                     }}>
-                                        <Typography component="span" sx={{ color: config.color, fontWeight: 500 }}>
+                                        <Typography component="span" fontWeight={500} color={`${config.color}.main`}>
                                             {m.key}:
                                         </Typography>
-                                        <Typography component="span" sx={{ color: '#d1d7db', ml: 1 }}>
+                                        <Typography component="span" color="text.secondary" ml={1}>
                                             {m.value}
                                         </Typography>
                                     </Box>
@@ -494,7 +498,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                         );
                     })}
                     {(!contact?.memoriesByType || Object.values(contact.memoriesByType).every(arr => arr.length === 0)) && (
-                        <Typography variant="body2" sx={{ color: '#8696a0', textAlign: 'center', py: 2 }}>
+                        <Typography variant="body2" align="center" py={2} color="text.secondary">
                             Nenhuma memória registrada.
                         </Typography>
                     )}
@@ -508,16 +512,16 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                 disableGutters
                 sx={{ 
                     bgcolor: 'transparent', 
-                    color: '#e9edef', 
                     boxShadow: 'none',
                     '&:before': { display: 'none' },
-                    borderBottom: '1px solid #2a3942'
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#8696a0' }} />}>
+                <AccordionSummary expandIcon={<ExpandMore color="action" />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Label sx={{ color: '#8696a0' }} />
-                        <Typography sx={{ fontWeight: 500 }}>Tags</Typography>
+                        <Label color="action" />
+                        <Typography fontWeight={500} color="text.primary">Tags</Typography>
                     </Box>
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 2 }}>
@@ -528,15 +532,11 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                             key={tag}
                             label={tag}
                             size="small"
-                            sx={{
-                            bgcolor: '#00a884',
-                            color: '#ffffff',
-                            '&:hover': { bgcolor: '#008f6f' },
-                            }}
+                            color="primary"
                         />
                         ))
                     ) : (
-                        <Typography variant="body2" sx={{ color: '#8696a0' }}>
+                        <Typography variant="body2" color="text.secondary">
                         Nenhuma tag
                         </Typography>
                     )}
@@ -551,20 +551,20 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = memo(({
                 disableGutters
                 sx={{ 
                     bgcolor: 'transparent', 
-                    color: '#e9edef', 
                     boxShadow: 'none',
                     '&:before': { display: 'none' },
-                    borderBottom: '1px solid #2a3942'
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#8696a0' }} />}>
+                <AccordionSummary expandIcon={<ExpandMore color="action" />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Notes sx={{ color: '#8696a0' }} />
-                        <Typography sx={{ fontWeight: 500 }}>Anotações</Typography>
+                        <Notes color="action" />
+                        <Typography fontWeight={500} color="text.primary">Anotações</Typography>
                     </Box>
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 2 }}>
-                    <Typography variant="body2" sx={{ color: '#e9edef', whiteSpace: 'pre-wrap' }}>
+                    <Typography variant="body2" color="text.primary" sx={{ whiteSpace: 'pre-wrap' }}>
                         {contact?.notes || 'Nenhuma anotação'}
                     </Typography>
                 </AccordionDetails>

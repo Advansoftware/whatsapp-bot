@@ -62,36 +62,33 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
     if (!notification.read) {
       markAsRead(notification.id);
     }
-    
+
     if (onNavigate) {
-       if (notification.actionUrl) {
-         onNavigate(notification.actionUrl);
-       } else if (notification.metadata?.remoteJid) {
-         // Construct URL for chat navigation
-         onNavigate(`/livechat/${notification.metadata.remoteJid}`);
-       }
-       handleClose();
+      if (notification.actionUrl) {
+        onNavigate(notification.actionUrl);
+      } else if (notification.metadata?.remoteJid) {
+        // Construct URL for chat navigation
+        onNavigate(`/livechat/${notification.metadata.remoteJid}`);
+      }
+      handleClose();
     }
   };
 
   const getIcon = (type: string, category: string) => {
     switch (type) {
       case "hot_lead":
-        return <LocalFireDepartment sx={{ color: "#ff5722" }} />;
-      // Escalation icon removed to prevent duplication with title (AI Secretary)
-      // case "escalation":
-      //   return <Warning sx={{ color: "#ff9800" }} />;
+      case "escalation":
       case "integration_error":
+      case "campaign_complete":
+      case "new_contact":
+      case "task_reminder":
+      case "low_balance":
+        // Returns null because these types already have emojis in the title
+        return null;
+
       case "message_failed":
         return <ErrorIcon sx={{ color: "#f44336" }} />;
-      case "campaign_complete":
-        return <Campaign sx={{ color: "#4caf50" }} />;
-      case "new_contact":
-        return <PersonAdd sx={{ color: "#2196f3" }} />;
-      case "task_reminder":
-        return <AccessTime sx={{ color: "#9c27b0" }} />;
-      case "low_balance":
-        return <Warning sx={{ color: "#ff9800" }} />;
+
       default:
         if (category === "error")
           return <ErrorIcon sx={{ color: "#f44336" }} />;
@@ -197,80 +194,85 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
             </Box>
           ) : (
             <List disablePadding>
-              {notifications.map((notification, index) => (
-                <React.Fragment key={notification.id}>
-                  <ListItem
-                    button
-                    onClick={() => handleNotificationClick(notification)}
-                    sx={{
-                      bgcolor: notification.read
-                        ? "transparent"
-                        : alpha(theme.palette.primary.main, 0.08),
-                      "&:hover": {
+              {notifications.map((notification, index) => {
+                const icon = getIcon(notification.type, notification.category);
+                return (
+                  <React.Fragment key={notification.id}>
+                    <ListItem
+                      button
+                      onClick={() => handleNotificationClick(notification)}
+                      sx={{
                         bgcolor: notification.read
-                          ? "action.hover"
-                          : alpha(theme.palette.primary.main, 0.12),
-                      },
-                      pr: 1,
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      {getIcon(notification.type, notification.category)}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Typography
-                          variant="body2"
-                          fontWeight={notification.read ? 400 : 600}
-                          noWrap
-                        >
-                          {notification.title}
-                        </Typography>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {notification.message}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.disabled"
-                            sx={{ display: "block", mt: 0.5 }}
-                          >
-                            {formatDistanceToNow(
-                              new Date(notification.createdAt),
-                              {
-                                addSuffix: true,
-                                locale: ptBR,
-                              }
-                            )}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(notification.id);
+                          ? "transparent"
+                          : alpha(theme.palette.primary.main, 0.08),
+                        "&:hover": {
+                          bgcolor: notification.read
+                            ? "action.hover"
+                            : alpha(theme.palette.primary.main, 0.12),
+                        },
+                        pr: 1,
                       }}
-                      sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
                     >
-                      <Close fontSize="small" />
-                    </IconButton>
-                  </ListItem>
-                  {index < notifications.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
+                      {icon && (
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          {icon}
+                        </ListItemIcon>
+                      )}
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant="body2"
+                            fontWeight={notification.read ? 400 : 600}
+                            noWrap
+                          >
+                            {notification.title}
+                          </Typography>
+                        }
+                        secondary={
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {notification.message}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.disabled"
+                              sx={{ display: "block", mt: 0.5 }}
+                            >
+                              {formatDistanceToNow(
+                                new Date(notification.createdAt),
+                                {
+                                  addSuffix: true,
+                                  locale: ptBR,
+                                }
+                              )}
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                        sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </ListItem>
+                    {index < notifications.length - 1 && <Divider />}
+                  </React.Fragment>
+                );
+              })}
             </List>
           )}
         </Box>

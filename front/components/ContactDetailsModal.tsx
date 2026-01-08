@@ -21,6 +21,26 @@ import {
   CheckCircle,
   TrendingUp,
 } from "lucide-react";
+import {
+  Box,
+  Typography,
+  Dialog,
+  DialogContent,
+  IconButton,
+  CircularProgress,
+  Chip,
+  Button,
+  Grid,
+  Divider,
+  Collapse,
+  useTheme,
+  alpha,
+  Avatar,
+  Stack,
+  Card,
+  CardHeader,
+  CardContent,
+} from "@mui/material";
 import api from "../lib/api";
 
 // Função para renderizar markdown básico
@@ -30,26 +50,23 @@ const renderMarkdown = (text: string) => {
     // Headers
     if (line.startsWith("### ")) {
       return (
-        <h3 key={index} className="text-lg font-bold text-purple-400 mt-4 mb-2">
+        <Typography key={index} variant="subtitle1" fontWeight="bold" color="primary" mt={2} mb={1}>
           {line.replace("### ", "")}
-        </h3>
+        </Typography>
       );
     }
     if (line.startsWith("## ")) {
       return (
-        <h2 key={index} className="text-xl font-bold text-purple-300 mt-4 mb-2">
+        <Typography key={index} variant="h6" fontWeight="bold" color="primary" mt={2} mb={1}>
           {line.replace("## ", "")}
-        </h2>
+        </Typography>
       );
     }
     if (line.startsWith("# ")) {
       return (
-        <h1
-          key={index}
-          className="text-2xl font-bold text-purple-200 mt-4 mb-2"
-        >
+        <Typography key={index} variant="h5" fontWeight="bold" color="primary" mt={2} mb={1}>
           {line.replace("# ", "")}
-        </h1>
+        </Typography>
       );
     }
 
@@ -59,9 +76,9 @@ const renderMarkdown = (text: string) => {
       const parts = line.split(/\*\*(.*?)\*\*/g);
       formattedLine = parts.map((part, i) =>
         i % 2 === 1 ? (
-          <strong key={i} className="text-white font-semibold">
+          <b key={i}>
             {part}
-          </strong>
+          </b>
         ) : (
           part
         )
@@ -74,9 +91,9 @@ const renderMarkdown = (text: string) => {
     }
 
     return (
-      <p key={index} className="text-white/80 text-sm mb-1">
+      <Typography key={index} variant="body2" color="text.secondary" mb={0.5}>
         {formattedLine}
-      </p>
+      </Typography>
     );
   });
 };
@@ -121,22 +138,22 @@ interface ContactDetails {
 
 const memoryTypeLabels: Record<
   string,
-  { label: string; icon: any; color: string }
+  { label: string; icon: any; color: "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" }
 > = {
-  fact: { label: "Fatos", icon: CheckCircle, color: "text-blue-400" },
-  preference: { label: "Preferências", icon: Star, color: "text-yellow-400" },
-  need: { label: "Necessidades", icon: AlertCircle, color: "text-red-400" },
-  objection: { label: "Objeções", icon: X, color: "text-orange-400" },
-  interest: { label: "Interesses", icon: TrendingUp, color: "text-green-400" },
-  context: { label: "Contexto", icon: MessageCircle, color: "text-purple-400" },
+  fact: { label: "Fatos", icon: CheckCircle, color: "info" },
+  preference: { label: "Preferências", icon: Star, color: "warning" },
+  need: { label: "Necessidades", icon: AlertCircle, color: "error" },
+  objection: { label: "Objeções", icon: X, color: "warning" },
+  interest: { label: "Interesses", icon: TrendingUp, color: "success" },
+  context: { label: "Contexto", icon: MessageCircle, color: "secondary" },
 };
 
-const leadStatusColors: Record<string, string> = {
-  cold: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  warm: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  hot: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  qualified: "bg-green-500/20 text-green-400 border-green-500/30",
-  unqualified: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+const leadStatusColors: Record<string, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
+  cold: "info",
+  warm: "warning",
+  hot: "error",
+  qualified: "success",
+  unqualified: "default",
 };
 
 const leadStatusLabels: Record<string, string> = {
@@ -152,6 +169,7 @@ export default function ContactDetailsModal({
   isOpen,
   onClose,
 }: ContactDetailsModalProps) {
+  const theme = useTheme();
   const [contact, setContact] = useState<ContactDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [qualifying, setQualifying] = useState(false);
@@ -236,11 +254,11 @@ export default function ContactDetailsModal({
   };
 
   const getScoreColor = (score?: number) => {
-    if (!score) return "text-gray-400";
-    if (score >= 80) return "text-green-400";
-    if (score >= 60) return "text-yellow-400";
-    if (score >= 40) return "text-orange-400";
-    return "text-red-400";
+    if (!score) return "text.disabled";
+    if (score >= 80) return "success.main";
+    if (score >= 60) return "warning.main";
+    if (score >= 40) return "warning.light";
+    return "error.main";
   };
 
   const getTotalMemories = () => {
@@ -254,425 +272,304 @@ export default function ContactDetailsModal({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-[#1a1a2e] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-white/10 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-pink-500/10">
-            <div className="flex items-center gap-4">
-              {contact?.profilePicUrl ? (
-                <img
-                  src={contact.profilePicUrl}
-                  alt={contact.name}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-purple-500/50"
-                  onError={(e) => {
-                    // Fallback para inicial se a imagem falhar
-                    e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove(
-                      "hidden"
-                    );
-                  }}
-                />
-              ) : null}
-              <div
-                className={`w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold ${
-                  contact?.profilePicUrl ? "hidden" : ""
-                }`}
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+          backgroundImage: 'none',
+        }
+      }}
+    >
+        <Box sx={{
+          p: 3,
+          borderBottom: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: `linear-gradient(to right, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.1)})`
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+              <Avatar
+                src={contact?.profilePicUrl || undefined}
+                sx={{
+                    width: 64,
+                    height: 64,
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+                    bgcolor: 'primary.main',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold'
+                }}
               >
-                {contact?.name?.charAt(0)?.toUpperCase() || "?"}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">
+                 {contact?.name?.charAt(0)?.toUpperCase() || "?"}
+              </Avatar>
+            <Box>
+                <Typography variant="h5" fontWeight="bold">
                   {contact?.name || "Carregando..."}
-                </h2>
-                <p className="text-white/60 flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  {contact?.phone}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6 text-white/60" />
-            </button>
-          </div>
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1} color="text.secondary">
+                  <Phone size={16} />
+                  <Typography variant="body2">
+                    {contact?.phone}
+                  </Typography>
+                </Box>
+            </Box>
+          </Box>
+          <IconButton onClick={onClose}>
+            <X size={24} />
+          </IconButton>
+        </Box>
 
-          {/* Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-120px)] p-6 space-y-6">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-              </div>
-            ) : contact ? (
-              <>
-                {/* Lead Score Section */}
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-purple-400" />
-                      <h3 className="text-lg font-semibold text-white">
-                        Análise de Lead
-                      </h3>
-                    </div>
-                    <button
-                      onClick={handleQualify}
-                      disabled={qualifying}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {qualifying ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                          Analisando...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          {contact.aiAnalyzedAt
-                            ? "Reanalisar"
-                            : "Qualificar Lead"}
-                        </>
-                      )}
-                    </button>
-                  </div>
+        <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={3}>
+          {loading ? (
+            <Box display="flex" justifyContent="center" py={6}>
+              <CircularProgress />
+            </Box>
+          ) : contact ? (
+            <>
+              {/* Lead Score Section */}
+              <Card variant="outlined" sx={{ 
+                  borderRadius: 2, 
+                  bgcolor: alpha(theme.palette.background.default, 0.5) 
+              }}>
+                <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Brain size={20} color={theme.palette.primary.main} />
+                    <Typography variant="h6" fontWeight="bold">
+                      Análise de Lead
+                    </Typography>
+                  </Box>
+                  <Button
+                    onClick={handleQualify}
+                    disabled={qualifying}
+                    variant="contained"
+                    size="small"
+                    startIcon={qualifying ? <CircularProgress size={16} color="inherit" /> : <Sparkles size={16} />}
+                    sx={{
+                        background: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        color: 'white',
+                    }}
+                  >
+                    {qualifying ? "Analisando..." : (contact.aiAnalyzedAt ? "Reanalisar" : "Qualificar Lead")}
+                  </Button>
+                </Box>
 
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="bg-black/20 rounded-lg p-3 text-center">
-                      <p className="text-white/60 text-sm mb-1">Score</p>
-                      <p
-                        className={`text-3xl font-bold ${getScoreColor(
-                          contact.leadScore
-                        )}`}
-                      >
+                <Grid container spacing={2} mb={3}>
+                  <Grid item xs={4}>
+                    <Box sx={{ 
+                        p: 2, 
+                        borderRadius: 2, 
+                        bgcolor: 'background.paper',
+                        textAlign: 'center',
+                        boxShadow: 1
+                    }}>
+                      <Typography variant="caption" color="text.secondary">Score</Typography>
+                      <Typography variant="h4" fontWeight="bold" color={getScoreColor(contact.leadScore)}>
                         {contact.leadScore ?? "-"}
-                      </p>
-                    </div>
-                    <div className="bg-black/20 rounded-lg p-3 text-center">
-                      <p className="text-white/60 text-sm mb-1">Status</p>
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Box sx={{ 
+                        p: 2, 
+                        borderRadius: 2, 
+                        bgcolor: 'background.paper',
+                        textAlign: 'center',
+                        boxShadow: 1,
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                      <Typography variant="caption" color="text.secondary" mb={1}>Status</Typography>
                       {contact.leadStatus ? (
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                            leadStatusColors[contact.leadStatus] ||
-                            leadStatusColors.cold
-                          }`}
-                        >
-                          {leadStatusLabels[contact.leadStatus] ||
-                            contact.leadStatus.toUpperCase()}
-                        </span>
+                        <Chip
+                          label={leadStatusLabels[contact.leadStatus] || contact.leadStatus}
+                          color={leadStatusColors[contact.leadStatus] || "default"}
+                          size="small"
+                          sx={{ fontWeight: 'bold' }}
+                        />
                       ) : (
-                        <p className="text-white/40">-</p>
+                        <Typography color="text.disabled">-</Typography>
                       )}
-                    </div>
-                    <div className="bg-black/20 rounded-lg p-3 text-center">
-                      <p className="text-white/60 text-sm mb-1">Mensagens</p>
-                      <p className="text-2xl font-bold text-white">
+                    </Box>
+                  </Grid>
+                   <Grid item xs={4}>
+                    <Box sx={{ 
+                        p: 2, 
+                        borderRadius: 2, 
+                        bgcolor: 'background.paper',
+                        textAlign: 'center',
+                        boxShadow: 1
+                    }}>
+                      <Typography variant="caption" color="text.secondary">Mensagens</Typography>
+                      <Typography variant="h5" fontWeight="bold">
                         {contact.totalMessages}
-                      </p>
-                    </div>
-                  </div>
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
 
-                  {contact.aiAnalysis && (
-                    <div className="bg-black/20 rounded-lg p-4">
-                      <div className="prose prose-invert prose-sm max-w-none">
-                        {renderMarkdown(contact.aiAnalysis)}
-                      </div>
-                      {contact.aiAnalyzedAt && (
-                        <p className="text-white/40 text-xs mt-4 flex items-center gap-1 border-t border-white/10 pt-3">
-                          <Clock className="w-3 h-3" />
-                          Analisado em{" "}
-                          {new Date(contact.aiAnalyzedAt).toLocaleString(
-                            "pt-BR"
-                          )}
-                        </p>
+                {contact.aiAnalysis && (
+                  <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
+                    <Box>
+                      {renderMarkdown(contact.aiAnalysis)}
+                    </Box>
+                    {contact.aiAnalyzedAt && (
+                      <Box display="flex" alignItems="center" gap={1} mt={2} pt={2} borderTop={1} borderColor="divider">
+                        <Clock size={12} color={theme.palette.text.secondary} />
+                        <Typography variant="caption" color="text.secondary">
+                          Analisado em {new Date(contact.aiAnalyzedAt).toLocaleString("pt-BR")}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+
+                {!contact.aiAnalysis && (
+                  <Typography variant="body2" color="text.secondary" align="center" py={2}>
+                    Clique em "Qualificar Lead" para gerar uma análise com IA
+                  </Typography>
+                )}
+                </CardContent>
+              </Card>
+
+              {/* Info Section */}
+              <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                <Box 
+                    component="div"
+                    onClick={() => toggleSection("info")} 
+                    sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', bgcolor: 'action.hover' }}
+                >
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <User size={20} color={theme.palette.info.main} />
+                        <Typography variant="h6">Informações</Typography>
+                    </Box>
+                    {expandedSections.has("info") ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </Box>
+                <Collapse in={expandedSections.has("info")}>
+                    <CardContent>
+                      <Grid container spacing={3}>
+                        {[
+                            { icon: Mail, label: 'Email', value: contact.email },
+                            { icon: Calendar, label: 'Nascimento', value: contact.birthDate ? `${formatDate(contact.birthDate)} (${calculateAge(contact.birthDate)} anos)` : null },
+                            { icon: User, label: 'Gênero', value: contact.gender, capitalize: true },
+                            { icon: MapPin, label: 'Localização', value: [contact.city, contact.state].filter(Boolean).join(", ") },
+                            { icon: GraduationCap, label: 'Universidade', value: contact.university },
+                            { icon: GraduationCap, label: 'Curso', value: contact.course },
+                            { icon: Briefcase, label: 'Ocupação', value: contact.occupation },
+                            { icon: Clock, label: 'Primeiro Contato', value: formatDate(contact.firstContactAt) },
+                        ].map((item, i) => (
+                            item.value ? (
+                                <Grid item xs={12} sm={6} key={i}>
+                                    <Box display="flex" gap={2}>
+                                        <item.icon size={18} color={theme.palette.text.secondary} />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">{item.label}</Typography>
+                                            <Typography variant="body2" sx={{ textTransform: item.capitalize ? 'capitalize' : 'none' }}>{item.value}</Typography>
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                            ) : null
+                        ))}
+                      </Grid>
+                      
+                      {contact.tags && contact.tags.length > 0 && (
+                          <Box mt={3}>
+                             <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Tag size={16} color={theme.palette.text.secondary} />
+                                <Typography variant="caption" color="text.secondary">Tags</Typography>
+                             </Box>
+                             <Box display="flex" flexWrap="wrap" gap={1}>
+                                {contact.tags.map((tag) => (
+                                    <Chip key={tag} label={tag} size="small" color="primary" variant="outlined" />
+                                ))}
+                             </Box>
+                          </Box>
                       )}
-                    </div>
-                  )}
 
-                  {!contact.aiAnalysis && (
-                    <p className="text-white/40 text-sm text-center py-4">
-                      Clique em "Qualificar Lead" para gerar uma análise com IA
-                    </p>
-                  )}
-                </div>
+                      {contact.notes && (
+                          <Box mt={3} p={2} bgcolor="action.hover" borderRadius={2}>
+                              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Notas</Typography>
+                              <Typography variant="body2">{contact.notes}</Typography>
+                          </Box>
+                      )}
+                    </CardContent>
+                </Collapse>
+              </Card>
 
-                {/* Info Section */}
-                <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                  <button
-                    onClick={() => toggleSection("info")}
-                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <User className="w-5 h-5 text-blue-400" />
-                      <h3 className="text-lg font-semibold text-white">
-                        Informações
-                      </h3>
-                    </div>
-                    {expandedSections.has("info") ? (
-                      <ChevronUp className="w-5 h-5 text-white/60" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-white/60" />
-                    )}
-                  </button>
+              {/* AI Memory Section */}
+              <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                 <Box 
+                    component="div"
+                    onClick={() => toggleSection("memories")} 
+                    sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', bgcolor: 'action.hover' }}
+                >
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Brain size={20} color={theme.palette.secondary.main} />
+                        <Typography variant="h6">Memória da IA</Typography>
+                        <Chip label={`${getTotalMemories()} itens`} size="small" color="secondary" variant="soft" />
+                    </Box>
+                    {expandedSections.has("memories") ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </Box>
+                <Collapse in={expandedSections.has("memories")}>
+                  <CardContent>
+                     <Stack spacing={2}>
+                        {Object.entries(contact.memoriesByType).map(([type, memories]) => {
+                             if (memories.length === 0) return null;
+                             const config = memoryTypeLabels[type];
+                             const Icon = config?.icon || Brain;
 
-                  <AnimatePresence>
-                    {expandedSections.has("info") && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="px-4 pb-4"
-                      >
-                        <div className="grid grid-cols-2 gap-4">
-                          {contact.email && (
-                            <div className="flex items-center gap-3">
-                              <Mail className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">Email</p>
-                                <p className="text-white">{contact.email}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {contact.birthDate && (
-                            <div className="flex items-center gap-3">
-                              <Calendar className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">
-                                  Nascimento
-                                </p>
-                                <p className="text-white">
-                                  {formatDate(contact.birthDate)}
-                                  {calculateAge(contact.birthDate) &&
-                                    ` (${calculateAge(
-                                      contact.birthDate
-                                    )} anos)`}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {contact.gender && (
-                            <div className="flex items-center gap-3">
-                              <User className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">Gênero</p>
-                                <p className="text-white capitalize">
-                                  {contact.gender}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {(contact.city || contact.state) && (
-                            <div className="flex items-center gap-3">
-                              <MapPin className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">
-                                  Localização
-                                </p>
-                                <p className="text-white">
-                                  {[contact.city, contact.state]
-                                    .filter(Boolean)
-                                    .join(", ")}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {contact.university && (
-                            <div className="flex items-center gap-3">
-                              <GraduationCap className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">
-                                  Universidade
-                                </p>
-                                <p className="text-white">
-                                  {contact.university}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {contact.course && (
-                            <div className="flex items-center gap-3">
-                              <GraduationCap className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">Curso</p>
-                                <p className="text-white">{contact.course}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {contact.occupation && (
-                            <div className="flex items-center gap-3">
-                              <Briefcase className="w-4 h-4 text-white/40" />
-                              <div>
-                                <p className="text-white/40 text-xs">
-                                  Ocupação
-                                </p>
-                                <p className="text-white">
-                                  {contact.occupation}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-3">
-                            <Clock className="w-4 h-4 text-white/40" />
-                            <div>
-                              <p className="text-white/40 text-xs">
-                                Primeiro Contato
-                              </p>
-                              <p className="text-white">
-                                {formatDate(contact.firstContactAt)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {contact.tags && contact.tags.length > 0 && (
-                          <div className="mt-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Tag className="w-4 h-4 text-white/40" />
-                              <p className="text-white/40 text-xs">Tags</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {contact.tags.map((tag, i) => (
-                                <span
-                                  key={i}
-                                  className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs border border-purple-500/30"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {contact.notes && (
-                          <div className="mt-4 p-3 bg-black/20 rounded-lg">
-                            <p className="text-white/40 text-xs mb-1">Notas</p>
-                            <p className="text-white/80 text-sm">
-                              {contact.notes}
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* AI Memory Section */}
-                <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                  <button
-                    onClick={() => toggleSection("memories")}
-                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-purple-400" />
-                      <h3 className="text-lg font-semibold text-white">
-                        Memória da IA
-                      </h3>
-                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full text-xs">
-                        {getTotalMemories()} itens
-                      </span>
-                    </div>
-                    {expandedSections.has("memories") ? (
-                      <ChevronUp className="w-5 h-5 text-white/60" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-white/60" />
-                    )}
-                  </button>
-
-                  <AnimatePresence>
-                    {expandedSections.has("memories") && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="px-4 pb-4 space-y-4"
-                      >
-                        {Object.entries(contact.memoriesByType).map(
-                          ([type, memories]) => {
-                            if (memories.length === 0) return null;
-
-                            const config = memoryTypeLabels[type];
-                            const Icon = config?.icon || Brain;
-
-                            return (
-                              <div key={type} className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <Icon
-                                    className={`w-4 h-4 ${
-                                      config?.color || "text-white/40"
-                                    }`}
-                                  />
-                                  <h4 className="text-sm font-medium text-white/80">
-                                    {config?.label || type}
-                                  </h4>
-                                  <span className="text-xs text-white/40">
-                                    ({memories.length})
-                                  </span>
-                                </div>
-                                <div className="space-y-1 pl-6">
-                                  {memories.map((memory, i) => (
-                                    <div
-                                      key={i}
-                                      className="p-2 bg-black/20 rounded-lg text-sm"
-                                    >
-                                      <span className="text-purple-300 font-medium">
-                                        {memory.key}:
-                                      </span>{" "}
-                                      <span className="text-white/80">
-                                        {memory.value}
-                                      </span>
-                                      {memory.confidence < 0.8 && (
-                                        <span className="text-white/30 text-xs ml-2">
-                                          ({Math.round(memory.confidence * 100)}
-                                          % confiança)
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          }
-                        )}
-
+                             return (
+                                 <Box key={type}>
+                                     <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                         <Icon size={16} color={theme.palette[config.color || 'info'].main} />
+                                         <Typography variant="subtitle2" fontWeight="bold">{config.label}</Typography>
+                                         <Typography variant="caption" color="text.secondary">({memories.length})</Typography>
+                                     </Box>
+                                     <Stack spacing={1} pl={3}>
+                                         {memories.map((memory, i) => (
+                                             <Box key={i} p={1.5} bgcolor="background.paper" borderRadius={1} border={1} borderColor="divider">
+                                                 <Typography variant="body2">
+                                                     <Box component="span" color="primary.main" fontWeight="medium">{memory.key}: </Box>
+                                                     {memory.value}
+                                                 </Typography>
+                                                  {memory.confidence < 0.8 && (
+                                                      <Typography variant="caption" color="text.disabled">
+                                                          ({Math.round(memory.confidence * 100)}% confiança)
+                                                      </Typography>
+                                                  )}
+                                             </Box>
+                                         ))}
+                                     </Stack>
+                                 </Box>
+                             )
+                        })}
                         {getTotalMemories() === 0 && (
-                          <p className="text-white/40 text-sm text-center py-4">
-                            Nenhuma memória registrada ainda. As memórias são
-                            extraídas automaticamente das conversas.
-                          </p>
+                            <Typography variant="body2" color="text.secondary" align="center" py={2}>
+                                Nenhuma memória registrada ainda.
+                            </Typography>
                         )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12 text-white/60">
-                Erro ao carregar contato
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+                     </Stack>
+                  </CardContent>
+                </Collapse>
+              </Card>
+            </>
+          ) : (
+            <Typography align="center" color="text.secondary" py={4}>
+              Erro ao carregar contato
+            </Typography>
+          )}
+        </Stack>
+        </DialogContent>
+    </Dialog>
   );
 }

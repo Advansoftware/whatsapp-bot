@@ -34,6 +34,7 @@ import {
   VisibilityOff,
 } from "@mui/icons-material";
 import api from "../../lib/api";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 interface Integration {
   id: string;
@@ -88,6 +89,9 @@ const IntegrationsView: React.FC = () => {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<string>("");
   const [walletDialogOpen, setWalletDialogOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState({ title: "", content: "" });
 
   const loadIntegrations = useCallback(async () => {
     setLoading(true);
@@ -178,16 +182,22 @@ const IntegrationsView: React.FC = () => {
     }
   };
 
-  const handleDisconnectGastometria = async () => {
-    if (!window.confirm("Deseja desconectar sua conta do Gastometria?")) return;
-
-    try {
-      await api.disconnectGastometria();
-      setSuccess("Conta desconectada");
-      loadIntegrations();
-    } catch (err) {
-      setError("Erro ao desconectar");
-    }
+  const handleDisconnectGastometria = () => {
+    setConfirmMessage({
+      title: "Desconectar Gastometria",
+      content: "Tem certeza que deseja desconectar sua conta do Gastometria?"
+    });
+    setConfirmAction(() => async () => {
+      try {
+        await api.disconnectGastometria();
+        setSuccess("Conta desconectada");
+        loadIntegrations();
+      } catch (err) {
+        setError("Erro ao desconectar");
+      }
+      setConfirmOpen(false);
+    });
+    setConfirmOpen(true);
   };
 
   const handleConnectGoogleCalendar = async () => {
@@ -207,17 +217,22 @@ const IntegrationsView: React.FC = () => {
     }
   };
 
-  const handleDisconnectGoogleCalendar = async () => {
-    if (!window.confirm("Deseja desconectar sua conta do Google Calendar?"))
-      return;
-
-    try {
-      await api.disconnectGoogleCalendar();
-      setSuccess("Google Calendar desconectado");
-      loadIntegrations();
-    } catch (err) {
-      setError("Erro ao desconectar");
-    }
+  const handleDisconnectGoogleCalendar = () => {
+    setConfirmMessage({
+      title: "Desconectar Google Calendar",
+      content: "Tem certeza que deseja desconectar sua conta do Google Calendar?"
+    });
+    setConfirmAction(() => async () => {
+      try {
+        await api.disconnectGoogleCalendar();
+        setSuccess("Google Calendar desconectado");
+        loadIntegrations();
+      } catch (err) {
+        setError("Erro ao desconectar");
+      }
+      setConfirmOpen(false);
+    });
+    setConfirmOpen(true);
   };
 
   const handleSaveWallet = async () => {
@@ -548,6 +563,15 @@ const IntegrationsView: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={confirmMessage.title}
+        content={confirmMessage.content}
+        onConfirm={confirmAction || (() => {})}
+        onCancel={() => setConfirmOpen(false)}
+        confirmColor="error"
+        confirmText="Desconectar"
+      />
     </Box>
   );
 };

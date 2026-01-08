@@ -23,12 +23,13 @@ const ScrollToBottom: React.FC<ScrollToBottomProps> = memo(({
           position: 'absolute',
           bottom: 90,
           right: 20,
-          bgcolor: '#202c33',
-          color: '#8696a0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+          bgcolor: 'background.paper',
+          color: 'text.secondary',
+          boxShadow: 3,
           zIndex: 10,
           '&:hover': {
-            bgcolor: '#2a3942',
+            bgcolor: 'background.paper',
+            filter: 'brightness(0.9)',
           },
         }}
       >

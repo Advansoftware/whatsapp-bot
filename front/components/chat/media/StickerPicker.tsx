@@ -120,9 +120,10 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
         sx: {
           width: 340,
           height: 400,
-          bgcolor: '#233138',
+          bgcolor: 'background.paper',
           borderRadius: 2,
           overflow: 'hidden',
+          boxShadow: 3,
         },
       }}
     >
@@ -133,13 +134,14 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
           alignItems: 'center',
           justifyContent: 'space-between',
           p: 1.5,
-          borderBottom: '1px solid #2a3942',
+          borderBottom: 1,
+          borderColor: 'divider',
         }}
       >
-        <Typography variant="subtitle1" sx={{ color: '#e9edef', fontWeight: 500 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
           Figurinhas
         </Typography>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#8696a0' }}>
+        <IconButton onClick={onClose} size="small">
           <Close fontSize="small" />
         </IconButton>
       </Box>
@@ -155,19 +157,15 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Search sx={{ color: '#8696a0', fontSize: 20 }} />
+                <Search fontSize="small" color="action" />
               </InputAdornment>
             ),
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              bgcolor: '#2a3942',
+              bgcolor: 'action.hover',
               borderRadius: 2,
               '& fieldset': { border: 'none' },
-            },
-            '& .MuiInputBase-input': {
-              color: '#d1d7db',
-              '&::placeholder': { color: '#8696a0' },
             },
           }}
         />
@@ -182,14 +180,14 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
           scrollButtons="auto"
           sx={{
             minHeight: 40,
-            borderBottom: '1px solid #2a3942',
+            borderBottom: 1,
+            borderColor: 'divider',
             '& .MuiTab-root': {
               minHeight: 40,
               minWidth: 40,
-              color: '#8696a0',
-              '&.Mui-selected': { color: '#00a884' },
+              '&.Mui-selected': { color: 'primary.main' },
             },
-            '& .MuiTabs-indicator': { bgcolor: '#00a884' },
+            '& .MuiTabs-indicator': { bgcolor: 'primary.main' },
           }}
         >
           {stickerPacks.map((pack, idx) => (
@@ -216,7 +214,7 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
               height: '100%',
             }}
           >
-            <CircularProgress size={32} sx={{ color: '#00a884' }} />
+            <CircularProgress size={32} />
           </Box>
         ) : filteredStickers.length === 0 ? (
           <Box
@@ -226,7 +224,7 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: '#8696a0',
+              color: 'text.secondary',
             }}
           >
             <SentimentSatisfiedAlt sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
@@ -258,7 +256,7 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
                   transition: 'transform 0.1s',
                   '&:hover': {
                     transform: 'scale(1.1)',
-                    bgcolor: 'rgba(255,255,255,0.05)',
+                    bgcolor: 'action.hover',
                   },
                 }}
               >

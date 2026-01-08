@@ -93,7 +93,6 @@ export class ContactsController {
         orderBy: { updatedAt: 'desc' },
         skip,
         take: limitNum,
-        include: { instance: { select: { instanceKey: true } } }
       }),
       this.prisma.contact.count({ where }),
     ]);
@@ -113,7 +112,7 @@ export class ContactsController {
 
         return {
           ...contact,
-          instanceKey: contact.instance?.instanceKey,
+          instanceKey: contact.instanceId,
           displayName: contact.pushName || contact.remoteJid.replace('@s.whatsapp.net', ''),
           lastMessage: lastMessage?.content || null,
           lastMessageAt: lastMessage?.createdAt || null,

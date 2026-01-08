@@ -99,6 +99,8 @@ const RecentConversations: React.FC<RecentConversationsProps> = ({
         return "Pendente";
       case "failed":
         return "Falhou";
+      case "sent":
+        return "Enviado";
       default:
         return status;
     }

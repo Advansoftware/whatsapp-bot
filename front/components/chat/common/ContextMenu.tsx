@@ -65,14 +65,14 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       }}
       PaperProps={{
         sx: {
-          bgcolor: '#233138',
-          color: '#d1d7db',
+          bgcolor: 'background.paper',
+          color: 'text.primary',
           borderRadius: 2,
           minWidth: 180,
           '& .MuiMenuItem-root': {
             py: 1,
             '&:hover': {
-              bgcolor: 'rgba(255,255,255,0.08)',
+              bgcolor: 'action.hover',
             },
           },
         },
@@ -81,7 +81,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       {onReply && (
         <MenuItem onClick={() => handleAction(onReply)}>
           <ListItemIcon>
-            <Reply sx={{ color: '#8696a0' }} />
+            <Reply color="inherit" fontSize="small" />
           </ListItemIcon>
           <ListItemText>Responder</ListItemText>
         </MenuItem>
@@ -90,7 +90,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       {onCopy && (
         <MenuItem onClick={() => handleAction(onCopy)}>
           <ListItemIcon>
-            <ContentCopy sx={{ color: '#8696a0' }} />
+            <ContentCopy color="inherit" fontSize="small"  />
           </ListItemIcon>
           <ListItemText>Copiar</ListItemText>
         </MenuItem>
@@ -99,7 +99,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       {onForward && (
         <MenuItem onClick={() => handleAction(onForward)}>
           <ListItemIcon>
-            <Forward sx={{ color: '#8696a0' }} />
+            <Forward color="inherit" fontSize="small" />
           </ListItemIcon>
           <ListItemText>Encaminhar</ListItemText>
         </MenuItem>
@@ -108,7 +108,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       {onStar && (
         <MenuItem onClick={() => handleAction(onStar)}>
           <ListItemIcon>
-            <Star sx={{ color: '#8696a0' }} />
+            <Star color="inherit" fontSize="small" />
           </ListItemIcon>
           <ListItemText>Favoritar</ListItemText>
         </MenuItem>
@@ -117,7 +117,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       {onInfo && (
         <MenuItem onClick={() => handleAction(onInfo)}>
           <ListItemIcon>
-            <Info sx={{ color: '#8696a0' }} />
+            <Info color="inherit" fontSize="small" />
           </ListItemIcon>
           <ListItemText>Info</ListItemText>
         </MenuItem>
@@ -126,7 +126,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
   {onSaveSticker && (
         <MenuItem onClick={() => handleAction(onSaveSticker)}>
           <ListItemIcon>
-            <SentimentSatisfiedAlt sx={{ color: '#8696a0' }} />
+            <SentimentSatisfiedAlt color="inherit" fontSize="small" />
           </ListItemIcon>
           <ListItemText>Salvar Figurinha</ListItemText>
         </MenuItem>
@@ -134,12 +134,12 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
 
       {isOwnMessage && onDelete && (
         <>
-          <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)' }} />
+          <Divider sx={{ my: 0.5 }} />
           <MenuItem onClick={() => handleAction(onDelete)}>
             <ListItemIcon>
-              <Delete sx={{ color: '#ea4335' }} />
+              <Delete color="error" fontSize="small" />
             </ListItemIcon>
-            <ListItemText sx={{ color: '#ea4335' }}>Apagar</ListItemText>
+            <ListItemText sx={{ color: 'error.main' }}>Apagar</ListItemText>
           </MenuItem>
         </>
       )}

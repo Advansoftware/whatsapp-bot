@@ -1,5 +1,49 @@
 import React, { useState, useEffect } from "react";
-import { useApi } from "../../hooks/useApi";
+import api from "../../lib/api";
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
+  Chip,
+  Grid,
+  CircularProgress,
+  Alert,
+  Tooltip,
+  useTheme,
+  FormControlLabel,
+  Checkbox,
+  Stack,
+  alpha,
+} from "@mui/material";
+import {
+  PersonAdd,
+  Edit,
+  Delete,
+  CheckCircle,
+  Cancel,
+  AdminPanelSettings,
+  SupervisorAccount,
+  SupportAgent,
+} from "@mui/icons-material";
+import ConfirmDialog, { ConfirmDialogProps } from "../common/ConfirmDialog";
 
 interface TeamMember {
   id: string;
@@ -13,11 +57,23 @@ interface TeamMember {
 }
 
 export const TeamView: React.FC = () => {
-  const api = useApi();
+  const theme = useTheme();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<
+    Omit<ConfirmDialogProps, "open" | "onClose"> & { open: boolean }
+  >({
+    open: false,
+    title: "",
+    content: "",
+    onConfirm: async () => {},
+  });
 
   const [newMember, setNewMember] = useState({
     name: "",
@@ -36,6 +92,7 @@ export const TeamView: React.FC = () => {
       setMembers(data);
     } catch (error) {
       console.error("Erro ao carregar equipe:", error);
+      setError("Erro ao carregar lista de equipe.");
     } finally {
       setLoading(false);
     }
@@ -46,9 +103,10 @@ export const TeamView: React.FC = () => {
       await api.post("/api/team/members", newMember);
       setShowAddModal(false);
       setNewMember({ name: "", email: "", password: "", role: "agent" });
+      setSuccess("Membro adicionado com sucesso!");
       loadMembers();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Erro ao adicionar membro");
+      setError(error.response?.data?.message || "Erro ao adicionar membro");
     }
   };
 
@@ -61,368 +119,380 @@ export const TeamView: React.FC = () => {
         isActive: editingMember.isActive,
       });
       setEditingMember(null);
+      setSuccess("Membro atualizado com sucesso!");
       loadMembers();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Erro ao atualizar membro");
+      setError(error.response?.data?.message || "Erro ao atualizar membro");
     }
   };
 
-  const handleRemoveMember = async (id: string) => {
-    if (!confirm("Tem certeza que deseja remover este membro?")) return;
-    try {
-      await api.delete(`/api/team/members/${id}`);
-      loadMembers();
-    } catch (error: any) {
-      alert(error.response?.data?.message || "Erro ao remover membro");
+  const handleRemoveMember = (id: string) => {
+    setConfirmDialog({
+      open: true,
+      title: "Remover Membro",
+      content: "Tem certeza que deseja remover este membro da equipe?",
+      confirmText: "Remover",
+      cancelText: "Cancelar",
+      confirmColor: "error",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/team/members/${id}`);
+          setSuccess("Membro removido com sucesso!");
+          loadMembers();
+        } catch (error: any) {
+          setError(error.response?.data?.message || "Erro ao remover membro");
+        } finally {
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
+      },
+    });
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case "admin":
+        return <AdminPanelSettings fontSize="small" />;
+      case "manager":
+        return <SupervisorAccount fontSize="small" />;
+      default:
+        return <SupportAgent fontSize="small" />;
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const styles = {
-      admin: "bg-red-500/20 text-red-400 border-red-500/30",
-      manager: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      agent: "bg-green-500/20 text-green-400 border-green-500/30",
-    };
+  const getRoleLabel = (role: string) => {
     const labels = {
       admin: "Admin",
       manager: "Gerente",
       agent: "Atendente",
     };
-    return (
-      <span
-        className={`px-2 py-1 text-xs rounded-full border ${
-          styles[role as keyof typeof styles]
-        }`}
-      >
-        {labels[role as keyof typeof labels]}
-      </span>
-    );
+    return labels[role as keyof typeof labels] || role;
+  };
+
+  const getRoleColor = (role: string) => {
+    const colors = {
+      admin: "error",
+      manager: "info",
+      agent: "success",
+    };
+    return colors[role as keyof typeof colors] || "default";
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-      </div>
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height={400}
+      >
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Equipe</h1>
-          <p className="text-text-secondary text-sm">
-            Gerencie os membros da sua equipe
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors"
+    <Box p={4}>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        title={confirmDialog.title}
+        content={confirmDialog.content}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        confirmColor={confirmDialog.confirmColor}
+        onConfirm={confirmDialog.onConfirm}
+      />
+
+      {success && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-            person_add
-          </span>
+          {success}
+        </Alert>
+      )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={4}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
+            Equipe
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Gerencie os membros da sua equipe
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<PersonAdd />}
+          onClick={() => setShowAddModal(true)}
+        >
           Adicionar Membro
-        </button>
-      </div>
+        </Button>
+      </Box>
 
       {/* Team Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-surface rounded-xl p-4 border border-surface-hover">
-          <p className="text-text-secondary text-sm">Total de Membros</p>
-          <p className="text-2xl font-bold text-white">{members.length}</p>
-        </div>
-        <div className="bg-surface rounded-xl p-4 border border-surface-hover">
-          <p className="text-text-secondary text-sm">Admins</p>
-          <p className="text-2xl font-bold text-red-400">
-            {members.filter((m) => m.role === "admin").length}
-          </p>
-        </div>
-        <div className="bg-surface rounded-xl p-4 border border-surface-hover">
-          <p className="text-text-secondary text-sm">Gerentes</p>
-          <p className="text-2xl font-bold text-blue-400">
-            {members.filter((m) => m.role === "manager").length}
-          </p>
-        </div>
-        <div className="bg-surface rounded-xl p-4 border border-surface-hover">
-          <p className="text-text-secondary text-sm">Atendentes</p>
-          <p className="text-2xl font-bold text-green-400">
-            {members.filter((m) => m.role === "agent").length}
-          </p>
-        </div>
-      </div>
+      <Grid container spacing={3} mb={4}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Total de Membros
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              {members.length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Admins
+            </Typography>
+            <Typography variant="h4" fontWeight="bold" color="error.main">
+              {members.filter((m) => m.role === "admin").length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Gerentes
+            </Typography>
+            <Typography variant="h4" fontWeight="bold" color="info.main">
+              {members.filter((m) => m.role === "manager").length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Atendentes
+            </Typography>
+            <Typography variant="h4" fontWeight="bold" color="success.main">
+              {members.filter((m) => m.role === "agent").length}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
 
       {/* Members List */}
-      <div className="bg-surface rounded-xl border border-surface-hover overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-background">
-            <tr>
-              <th className="text-left text-text-secondary text-sm font-medium px-4 py-3">
-                Membro
-              </th>
-              <th className="text-left text-text-secondary text-sm font-medium px-4 py-3">
-                Cargo
-              </th>
-              <th className="text-left text-text-secondary text-sm font-medium px-4 py-3">
-                Conversas Ativas
-              </th>
-              <th className="text-left text-text-secondary text-sm font-medium px-4 py-3">
-                Status
-              </th>
-              <th className="text-right text-text-secondary text-sm font-medium px-4 py-3">
-                Ações
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((member) => (
-              <tr
-                key={member.id}
-                className="border-t border-surface-hover hover:bg-background/50"
-              >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {member.picture ? (
-                      <img
-                        src={member.picture}
-                        alt={member.name}
-                        className="w-10 h-10 rounded-full"
+      <Paper sx={{ width: "100%", overflow: "hidden", borderRadius: 2 }}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Membro</TableCell>
+                <TableCell>Cargo</TableCell>
+                <TableCell>Conversas Ativas</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Ações</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id} hover>
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Avatar src={member.picture} alt={member.name}>
+                        {member.name.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {member.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {member.email}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      icon={getRoleIcon(member.role)}
+                      label={getRoleLabel(member.role)}
+                      color={getRoleColor(member.role) as any}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography fontWeight="medium">
+                      {member.activeConversations}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {member.isActive ? (
+                      <Chip
+                        icon={<CheckCircle />}
+                        label="Ativo"
+                        color="success"
+                        size="small"
+                        variant="soft"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-primary font-bold">
-                          {member.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <Chip
+                        icon={<Cancel />}
+                        label="Inativo"
+                        color="default"
+                        size="small"
+                        variant="soft"
+                      />
                     )}
-                    <div>
-                      <p className="text-white font-medium">{member.name}</p>
-                      <p className="text-text-secondary text-sm">
-                        {member.email}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">{getRoleBadge(member.role)}</td>
-                <td className="px-4 py-3">
-                  <span className="text-white font-medium">
-                    {member.activeConversations}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {member.isActive ? (
-                    <span className="flex items-center gap-1 text-green-400 text-sm">
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 16 }}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Editar">
+                      <IconButton
+                        onClick={() => setEditingMember({ ...member })}
                       >
-                        check_circle
-                      </span>
-                      Ativo
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-text-secondary text-sm">
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 16 }}
+                        <Edit />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Remover">
+                      <IconButton
+                        onClick={() => handleRemoveMember(member.id)}
+                        color="error"
                       >
-                        cancel
-                      </span>
-                      Inativo
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => setEditingMember({ ...member })}
-                    className="p-2 hover:bg-background rounded-lg text-text-secondary hover:text-white transition-colors"
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 20 }}
-                    >
-                      edit
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => handleRemoveMember(member.id)}
-                    className="p-2 hover:bg-background rounded-lg text-text-secondary hover:text-red-400 transition-colors"
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 20 }}
-                    >
-                      delete
-                    </span>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                        <Delete />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
 
       {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-xl p-6 w-full max-w-md border border-surface-hover">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Adicionar Membro
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={newMember.name}
-                  onChange={(e) =>
-                    setNewMember({ ...newMember, name: e.target.value })
-                  }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
-                  placeholder="Nome do membro"
-                />
-              </div>
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={newMember.email}
-                  onChange={(e) =>
-                    setNewMember({ ...newMember, email: e.target.value })
-                  }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Senha
-                </label>
-                <input
-                  type="password"
-                  value={newMember.password}
-                  onChange={(e) =>
-                    setNewMember({ ...newMember, password: e.target.value })
-                  }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
-                  placeholder="********"
-                />
-              </div>
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Cargo
-                </label>
-                <select
-                  value={newMember.role}
-                  onChange={(e) =>
-                    setNewMember({
-                      ...newMember,
-                      role: e.target.value as "admin" | "manager" | "agent",
-                    })
-                  }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
-                >
-                  <option value="agent">Atendente</option>
-                  <option value="manager">Gerente</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 border border-surface-hover text-text-secondary rounded-lg hover:bg-background transition-colors"
+      <Dialog
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Adicionar Membro</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} pt={1}>
+            <TextField
+              label="Nome"
+              value={newMember.name}
+              onChange={(e) =>
+                setNewMember({ ...newMember, name: e.target.value })
+              }
+              fullWidth
+            />
+            <TextField
+              label="Email"
+              type="email"
+              value={newMember.email}
+              onChange={(e) =>
+                setNewMember({ ...newMember, email: e.target.value })
+              }
+              fullWidth
+            />
+            <TextField
+              label="Senha"
+              type="password"
+              value={newMember.password}
+              onChange={(e) =>
+                setNewMember({ ...newMember, password: e.target.value })
+              }
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Cargo</InputLabel>
+              <Select
+                value={newMember.role}
+                label="Cargo"
+                onChange={(e) =>
+                  setNewMember({ ...newMember, role: e.target.value as any })
+                }
               >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddMember}
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Adicionar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <MenuItem value="agent">Atendente</MenuItem>
+                <MenuItem value="manager">Gerente</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAddModal(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleAddMember}>
+            Adicionar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit Modal */}
-      {editingMember && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-xl p-6 w-full max-w-md border border-surface-hover">
-            <h2 className="text-xl font-bold text-white mb-4">Editar Membro</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={editingMember.name}
-                  onChange={(e) =>
-                    setEditingMember({ ...editingMember, name: e.target.value })
-                  }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-text-secondary text-sm mb-1">
-                  Cargo
-                </label>
-                <select
+      <Dialog
+        open={!!editingMember}
+        onClose={() => setEditingMember(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Editar Membro</DialogTitle>
+        <DialogContent>
+          {editingMember && (
+            <Stack spacing={2} pt={1}>
+              <TextField
+                label="Nome"
+                value={editingMember.name}
+                onChange={(e) =>
+                  setEditingMember({ ...editingMember, name: e.target.value })
+                }
+                fullWidth
+              />
+              <FormControl fullWidth>
+                <InputLabel>Cargo</InputLabel>
+                <Select
                   value={editingMember.role}
+                  label="Cargo"
                   onChange={(e) =>
                     setEditingMember({
                       ...editingMember,
-                      role: e.target.value as "admin" | "manager" | "agent",
+                      role: e.target.value as any,
                     })
                   }
-                  className="w-full bg-background border border-surface-hover rounded-lg px-3 py-2 text-white"
                 >
-                  <option value="agent">Atendente</option>
-                  <option value="manager">Gerente</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={editingMember.isActive}
-                  onChange={(e) =>
-                    setEditingMember({
-                      ...editingMember,
-                      isActive: e.target.checked,
-                    })
-                  }
-                  className="w-4 h-4"
-                />
-                <label className="text-text-secondary text-sm">
-                  Usuário ativo
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setEditingMember(null)}
-                className="flex-1 px-4 py-2 border border-surface-hover text-text-secondary rounded-lg hover:bg-background transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleUpdateMember}
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                  <MenuItem value="agent">Atendente</MenuItem>
+                  <MenuItem value="manager">Gerente</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={editingMember.isActive}
+                    onChange={(e) =>
+                      setEditingMember({
+                        ...editingMember,
+                        isActive: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="Usuário ativo"
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingMember(null)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleUpdateMember}>
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };

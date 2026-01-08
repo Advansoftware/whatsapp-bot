@@ -42,6 +42,7 @@ import {
   Pause,
 } from "@mui/icons-material";
 import api from "../../lib/api";
+import ConfirmDialog, { ConfirmDialogProps } from "../common/ConfirmDialog";
 
 interface SecretaryTask {
   id: string;
@@ -77,6 +78,14 @@ const TasksView: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SecretaryTask | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<
+    Omit<ConfirmDialogProps, "open" | "onClose"> & { open: boolean }
+  >({
+    open: false,
+    title: "",
+    content: "",
+    onConfirm: async () => {},
+  });
 
   // Form state
   const [form, setForm] = useState({
@@ -250,16 +259,26 @@ const TasksView: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta tarefa?")) return;
-
-    try {
-      await api.deleteSecretaryTask(id);
-      setSuccess("Tarefa excluída com sucesso!");
-      loadTasks();
-    } catch (err) {
-      setError("Erro ao excluir tarefa");
-    }
+  const handleDelete = (id: string) => {
+    setConfirmDialog({
+      open: true,
+      title: "Excluir Tarefa",
+      content: "Tem certeza que deseja excluir esta tarefa?",
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
+      confirmColor: "error",
+      onConfirm: async () => {
+        try {
+          await api.deleteSecretaryTask(id);
+          setSuccess("Tarefa excluída com sucesso!");
+          loadTasks();
+        } catch (err) {
+          setError("Erro ao excluir tarefa");
+        } finally {
+            setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
+      },
+    });
   };
 
   const handleToggle = async (id: string) => {
@@ -314,6 +333,17 @@ const TasksView: React.FC = () => {
           {error}
         </Alert>
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        title={confirmDialog.title}
+        content={confirmDialog.content}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        confirmColor={confirmDialog.confirmColor}
+        onConfirm={confirmDialog.onConfirm}
+      />
 
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>

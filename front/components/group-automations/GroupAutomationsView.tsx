@@ -30,6 +30,10 @@ import {
   Tabs,
   Tab,
   Autocomplete,
+  Grid,
+  Card,
+  CardContent,
+  CardActionArea,
 } from "@mui/material";
 import {
   Add,
@@ -43,8 +47,15 @@ import {
   Group,
   AutoAwesome,
   DataObject,
+  SportsSoccer,
+  Description,
+  Email,
+  Webhook,
+  Security,
+  ContentPaste,
 } from "@mui/icons-material";
 import api from "../../lib/api";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 interface GroupAutomation {
   id: string;
@@ -115,6 +126,73 @@ const DATA_TYPES = [
   { value: "custom", label: "Padrão Customizado", pattern: "" },
 ];
 
+interface AutomationTemplate {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  config: Partial<GroupAutomation> & { dataType?: string; replyTemplate?: string; webhookUrl?: string };
+}
+
+const PREDEFINED_TEMPLATES: AutomationTemplate[] = [
+  {
+    title: "Bolão de Futebol/Loteria",
+    description: "Coleta palpites ou números enviados no grupo.",
+    icon: <SportsSoccer fontSize="large" />,
+    config: {
+      name: "Bolão da Rodada",
+      description: "Coleta palpites de jogos enviados no grupo",
+      actionType: "collect_data",
+      dataType: "lottery_numbers",
+      shouldReply: true,
+      replyOnlyOnce: false,
+      replyTemplate: "✅ Palpite registrado!\n👤 {{participantName}}\n🔢 {{numbers}}",
+      isActive: true,
+    }
+  },
+  {
+    title: "Lista de Presença",
+    description: "Conta quantas pessoas confirmaram presença.",
+    icon: <Description fontSize="large" />,
+    config: {
+      name: "Lista de Presença",
+      description: "Contagem de participantes para evento",
+      actionType: "aggregate",
+      capturePattern: "(eu vou|tô dentro|confirmado|presente)",
+      shouldReply: true,
+      replyTemplate: "📝 Presença confirmada! Total: {{count}}",
+      isActive: true,
+    }
+  },
+  {
+    title: "Captura de Emails",
+    description: "Salva endereços de e-mail enviados no chat.",
+    icon: <Email fontSize="large" />,
+    config: {
+      name: "Captura de Leads",
+      description: "Coleta e-mails de potenciais clientes",
+      actionType: "collect_data",
+      dataType: "email",
+      shouldReply: true,
+      replyOnlyOnce: true,
+      replyTemplate: "📧 Email recebido! Entraremos em contato.",
+      isActive: true,
+    }
+  },
+  {
+    title: "Integração Externa",
+    description: "Envia todas as mensagens para um sistema externo via Webhook.",
+    icon: <Webhook fontSize="large" />,
+    config: {
+      name: "Integração CRM",
+      description: "Envia mensagens para CRM externo",
+      actionType: "webhook",
+      webhookUrl: "https://api.seucrm.com/webhook/whatsapp",
+      shouldReply: false,
+      isActive: true,
+    }
+  }
+];
+
 export default function GroupAutomationsView() {
   const [automations, setAutomations] = useState<GroupAutomation[]>([]);
   const [groups, setGroups] = useState<AvailableGroup[]>([]);
@@ -127,6 +205,9 @@ export default function GroupAutomationsView() {
     useState<GroupAutomation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState({ title: "", content: "" });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -220,6 +301,30 @@ export default function GroupAutomationsView() {
     setDialogOpen(true);
   };
 
+  const handleUseTemplate = (template: AutomationTemplate) => {
+    setEditingAutomation(null);
+    setFormData({
+      name: template.config.name || "",
+      description: template.config.description || "",
+      groupRemoteJid: "",
+      groupNameMatch: "",
+      capturePattern: template.config.capturePattern || "",
+      actionType: template.config.actionType || "collect_data",
+      actionConfig: {},
+      startsAt: "",
+      expiresAt: "",
+      priority: 0,
+      shouldReply: template.config.shouldReply ?? true,
+      replyOnlyOnce: template.config.replyOnlyOnce ?? false,
+      skipAiAfter: template.config.skipAiAfter ?? true,
+      isActive: template.config.isActive ?? true,
+      dataType: template.config.dataType || "lottery_numbers",
+      replyTemplate: template.config.replyTemplate || "",
+      webhookUrl: template.config.webhookUrl || "",
+    });
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
     try {
       // Build actionConfig based on actionType
@@ -299,16 +404,22 @@ export default function GroupAutomationsView() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta automação?")) return;
-
-    try {
-      await api.deleteGroupAutomation(id);
-      setSuccess("Automação excluída com sucesso!");
-      loadData();
-    } catch (err: any) {
-      setError(err.message);
-    }
+  const handleDelete = (id: string) => {
+    setConfirmMessage({
+      title: "Confirmar Exclusão",
+      content: "Tem certeza que deseja excluir esta automação? Esta ação não pode ser desfeita."
+    });
+    setConfirmAction(() => async () => {
+      try {
+        await api.deleteGroupAutomation(id);
+        setSuccess("Automação excluída com sucesso!");
+        loadData();
+      } catch (err: any) {
+        setError(err.message);
+      }
+      setConfirmOpen(false);
+    });
+    setConfirmOpen(true);
   };
 
   const handleViewData = async (id: string) => {
@@ -370,6 +481,32 @@ export default function GroupAutomationsView() {
           Nova Automação
         </Button>
       </Box>
+      
+      <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+        Modelos de Automação
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {PREDEFINED_TEMPLATES.map((template, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card variant="outlined" sx={{ height: '100%', transition: 'all 0.2s', '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 } }}>
+              <CardActionArea 
+                onClick={() => handleUseTemplate(template)}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', p: 2, textAlign: 'left' }}
+              >
+                <Box color="primary.main" mb={1}>
+                  {template.icon}
+                </Box>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  {template.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {template.description}
+                </Typography>
+              </CardActionArea>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -970,6 +1107,15 @@ export default function GroupAutomationsView() {
           <Button onClick={() => setViewDataOpen(null)}>Fechar</Button>
         </DialogActions>
       </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={confirmMessage.title}
+        content={confirmMessage.content}
+        onConfirm={confirmAction || (() => {})}
+        onCancel={() => setConfirmOpen(false)}
+        confirmColor="error"
+        confirmText="Excluir"
+      />
     </Box>
   );
 }
