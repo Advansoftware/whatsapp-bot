@@ -7,6 +7,7 @@ import {
   Star,
   Forward,
   Info,
+  SentimentSatisfiedAlt,
 } from '@mui/icons-material';
 
 interface ContextMenuProps {
@@ -18,6 +19,7 @@ interface ContextMenuProps {
   onStar?: () => void;
   onForward?: () => void;
   onInfo?: () => void;
+  onSaveSticker?: () => void;
   isOwnMessage?: boolean;
   anchorReference?: 'anchorEl' | 'anchorPosition';
   anchorPosition?: { top: number; left: number };
@@ -38,6 +40,7 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
   onStar,
   onForward,
   onInfo,
+  onSaveSticker,
   isOwnMessage = false,
 }) => {
   const handleAction = useCallback((action?: () => void) => {
@@ -117,6 +120,15 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
             <Info sx={{ color: '#8696a0' }} />
           </ListItemIcon>
           <ListItemText>Info</ListItemText>
+        </MenuItem>
+      )}
+
+  {onSaveSticker && (
+        <MenuItem onClick={() => handleAction(onSaveSticker)}>
+          <ListItemIcon>
+            <SentimentSatisfiedAlt sx={{ color: '#8696a0' }} />
+          </ListItemIcon>
+          <ListItemText>Salvar Figurinha</ListItemText>
         </MenuItem>
       )}
 

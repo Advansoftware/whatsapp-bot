@@ -43,17 +43,36 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
 
   // Fetch sticker packs
   useEffect(() => {
-    const fetchStickers = async () => {
+    const loadStickers = () => {
       setLoading(true);
       try {
-        // TODO: Implement API call to fetch user's sticker packs
-        // For now, show placeholder
+        const storedFavorites = localStorage.getItem('favorite_stickers');
+        const favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
+
         setStickerPacks([
+          {
+            id: 'favorites',
+            name: '⭐ Favoritos',
+            stickers: favorites.map((url: string, index: number) => ({
+                id: `fav-${index}`,
+                url,
+            })),
+          },
           {
             id: 'recent',
             name: '⏱️ Recentes',
-            stickers: [],
+            stickers: [], // TODO: Implement recents
           },
+          {
+            id: 'emojis',
+            name: '😀 Padrão',
+            stickers: [
+                { id: '1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDdtbWh4bW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/l0HlCqV35hdEg2PGM/giphy.gif' },
+                { id: '2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/3o7TKr3nzbh5WgCFxe/giphy.gif' },
+                { id: '3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXZ4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/l0HlOHDng56Mbwle8/giphy.gif' },
+                { id: '4', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3Z4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MW54Z3V4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/3oKIPnAiaMCws8nOsE/giphy.gif' },
+            ],
+          }
         ]);
       } catch (err) {
         console.error('Failed to fetch stickers:', err);
@@ -63,8 +82,13 @@ const StickerPicker: React.FC<StickerPickerProps> = memo(({
     };
 
     if (anchorEl) {
-      fetchStickers();
+      loadStickers();
+      window.addEventListener('sticker-favorites-updated', loadStickers);
     }
+    
+    return () => {
+        window.removeEventListener('sticker-favorites-updated', loadStickers);
+    };
   }, [anchorEl]);
 
   const handleStickerClick = useCallback((stickerUrl: string) => {

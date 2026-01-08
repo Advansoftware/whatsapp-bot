@@ -631,24 +631,61 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       mediaType: 'sticker',
       pushName: 'Você',
     };
-
+    
+    // ... existing logic ...
     addMessage(optimisticMessage);
-    scrollToBottomSmooth();
+    
+     try {
+        const result = await api.sendMessage(instanceKey, chatId, '', {
+            mediaUrl: stickerUrl,
+            mediaType: 'sticker'
+        });
+        if (result?.messageId) {
+          replaceMessageId(tempId, result.messageId, "sent");
+        } else {
+          updateMessageStatus(tempId, "failed");
+        }
+      } catch (error) {
+        console.error("Error sending sticker:", error);
+        updateMessageStatus(tempId, "failed");
+      }
+  }, [chatId, instanceKey, addMessage, replaceMessageId, updateMessageStatus]);
 
-    try {
-      // Use existing sendMedia or specialized endpoint
-      // Assuming api.sendMedia can handle URL or we need a new method
-      await api.sendMessage(instanceKey, chatId, '', {
-        mediaUrl: stickerUrl,
-        mediaType: 'sticker'
-      });
-      // Mock success for now
-      updateMessageStatus(tempId, 'sent');
-    } catch (err) {
-      console.error('Error sending sticker:', err);
-      updateMessageStatus(tempId, 'error');
+  // Handle save sticker (favorite)
+  const handleSaveSticker = useCallback(() => {
+    if (contextMenu?.message && contextMenu.message.mediaType === 'sticker' && contextMenu.message.mediaUrl) {
+      const stickerUrl = getMediaSrc(contextMenu.message);
+      if (stickerUrl) {
+        try {
+          const stored = localStorage.getItem('favorite_stickers');
+          const favorites = stored ? JSON.parse(stored) : [];
+          if (!favorites.includes(stickerUrl)) {
+             favorites.unshift(stickerUrl); // Add to top
+             localStorage.setItem('favorite_stickers', JSON.stringify(favorites));
+             // Dispatch event for StickerPicker to update immediately
+             window.dispatchEvent(new Event('sticker-favorites-updated'));
+             
+             setSnackbar({
+               open: true,
+               message: "Figurinha salva nos favoritos!",
+               severity: "success"
+             });
+          } else {
+             setSnackbar({
+               open: true,
+               message: "Figurinha já está nos favoritos",
+               severity: "info"
+             });
+          }
+        } catch (e) {
+          console.error("Error saving sticker:", e);
+        }
+      }
+      handleCloseContextMenu();
     }
-  }, [chatId, instanceKey, addMessage, scrollToBottomSmooth, updateMessageStatus]);
+  }, [contextMenu, getMediaSrc]);
+
+
 
   // Handle scroll to message (for reply click)
   const handleScrollToMessage = useCallback((messageId: string) => {
@@ -895,6 +932,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           // Implement delete if API supports it
           handleCloseContextMenu();
         } : undefined}
+        onSaveSticker={contextMenu?.message?.mediaType === 'sticker' ? handleSaveSticker : undefined}
         isOwnMessage={contextMenu?.message?.direction === 'outgoing'}
       />
 
