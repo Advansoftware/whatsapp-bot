@@ -271,25 +271,39 @@ export class MessagesController {
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Get total count of unique remoteJids
-    const totalResult = await this.prisma.message.groupBy({
-      by: ['remoteJid'],
-      where: { companyId },
-    });
-    const total = totalResult.length;
+    // Get total count of unique remoteJids usando query raw otimizada
+    const totalResult = await this.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT remote_jid) as count
+      FROM messages
+      WHERE company_id = ${companyId}
+    `;
+    const total = Number(totalResult[0].count);
 
-    // Get unique contacts with their last message
-    const conversations = await this.prisma.message.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['remoteJid'],
-      skip,
-      take: limitNum,
-      include: {
-        instance: {
-          select: { name: true, instanceKey: true },
-        },
-      },
+    // Get unique contacts with their last message usando subquery otimizada
+    const conversations = await this.prisma.$queryRaw<any[]>`
+      SELECT DISTINCT ON (m.remote_jid) 
+        m.id, m.remote_jid as "remoteJid", m.content, m.direction, 
+        m.push_name as "pushName", m.created_at as "createdAt",
+        m.instance_id as "instanceId", m.is_group as "isGroup",
+        i.name as "instanceName", i.instance_key as "instanceKey"
+      FROM messages m
+      LEFT JOIN instances i ON m.instance_id = i.id
+      WHERE m.company_id = ${companyId}
+      ORDER BY m.remote_jid, m.created_at DESC
+      LIMIT ${limitNum} OFFSET ${skip}
+    `;
+
+    // Converter createdAt para Date objects
+    conversations.forEach(conv => {
+      if (conv.createdAt) {
+        conv.createdAt = new Date(conv.createdAt);
+      }
+      conv.instance = {
+        name: conv.instanceName,
+        instanceKey: conv.instanceKey
+      };
+      delete conv.instanceName;
+      delete conv.instanceKey;
     });
 
     // Fetch all contacts for this company to join with messages

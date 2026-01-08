@@ -145,13 +145,6 @@ services:
           memory: 512M
         reservations:
           memory: 256M
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.respondia.pro`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=4000"
-      - "traefik.docker.network=proxy-network"
 
   # ===========================================
   # FRONTEND - React + Nginx
@@ -168,7 +161,7 @@ services:
     container_name: respondia-frontend
     restart: always
     ports:
-      - "5173:80"
+      - "5173:5173"
     networks:
       - proxy-network
     depends_on:
@@ -179,18 +172,6 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`respondia.pro`) || Host(`www.respondia.pro`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      - "traefik.docker.network=proxy-network"
-      # Redirect www to non-www
-      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.respondia\\.pro/(.*)"
-      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://respondia.pro/$${1}"
-      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
-      - "traefik.http.routers.frontend.middlewares=www-redirect"
 
 volumes:
   postgres_data:

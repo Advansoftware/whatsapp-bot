@@ -10,7 +10,14 @@ import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // Allow all origins for simplicity in development
+    origin: process.env.NODE_ENV === 'production'
+      ? [
+        process.env.FRONTEND_URL || 'https://respondia.pro',
+        'https://respondia.pro',
+        'https://www.respondia.pro'
+      ]
+      : '*',
+    credentials: true,
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {

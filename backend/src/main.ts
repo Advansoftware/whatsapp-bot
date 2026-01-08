@@ -12,9 +12,30 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Enable CORS for frontend
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5173',
+    'https://respondia.pro',
+    'https://www.respondia.pro',
+  ];
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked origin: ${origin}`);
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 3600,
   });
 
   // Global validation pipe for DTOs
