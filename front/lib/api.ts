@@ -530,10 +530,11 @@ class ApiClient {
   }
 
   // CRM Contacts endpoints
-  async getCRMContacts(page = 1, limit = 30, query?: string, tag?: string) {
+  async getCRMContacts(page = 1, limit = 30, query?: string, tag?: string, status?: string) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (query) params.append('q', query);
     if (tag) params.append('tag', tag);
+    if (status) params.append('status', status);
     return this.request<{
       data: Array<{
         id: string;

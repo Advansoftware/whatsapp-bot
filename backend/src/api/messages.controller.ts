@@ -212,11 +212,19 @@ export class MessagesController {
           }
         }
 
-        response = await axios.post(
-          `${evolutionUrl}/message/sendText/${instanceKey}`,
-          payload,
-          { headers: { 'apikey': evolutionApiKey } }
-        );
+        try {
+          response = await axios.post(
+            `${evolutionUrl}/message/sendText/${instanceKey}`,
+            payload,
+            { headers: { 'apikey': evolutionApiKey } }
+          );
+        } catch (axiosError) {
+          console.error('Error sending text to Evolution API:', axiosError.response?.data || axiosError.message);
+          throw new HttpException(
+            `Failed to send message via Evolution API: ${JSON.stringify(axiosError.response?.data || axiosError.message)}`,
+            HttpStatus.BAD_GATEWAY
+          );
+        }
       }
 
       const messageId = response.data?.key?.id;

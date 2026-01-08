@@ -26,6 +26,9 @@ export class ContactsController {
     @Query('university') university?: string,
     @Query('minAge') minAge?: string,
     @Query('maxAge') maxAge?: string,
+    @Query('status') status?: string,
+    @Query('minScore') minScore?: string,
+    @Query('maxScore') maxScore?: string,
   ) {
     const companyId = req.user.companyId;
     const pageNum = parseInt(page, 10);
@@ -73,12 +76,24 @@ export class ContactsController {
       }
     }
 
+    if (status) {
+      console.log('Filtering contacts by status:', status);
+      where.leadStatus = { equals: status, mode: 'insensitive' };
+    }
+
+    if (minScore || maxScore) {
+      where.leadScore = { ...where.leadScore };
+      if (minScore) where.leadScore.gte = parseInt(minScore, 10);
+      if (maxScore) where.leadScore.lte = parseInt(maxScore, 10);
+    }
+
     const [contacts, total] = await Promise.all([
       this.prisma.contact.findMany({
         where,
         orderBy: { updatedAt: 'desc' },
         skip,
         take: limitNum,
+        include: { instance: { select: { instanceKey: true } } }
       }),
       this.prisma.contact.count({ where }),
     ]);
@@ -98,6 +113,7 @@ export class ContactsController {
 
         return {
           ...contact,
+          instanceKey: contact.instance?.instanceKey,
           displayName: contact.pushName || contact.remoteJid.replace('@s.whatsapp.net', ''),
           lastMessage: lastMessage?.content || null,
           lastMessageAt: lastMessage?.createdAt || null,

@@ -74,6 +74,9 @@ interface Contact {
   lastMessageAt: string | null;
   messageCount: number;
   createdAt: string;
+  leadScore?: number;
+  leadStatus?: string;
+  instanceKey?: string;
 }
 
 interface ContactStats {
@@ -91,6 +94,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [stats, setStats] = useState<ContactStats | null>(null);
@@ -121,7 +125,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
   const loadContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.getCRMContacts(page, 30, searchQuery);
+      const response = await api.getCRMContacts(page, 30, searchQuery, undefined, filterStatus);
       setContacts(response.data);
       setTotalPages(response.pagination.totalPages);
     } catch (err) {
@@ -129,7 +133,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery]);
+  }, [page, searchQuery, filterStatus]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -154,7 +158,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
       loadContacts();
     }, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, filterStatus]);
 
   const handleEditContact = (contact: Contact) => {
     setSelectedContact(contact);
@@ -411,6 +415,25 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
             ),
           }}
         />
+        
+        {/* Status Filter */}
+        <Box mt={2} display="flex" gap={2}>
+           <TextField
+             select
+             label="Filtrar por Temperatura"
+             value={filterStatus}
+             onChange={(e) => setFilterStatus(e.target.value)}
+             SelectProps={{ native: true }}
+             InputLabelProps={{ shrink: true }}
+             size="small"
+             sx={{ minWidth: 200 }}
+           >
+             <option value="">Todas</option>
+             <option value="hot">Quente 🔥</option>
+             <option value="warm">Morno 😐</option>
+             <option value="cold">Frio ❄️</option>
+           </TextField>
+        </Box>
       </Paper>
 
       {/* Contacts List */}
@@ -465,14 +488,14 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                             }}
                             onClick={() => {
                               // Navigate to live chat with this contact
-                              if (onNavigateToChat) {
-                                onNavigateToChat({
-                                  remoteJid: contact.remoteJid,
-                                  contact: contact.displayName,
-                                  instanceKey: contact.instanceId || "",
-                                  profilePicUrl: contact.profilePicUrl,
-                                });
-                              }
+                                if (onNavigateToChat) {
+                                  onNavigateToChat({
+                                    remoteJid: contact.remoteJid,
+                                    contact: contact.displayName,
+                                    instanceKey: contact.instanceKey || contact.instanceId || "",
+                                    profilePicUrl: contact.profilePicUrl,
+                                  });
+                                }
                             }}
                           >
                             {contact.displayName}
@@ -486,6 +509,34 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                               variant="outlined"
                             />
                           ))}
+
+                            {contact.leadStatus && (
+                                <Chip 
+                                    label={
+                                      contact.leadStatus === 'hot' ? 'Quente 🔥' :
+                                      contact.leadStatus === 'warm' ? 'Morno 😐' :
+                                      contact.leadStatus === 'cold' ? 'Frio ❄️' :
+                                      contact.leadStatus
+                                    }
+                                    size="small"
+                                    color={
+                                      contact.leadStatus === 'hot' ? 'error' : 
+                                      contact.leadStatus === 'warm' ? 'warning' : 
+                                      contact.leadStatus === 'cold' ? 'info' :
+                                      'default'
+                                    }
+                                    variant="filled"
+                                    sx={{ fontWeight: 'bold' }}
+                                />
+                            )}
+                            {contact.leadScore !== undefined && (
+                              <Chip 
+                                  label={`Score: ${contact.leadScore}`}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                              />
+                            )}
                         </Box>
                       }
                       secondary={
