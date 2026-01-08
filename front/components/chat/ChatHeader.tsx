@@ -41,6 +41,7 @@ interface ChatHeaderProps {
   assignedAgent?: { id: string; name: string; picture?: string } | null;
   teamMembers?: TeamMember[];
   onAssignAgent?: (agentId: string | null) => void;
+  onClick?: () => void;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -63,6 +64,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   assignedAgent,
   teamMembers,
   onAssignAgent,
+  onClick,
   colors,
 }) => {
   const avatarBgColor = isGroup ? "#5865F2" : "#00a884";
@@ -93,7 +95,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       justifyContent="space-between"
       borderLeft={`1px solid ${colors.divider}`}
     >
-      <Box display="flex" alignItems="center" gap={2}>
+      <Box 
+        display="flex" 
+        alignItems="center" 
+        gap={2} 
+        onClick={onClick}
+        sx={{ cursor: onClick ? 'pointer' : 'default' }}
+      >
         <Badge
           overlap="circular"
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}

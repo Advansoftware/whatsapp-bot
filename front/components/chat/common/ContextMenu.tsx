@@ -51,7 +51,6 @@ const ContextMenu: React.FC<ContextMenuProps> = memo(({
       anchorReference={anchorReference}
       anchorPosition={anchorPosition}
       open={Boolean(anchorEl) || Boolean(anchorPosition)}
-      open={Boolean(anchorEl)}
       onClose={onClose}
       anchorOrigin={{
         vertical: 'top',
