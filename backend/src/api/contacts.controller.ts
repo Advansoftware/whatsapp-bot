@@ -123,9 +123,13 @@ export class ContactsController {
   @Get(':id')
   async getContact(@Request() req: any, @Param('id') id: string) {
     const companyId = req.user.companyId;
+    const decodedId = decodeURIComponent(id);
 
     const contact = await this.prisma.contact.findFirst({
-      where: { id, companyId },
+      where: {
+        companyId,
+        OR: [{ id: decodedId }, { remoteJid: decodedId }],
+      },
       include: {
         memories: {
           orderBy: [{ type: 'asc' }, { updatedAt: 'desc' }],

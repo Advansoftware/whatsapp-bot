@@ -62,9 +62,15 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
     if (!notification.read) {
       markAsRead(notification.id);
     }
-    if (notification.actionUrl && onNavigate) {
-      onNavigate(notification.actionUrl);
-      handleClose();
+    
+    if (onNavigate) {
+       if (notification.actionUrl) {
+         onNavigate(notification.actionUrl);
+       } else if (notification.metadata?.remoteJid) {
+         // Construct URL for chat navigation
+         onNavigate(`/livechat/${notification.metadata.remoteJid}`);
+       }
+       handleClose();
     }
   };
 
@@ -72,8 +78,9 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
     switch (type) {
       case "hot_lead":
         return <LocalFireDepartment sx={{ color: "#ff5722" }} />;
-      case "escalation":
-        return <Warning sx={{ color: "#ff9800" }} />;
+      // Escalation icon removed to prevent duplication with title (AI Secretary)
+      // case "escalation":
+      //   return <Warning sx={{ color: "#ff9800" }} />;
       case "integration_error":
       case "message_failed":
         return <ErrorIcon sx={{ color: "#f44336" }} />;

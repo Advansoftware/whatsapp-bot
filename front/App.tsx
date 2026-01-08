@@ -141,9 +141,18 @@ const AppContent: React.FC = () => {
               toggleTheme={toggleTheme}
               isDarkMode={mode === "dark"}
               onNavigate={(url) => {
+                if (url.startsWith("/livechat/") || url.startsWith("/chat/")) {
+                    const parts = url.split("/");
+                    const jid = parts[parts.length - 1]; // /livechat/jid
+                    if (jid && jid !== "livechat") {
+                        handleNavigateToChat({ remoteJid: jid, contact: jid, instanceKey: '', profilePicUrl: null });
+                        return;
+                    }
+                }
+
                 // Parse url to view name (e.g., /chat/123 -> chat)
                 const view = url.replace("/", "").split("/")[0] || "dashboard";
-                setCurrentView(view);
+                setCurrentView(view as View);
               }}
             />
 

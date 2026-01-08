@@ -249,6 +249,19 @@ export function useChatMessages(remoteJid: string | null, initialLimit = 50) {
   const replaceMessageId = useCallback((tempId: string, realId: string, status: string) => {
     setData((prevData: any) => {
       if (!prevData) return prevData;
+
+      // Check if the real ID already exists (e.g., added via socket event before this callback)
+      const realIdExists = prevData.data.some((m: any) => m.id === realId);
+
+      if (realIdExists) {
+        // If real message already exists, remove the temporary one to avoid duplication
+        return {
+          ...prevData,
+          data: prevData.data.filter((m: any) => m.id !== tempId),
+        };
+      }
+
+      // Otherwise, update the temp message with real ID
       return {
         ...prevData,
         data: prevData.data.map((m: any) =>

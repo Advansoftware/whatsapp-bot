@@ -154,6 +154,8 @@ export class MessagesController {
     }
   }
 
+
+
   @Post('send')
   async sendMessage(
     @Body() body: { instanceKey: string; remoteJid: string; content: string; options?: { quotedMessageId?: string; mediaUrl?: string; mediaType?: string } }
@@ -219,6 +221,8 @@ export class MessagesController {
 
       const messageId = response.data?.key?.id;
 
+      let savedId = null;
+
       // Save message immediately
       if (messageId) {
         try {
@@ -242,6 +246,8 @@ export class MessagesController {
               mediaType: options?.mediaType,
             },
           });
+
+          savedId = savedMsg.id;
 
           // Fetch quoted message details for broadcast if needed
           let quotedMessageData = null;
@@ -276,7 +282,7 @@ export class MessagesController {
         }
       }
 
-      return { success: true, messageId };
+      return { success: true, messageId: savedId || messageId };
     } catch (error: any) {
       console.error('Error sending message:', error.response?.data || error.message);
       throw new HttpException(
