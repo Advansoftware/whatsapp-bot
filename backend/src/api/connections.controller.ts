@@ -30,6 +30,8 @@ export class ConnectionsController {
       name: instance.name,
       instanceKey: instance.instanceKey,
       status: instance.status,
+      errorReason: instance.errorReason,
+      lastErrorAt: instance.lastErrorAt,
       createdAt: instance.createdAt,
     }));
   }

@@ -21,7 +21,9 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  Chip
+  Chip,
+  Collapse,
+  Tooltip
 } from '@mui/material';
 import { 
   Check, 
@@ -35,7 +37,9 @@ import {
   Delete,
   Sync,
   LinkOff,
-  QrCode2
+  QrCode2,
+  ErrorOutline,
+  Warning
 } from '@mui/icons-material';
 import { useConnections } from '../hooks/useApi';
 import { useSocket } from '../hooks/useSocket';
@@ -112,6 +116,7 @@ const ConnectionsView: React.FC = () => {
   const [reconnecting, setReconnecting] = useState<string | null>(null);
   const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
   const [instanceToReconnect, setInstanceToReconnect] = useState<any>(null);
+  const [connectionErrors, setConnectionErrors] = useState<Record<string, string>>({});
 
   const steps = ['Inicializando Cliente', 'Gerando QR Code', 'Conectado'];
 
@@ -138,12 +143,29 @@ const ConnectionsView: React.FC = () => {
           return prev;
         });
         setSyncingInstances(prev => ({...prev, [data.instanceKey]: 'qr_ready'}));
+        // Limpa erro ao receber QR code
+        setConnectionErrors(prev => {
+          const newErrors = {...prev};
+          delete newErrors[data.instanceKey];
+          return newErrors;
+        });
       }
       
       // Handle connection state updates
       if (data.type === 'connection_update' && data.instanceKey) {
-        console.log('[WebSocket] Connection update for:', data.instanceKey, 'state:', data.state);
+        console.log('[WebSocket] Connection update for:', data.instanceKey, 'state:', data.state, 'error:', data.errorReason);
         const state = data.state;
+        
+        // Atualiza ou limpa erro
+        if (data.errorReason) {
+          setConnectionErrors(prev => ({...prev, [data.instanceKey]: data.errorReason}));
+        } else if (state === 'open' || state === 'connected') {
+          setConnectionErrors(prev => {
+            const newErrors = {...prev};
+            delete newErrors[data.instanceKey];
+            return newErrors;
+          });
+        }
         
         // Always update the selected instance status if it matches, regardless of state
         setSelectedInstance((prev: any) => {
@@ -170,12 +192,39 @@ const ConnectionsView: React.FC = () => {
       }
     };
 
+    // Handler para erros de conexão específicos
+    const handleConnectionError = (data: any) => {
+      console.log('[WebSocket] Connection error:', data);
+      if (data.instanceKey && data.errorReason) {
+        setConnectionErrors(prev => ({...prev, [data.instanceKey]: data.errorReason}));
+      }
+    };
+
     socket.on('new_message', handleMessage);
+    socket.on('connection_update', handleMessage);
+    socket.on('connection_error', handleConnectionError);
 
     return () => {
       socket.off('new_message', handleMessage);
+      socket.off('connection_update', handleMessage);
+      socket.off('connection_error', handleConnectionError);
     };
   }, [socket, refetch]);
+  
+  // Carrega erros das conexões existentes
+  useEffect(() => {
+    if (connections) {
+      const errors: Record<string, string> = {};
+      connections.forEach((conn: any) => {
+        if (conn.errorReason) {
+          errors[conn.instanceKey] = conn.errorReason;
+        }
+      });
+      if (Object.keys(errors).length > 0) {
+        setConnectionErrors(prev => ({...prev, ...errors}));
+      }
+    }
+  }, [connections]);
 
   const handleCreateConnection = async () => {
     if (!newInstanceName.trim()) return;
@@ -310,6 +359,35 @@ const ConnectionsView: React.FC = () => {
         </Button>
       </Box>
 
+      {/* Alert Banner for Connection Errors */}
+      {Object.keys(connectionErrors).length > 0 && (
+        <Alert 
+          severity="warning" 
+          icon={<Warning />}
+          action={
+            <Button 
+              color="inherit" 
+              size="small"
+              onClick={() => {
+                // Encontra a primeira conexão com erro
+                const instanceKey = Object.keys(connectionErrors)[0];
+                const conn = connections?.find((c: any) => c.instanceKey === instanceKey);
+                if (conn) confirmReconnect(conn);
+              }}
+            >
+              Reconectar
+            </Button>
+          }
+        >
+          <Typography variant="body2" fontWeight={500}>
+            Problema de conexão com o WhatsApp
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {Object.values(connectionErrors)[0]}
+          </Typography>
+        </Alert>
+      )}
+
       {/* Existing Connections */}
       {connections && connections.length > 0 && (
         <Paper elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
@@ -328,48 +406,62 @@ const ConnectionsView: React.FC = () => {
           </Box>
           <Box>
             {connections.map((conn) => (
-              <Box
-                key={conn.id}
-                sx={{
-                  p: 3,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                  '&:last-child': { borderBottom: 'none' },
-                  '&:hover': { bgcolor: 'action.hover' },
-                }}
-              >
-                <Box display="flex" alignItems="center" gap={2}>
-                  <SmartToy color="primary" />
-                  <Box>
-                    <Typography fontWeight={500}>{conn.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {conn.instanceKey}
-                    </Typography>
+              <Box key={conn.id}>
+                <Box
+                  sx={{
+                    p: 3,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: connectionErrors[conn.instanceKey] ? 'none' : `1px solid ${theme.palette.divider}`,
+                    '&:last-child': { borderBottom: connectionErrors[conn.instanceKey] ? 'none' : 'none' },
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={2}>
+                    {connectionErrors[conn.instanceKey] ? (
+                      <ErrorOutline color="error" />
+                    ) : (
+                      <SmartToy color="primary" />
+                    )}
+                    <Box>
+                      <Typography fontWeight={500}>{conn.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {conn.instanceKey}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-                <Box display="flex" alignItems="center" gap={2}>
-                  {syncingInstances[conn.instanceKey] === 'syncing' ? (
-                    <Chip
-                      icon={<Sync sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} />}
-                      label="Sincronizando..."
-                      color="info"
+                  <Box display="flex" alignItems="center" gap={2}>
+                    {syncingInstances[conn.instanceKey] === 'syncing' ? (
+                      <Chip
+                        icon={<Sync sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} />}
+                        label="Sincronizando..."
+                        color="info"
+                        size="small"
+                      />
+                    ) : connectionErrors[conn.instanceKey] ? (
+                      <Tooltip title={connectionErrors[conn.instanceKey]} arrow>
+                        <Chip
+                          icon={<ErrorOutline fontSize="small" />}
+                          label="Erro de Conexão"
+                          color="error"
+                          size="small"
+                          sx={{ cursor: 'help' }}
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Chip
+                        label={conn.status === 'connected' ? 'Conectado' : 'Desconectado'}
+                        color={getStatusColor(conn.status) as any}
+                        size="small"
+                      />
+                    )}
+                    <IconButton
                       size="small"
-                    />
-                  ) : (
-                    <Chip
-                      label={conn.status === 'connected' ? 'Conectado' : 'Desconectado'}
-                      color={getStatusColor(conn.status) as any}
-                      size="small"
-                    />
-                  )}
-                  <IconButton
-                    size="small"
-                    onClick={() => confirmReconnect(conn)}
-                    color="primary"
-                    disabled={reconnecting === conn.id}
-                    title="Reconectar (gerar novo QR code)"
+                      onClick={() => confirmReconnect(conn)}
+                      color={connectionErrors[conn.instanceKey] ? 'error' : 'primary'}
+                      disabled={reconnecting === conn.id}
+                      title="Reconectar (gerar novo QR code)"
                   >
                     {reconnecting === conn.id ? (
                       <CircularProgress size={18} />
@@ -377,15 +469,55 @@ const ConnectionsView: React.FC = () => {
                       <QrCode2 fontSize="small" />
                     )}
                   </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => confirmDeleteConnection(conn.id)}
-                    color="error"
-                    title="Excluir conexão"
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => confirmDeleteConnection(conn.id)}
+                      color="error"
+                      title="Excluir conexão"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Box>
+                {/* Error message row */}
+                <Collapse in={!!connectionErrors[conn.instanceKey]}>
+                  <Box 
+                    sx={{ 
+                      px: 3, 
+                      pb: 2, 
+                      pt: 0,
+                      borderBottom: `1px solid ${theme.palette.divider}`,
+                      bgcolor: 'error.main',
+                      '&:last-child': { borderBottom: 'none' },
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1, 
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.1)' : 'rgba(211, 47, 47, 0.08)',
+                        p: 1.5,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Warning fontSize="small" color="error" />
+                      <Typography variant="body2" color="error.main" sx={{ flex: 1 }}>
+                        {connectionErrors[conn.instanceKey]}
+                      </Typography>
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        startIcon={<QrCode2 fontSize="small" />}
+                        onClick={() => confirmReconnect(conn)}
+                        disabled={reconnecting === conn.id}
+                      >
+                        Reconectar
+                      </Button>
+                    </Box>
+                  </Box>
+                </Collapse>
               </Box>
             ))}
           </Box>

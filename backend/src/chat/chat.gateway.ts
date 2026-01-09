@@ -83,6 +83,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       case 'connection_update':
         this.server.emit('connection_update', message);
         break;
+      case 'connection_error':
+        this.server.emit('connection_error', message);
+        break;
       case 'qrcode_update':
         this.server.emit('qrcode_update', message);
         break;

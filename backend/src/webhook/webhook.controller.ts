@@ -43,31 +43,70 @@ export class WebhookController {
     // Handle connection updates
     if (payload.event === 'connection.update') {
       const state = payload.data?.state || payload.data?.status;
-      this.logger.log(`Connection update for ${payload.instance}: ${state}`);
+      const statusReason = payload.data?.statusReason || payload.data?.lastDisconnect?.error?.output?.statusCode;
+      const errorMessage = payload.data?.lastDisconnect?.error?.output?.payload?.message || payload.data?.error;
+
+      this.logger.log(`Connection update for ${payload.instance}: ${state} (reason: ${statusReason}, error: ${errorMessage})`);
 
       // Update instance status in database
       let dbStatus = 'disconnected';
+      let errorReason: string | null = null;
+
       if (state === 'open' || state === 'connected') {
         dbStatus = 'connected';
+        errorReason = null; // Limpa erro ao conectar
       } else if (state === 'connecting' || state === 'syncing') {
         dbStatus = 'syncing';
+      } else if (state === 'close' || state === 'closed') {
+        dbStatus = 'disconnected';
+        // Mapeia razões de desconexão para mensagens amigáveis
+        if (statusReason === 401 || errorMessage?.includes('Unauthorized')) {
+          errorReason = 'Sessão expirada. Por favor, reconecte escaneando o QR Code novamente.';
+        } else if (statusReason === 403 || errorMessage?.includes('Forbidden')) {
+          errorReason = 'Acesso negado pelo WhatsApp. Verifique se sua conta não foi banida.';
+        } else if (statusReason === 428 || errorMessage?.includes('Connection Closed')) {
+          errorReason = 'Conexão fechada pelo WhatsApp. Você pode ter desconectado pelo celular ou o WhatsApp requer uma nova verificação.';
+        } else if (statusReason === 440 || errorMessage?.includes('Replaced')) {
+          errorReason = 'Sessão substituída. O WhatsApp foi conectado em outro dispositivo.';
+        } else if (statusReason === 515 || errorMessage?.includes('Restart Required')) {
+          errorReason = 'O WhatsApp requer reinicialização. Por favor, reconecte.';
+        } else if (errorMessage) {
+          errorReason = `Desconectado: ${errorMessage}`;
+        }
       }
 
       try {
         await this.prisma.instance.updateMany({
           where: { instanceKey: payload.instance },
-          data: { status: dbStatus },
+          data: {
+            status: dbStatus,
+            errorReason: errorReason,
+            lastErrorAt: errorReason ? new Date() : undefined,
+          },
         });
-        this.logger.log(`Updated instance ${payload.instance} status to ${dbStatus}`);
+        this.logger.log(`Updated instance ${payload.instance} status to ${dbStatus}${errorReason ? ` (error: ${errorReason})` : ''}`);
       } catch (err) {
         this.logger.error(`Failed to update instance status: ${err.message}`);
       }
 
+      // Broadcast connection update with error info
       this.chatGateway.broadcastMessage({
         type: 'connection_update',
         instanceKey: payload.instance,
         state: state,
+        errorReason: errorReason,
       });
+
+      // Se houve erro, também envia notificação específica de erro
+      if (errorReason) {
+        this.chatGateway.broadcastMessage({
+          type: 'connection_error',
+          instanceKey: payload.instance,
+          errorReason: errorReason,
+          statusReason: statusReason,
+        });
+      }
+
       return { status: 'processed', event: payload.event };
     }
 

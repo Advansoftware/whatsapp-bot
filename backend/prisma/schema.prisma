@@ -210,6 +210,8 @@ model Instance {
   instanceKey String   @unique @map("instance_key")
   companyId   String   @map("company_id")
   status      String   @default("disconnected")
+  errorReason String?  @map("error_reason") // Motivo do erro de conexão
+  lastErrorAt DateTime? @map("last_error_at") // Quando ocorreu o último erro
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
