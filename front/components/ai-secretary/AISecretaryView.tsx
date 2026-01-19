@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -292,7 +294,7 @@ const AISecretaryView: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="primary.main">
               {stats?.activeConversations || 0}
@@ -302,7 +304,7 @@ const AISecretaryView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="success.main">
               {stats?.approvedSuggestions || 0}
@@ -312,7 +314,7 @@ const AISecretaryView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="warning.main">
               {stats?.overrides || 0}
@@ -322,7 +324,7 @@ const AISecretaryView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="error.main">
               {stats?.escalations || 0}
@@ -332,7 +334,7 @@ const AISecretaryView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="info.main">
               {stats?.totalInteractions || 0}
@@ -342,7 +344,7 @@ const AISecretaryView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid size={{ xs: 6, md: 2 }}>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h4" color="success.main">
               {stats?.approvalRate || "0%"}
@@ -362,7 +364,7 @@ const AISecretaryView: React.FC = () => {
       {/* Configuration Tab */}
       <TabPanel value={tabValue} index={0}>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -618,7 +620,7 @@ const AISecretaryView: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -679,7 +681,7 @@ const AISecretaryView: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -701,7 +703,7 @@ const AISecretaryView: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Box display="flex" justifyContent="flex-end">
               <Button
                 variant="contained"
@@ -745,7 +747,7 @@ const AISecretaryView: React.FC = () => {
         ) : (
           <Grid container spacing={2}>
             {conversations.map((conv) => (
-              <Grid item xs={12} key={conv.id}>
+              <Grid size={{ xs: 12 }} key={conv.id}>
                 <Card
                   sx={{
                     border: !conv.aiEnabled ? 2 : 0,

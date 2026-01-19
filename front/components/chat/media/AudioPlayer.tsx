@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Box, IconButton, Typography, Slider } from '@mui/material';
 import { PlayArrow, Pause, Speed } from '@mui/icons-material';

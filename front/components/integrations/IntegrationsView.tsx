@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
@@ -434,7 +436,7 @@ const IntegrationsView: React.FC = () => {
       ) : (
         <Grid container spacing={3}>
           {integrations.map((integration) => (
-            <Grid item xs={12} sm={6} md={4} key={integration.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={integration.id}>
               {getIntegrationCard(integration)}
             </Grid>
           ))}

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo, useState, useCallback } from 'react';
 import { Box, Modal, IconButton } from '@mui/material';
 import { Close, ZoomIn, ZoomOut, Download } from '@mui/icons-material';

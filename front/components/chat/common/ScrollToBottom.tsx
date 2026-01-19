@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo } from 'react';
 import { Fab, Zoom } from '@mui/material';
 import { KeyboardArrowDown } from '@mui/icons-material';

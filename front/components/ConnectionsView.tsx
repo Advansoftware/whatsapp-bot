@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
@@ -529,7 +531,7 @@ const ConnectionsView: React.FC = () => {
         <Paper elevation={0} sx={{ overflow: 'hidden', border: `1px solid ${theme.palette.divider}` }}>
           <Grid container>
             {/* Instructions */}
-            <Grid item xs={12} md={6} sx={{ p: 4 }}>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ p: 4 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Instruções
               </Typography>
@@ -555,7 +557,7 @@ const ConnectionsView: React.FC = () => {
             </Grid>
 
             {/* QR Code Area */}
-            <Grid item xs={12} md={6} sx={{ 
+            <Grid size={{ xs: 12, md: 6 }} sx={{ 
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', 
               p: 4, 
               display: 'flex', 

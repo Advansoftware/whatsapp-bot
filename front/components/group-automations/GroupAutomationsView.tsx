@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -487,7 +489,7 @@ export default function GroupAutomationsView() {
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {PREDEFINED_TEMPLATES.map((template, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
             <Card variant="outlined" sx={{ height: '100%', transition: 'all 0.2s', '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 } }}>
               <CardActionArea 
                 onClick={() => handleUseTemplate(template)}

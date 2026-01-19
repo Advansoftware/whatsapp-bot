@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { Fab, Zoom } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";

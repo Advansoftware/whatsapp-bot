@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
@@ -332,7 +334,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
       {/* Stats Cards */}
       {stats && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Paper sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
               <Box
                 sx={{
@@ -357,7 +359,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
               </Box>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Paper sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
               <Box
                 sx={{
@@ -382,7 +384,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
               </Box>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Paper sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
               <Box
                 sx={{
@@ -642,7 +644,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Nome do Contato"
@@ -655,14 +657,14 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
             </Grid>
 
             {/* Dados Demográficos */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" color="primary" gutterBottom>
                 📊 Dados para Segmentação
               </Typography>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="CEP"
@@ -684,7 +686,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
               />
             </Grid>
 
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -696,7 +698,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 select
@@ -713,7 +715,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 <option value="other">Outro</option>
               </TextField>
             </Grid>
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <TextField
                 fullWidth
                 label="Cidade"
@@ -724,7 +726,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Ex: São Paulo"
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <TextField
                 fullWidth
                 label="Estado"
@@ -735,7 +737,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Ex: SP"
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <TextField
                 fullWidth
                 label="Bairro"
@@ -746,7 +748,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Ex: Centro"
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Universidade / Instituição"
@@ -757,7 +759,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Ex: USP, UNICAMP, etc."
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 label="Curso"
@@ -768,7 +770,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Ex: Engenharia, Medicina"
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 label="Ocupação"
@@ -780,11 +782,11 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -797,7 +799,7 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                 placeholder="Adicione notas sobre este contato..."
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="subtitle2" gutterBottom>
                 Tags
               </Typography>

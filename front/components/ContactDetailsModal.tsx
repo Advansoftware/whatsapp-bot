@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -362,7 +364,7 @@ export default function ContactDetailsModal({
                 </Box>
 
                 <Grid container spacing={2} mb={3}>
-                  <Grid item xs={4}>
+                  <Grid size={{ xs: 4 }}>
                     <Box sx={{ 
                         p: 2, 
                         borderRadius: 2, 
@@ -376,7 +378,7 @@ export default function ContactDetailsModal({
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={4}>
+                  <Grid size={{ xs: 4 }}>
                     <Box sx={{ 
                         p: 2, 
                         borderRadius: 2, 
@@ -402,7 +404,7 @@ export default function ContactDetailsModal({
                       )}
                     </Box>
                   </Grid>
-                   <Grid item xs={4}>
+                   <Grid size={{ xs: 4 }}>
                     <Box sx={{ 
                         p: 2, 
                         borderRadius: 2, 
@@ -469,7 +471,7 @@ export default function ContactDetailsModal({
                             { icon: Clock, label: 'Primeiro Contato', value: formatDate(contact.firstContactAt) },
                         ].map((item, i) => (
                             item.value ? (
-                                <Grid item xs={12} sm={6} key={i}>
+                                <Grid size={{ xs: 12, sm: 6 }} key={i}>
                                     <Box display="flex" gap={2}>
                                         <item.icon size={18} color={theme.palette.text.secondary} />
                                         <Box>

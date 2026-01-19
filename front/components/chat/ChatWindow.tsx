@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useState,
   useEffect,
@@ -476,8 +478,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }, 50);
 
       try {
-        const result = await api.sendMessage(instanceKey, chatId, textToSend, {
-          quotedMessageId: currentAddressReply?.id
+        const result = await api.sendMessage({
+          instanceKey, 
+          remoteJid: chatId, 
+          content: textToSend, 
+          options: {
+            quotedMessageId: currentAddressReply?.id
+          }
         });
         if (result?.messageId) {
           replaceMessageId(tempId, result.messageId, "sent");
@@ -676,9 +683,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     addMessage(optimisticMessage);
     
      try {
-        const result = await api.sendMessage(instanceKey, chatId, '', {
-            mediaUrl: stickerUrl,
-            mediaType: 'sticker'
+        const result = await api.sendMessage({
+            instanceKey,
+            remoteJid: chatId,
+            content: '',
+            options: {
+                mediaUrl: stickerUrl,
+                mediaType: 'sticker'
+            }
         });
         if (result?.messageId) {
           replaceMessageId(tempId, result.messageId, "sent");

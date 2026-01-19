@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo, useMemo, useState, useCallback } from "react";
 import { Box, Paper } from "@mui/material";
 

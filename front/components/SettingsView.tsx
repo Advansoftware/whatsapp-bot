@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { 
   Box, 
@@ -45,13 +47,13 @@ const SettingsView: React.FC = () => {
           <Box p={3} display="flex" flexDirection="column" gap={4}>
             {/* Logo Upload */}
             <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="subtitle2" fontWeight="600" gutterBottom>Logotipo da Aplicação</Typography>
                 <Typography variant="caption" color="text.secondary">
                   Tamanho recomendado: 512x512px. <br/> Tamanho máx: 2MB.
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={8}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 <Box 
                   sx={{ 
                     border: `2px dashed ${theme.palette.divider}`, 
@@ -91,15 +93,15 @@ const SettingsView: React.FC = () => {
 
             {/* Colors */}
             <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="subtitle2" fontWeight="600" gutterBottom>Cores da Marca</Typography>
                 <Typography variant="caption" color="text.secondary">
                   Escolha as cores que correspondem à identidade da sua marca.
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={8}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>
                       Cor Primária
                     </Typography>
@@ -128,7 +130,7 @@ const SettingsView: React.FC = () => {
                       <Typography variant="body2" fontFamily="monospace">#00A884</Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ textTransform: 'uppercase', mb: 1, display: 'block' }}>
                       Cor Secundária
                     </Typography>

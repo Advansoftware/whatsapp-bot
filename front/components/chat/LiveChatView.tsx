@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import ChatLayout from "./ChatLayout";
 import ChatWindow from "./ChatWindow";

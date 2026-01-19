@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '../lib/api';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null);
@@ -12,8 +12,10 @@ export const useSocket = () => {
     // Only connect if we have a token (optional security)
     // For now, simpler connection
     const socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // Allow polling fallbacks
       autoConnect: true,
+      withCredentials: true,
+      reconnectionAttempts: 5,
     });
 
     socketRef.current = socket;

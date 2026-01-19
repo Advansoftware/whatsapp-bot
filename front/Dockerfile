@@ -2,12 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-
-RUN npm install
-
-COPY . .
-
+# Expose Next.js port
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Install dependencies and start dev server
+# Dependencies are installed at runtime because source is mounted as volume
+CMD ["sh", "-c", "npm install && npx next dev --turbopack -p 5173 -H 0.0.0.0"]

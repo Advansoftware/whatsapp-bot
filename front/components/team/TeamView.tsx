@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import api from "../../lib/api";
 import {
@@ -88,7 +90,7 @@ export const TeamView: React.FC = () => {
 
   const loadMembers = async () => {
     try {
-      const data = await api.get("/api/team/members");
+      const data = await api.getTeamMembers();
       setMembers(data);
     } catch (error) {
       console.error("Erro ao carregar equipe:", error);
@@ -243,7 +245,7 @@ export const TeamView: React.FC = () => {
 
       {/* Team Stats */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Total de Membros
@@ -253,7 +255,7 @@ export const TeamView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Admins
@@ -263,7 +265,7 @@ export const TeamView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Gerentes
@@ -273,7 +275,7 @@ export const TeamView: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Atendentes

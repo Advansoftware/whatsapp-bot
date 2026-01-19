@@ -256,50 +256,68 @@ export class AIExpensesFlowService {
         };
       }
 
-      // 4. Salvar estado e mostrar itens + opções de carteira
+      // 4. Buscar carteiras e determinar a padrão
+      const wallets = await this.gastometriaService.getWallets(companyId);
+
+      // Tenta achar a carteira padrão no banco
+      const integration = await this.prisma.externalIntegration.findUnique({
+        where: { companyId_provider: { companyId, provider: 'gastometria' } },
+      });
+      const defaultWalletId = (integration?.config as any)?.defaultWalletId;
+
+      let selectedWallet = wallets.find(w => w.id === defaultWalletId);
+
+      // Se não tem padrão, usa a primeira encontrada
+      if (!selectedWallet && wallets.length > 0) {
+        selectedWallet = wallets[0];
+      }
+
+      // 5. Montar dados do fluxo
       const flowData: ExpenseFlowData = {
         hasImage: true,
         items: extraction.items,
+        confirmedItems: extraction.items, // Já assume como confirmados
         totalAmount: extraction.totalAmount,
         establishment: extraction.establishment,
         date: extraction.date,
-        category: extraction.suggestedCategory,
+        category: extraction.suggestedCategory || 'Alimentação',
         caption,
+        selectedWalletId: selectedWallet?.id,
+        selectedWalletName: selectedWallet?.name,
       };
 
-      // 5. Buscar carteiras existentes
-      const wallets = await this.gastometriaService.getWallets(companyId);
-
-      // 6. Montar mensagem com itens e opções de carteira
+      // 6. Montar mensagem no estilo "One-Shot" requested
       const itemsList = extraction.items!
-        .map((item, i) => `${i + 1}. ${item.name} (${item.quantity}x) - R$ ${item.totalPrice.toFixed(2)}`)
+        .map((item) => {
+          // Formata: "🍚 Arroz 5kg    R$ 29,90"
+          // Tenta alinhar um pouco usando espaços, mas WhatsApp não é monospace perfeito.
+          // Usando emoji baseado na categoria ou genérico
+          const emoji = '📦';
+          return `${emoji} ${item.name} ${item.quantity > 1 ? `(${item.quantity}x)` : ''}\n      R$ ${item.totalPrice.toFixed(2)}`;
+        })
         .join('\n');
 
-      let walletOptions: string;
-      if (wallets.length > 0) {
-        const walletList = wallets.map((w, i) => `${i + 1}. ${w.icon || '💳'} ${w.name}`).join('\n');
-        walletOptions = `\n📋 *Carteiras disponíveis:*\n${walletList}\n\n0️⃣ *Criar nova carteira*`;
-      } else {
-        walletOptions = '\n\n📋 Você não tem carteiras cadastradas.\nDigite o nome da nova carteira (ex: Nubank):';
-      }
+      const walletText = selectedWallet ? `${selectedWallet.icon || '💳'} ${selectedWallet.name}` : '❓ Não selecionada';
+      const establishmentText = extraction.establishment ? `📍 ${extraction.establishment}` : '';
 
-      const response = `🧾 *Nota Fiscal Identificada!*
-      
-📍 *Local:* ${extraction.establishment || 'Não identificado'}
-📅 *Data:* ${extraction.date || 'Hoje'}
+      const response = `✅ *${extraction.items?.length || 0} itens identificados!*
 
-📦 *Itens encontrados:*
 ${itemsList}
 
-💰 *Total:* R$ ${extraction.totalAmount?.toFixed(2)}
-${walletOptions}
+──────────────
+💰 *Total R$ ${extraction.totalAmount?.toFixed(2)}*
 
-_Responda com o número da carteira ou "0" para criar nova._
-_Digite "cancelar" para abortar._`;
+📂 Categoria: *${flowData.category}*
+${walletText}
+${establishmentText}
 
-      await this.setFlowState(companyId, remoteJid, 'awaiting_wallet', flowData);
+_Responda *SIM* para confirmar ou edite ("remover 1", "mudar carteira")._`;
+
+      // 7. Define estado direto para confirmação final
+      await this.setFlowState(companyId, remoteJid, 'awaiting_final_confirmation', flowData);
 
       return { success: true, response };
+
     } catch (error) {
       this.logger.error(`Error starting expense flow: ${error.message}`);
       return {
@@ -624,6 +642,38 @@ Responda *SIM* para confirmar ou continue editando.`,
     flowData: ExpenseFlowData,
   ): Promise<FlowResult> {
     const input = message.trim().toLowerCase();
+
+    // Mudar carteira: "carteira nubank", "mudar carteira itau"
+    if (input.includes('carteira')) {
+      const wallets = await this.gastometriaService.getWallets(companyId);
+
+      // Extrair nome
+      const walletNameMatch = input.replace('mudar', '').replace('carteira', '').trim();
+
+      if (walletNameMatch) {
+        // Busca fuzzy
+        const matchedWallet = wallets.find(
+          (w) => w.name.toLowerCase().includes(walletNameMatch) || walletNameMatch.includes(w.name.toLowerCase()),
+        );
+
+        if (matchedWallet) {
+          flowData.selectedWalletId = matchedWallet.id;
+          flowData.selectedWalletName = matchedWallet.name;
+
+          await this.setFlowState(companyId, remoteJid, 'awaiting_final_confirmation', flowData);
+
+          return {
+            success: true,
+            response: `✅ Carteira alterada para *${matchedWallet.name}*!\n\nResponda *SIM* para confirmar o lançamento.`
+          };
+        } else {
+          return {
+            success: true,
+            response: `❌ Não encontrei a carteira "${walletNameMatch}".\n\nCarteiras disponíveis:\n${wallets.map(w => w.name).join(', ')}`
+          };
+        }
+      }
+    }
 
     // Cancelar
     if (input === 'não' || input === 'nao' || input === 'n' || input === 'cancelar') {

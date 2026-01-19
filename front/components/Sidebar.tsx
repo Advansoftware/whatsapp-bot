@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -32,13 +34,11 @@ import {
   Groups,
   Person,
 } from "@mui/icons-material";
-import { View } from "../types";
+import { useRouter, usePathname } from "next/navigation";
 
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
-  currentView: View;
-  onNavigate: (view: View) => void;
 }
 
 const DRAWER_WIDTH = 280;
@@ -48,8 +48,8 @@ const menuItems = [
   { id: "connections" as View, label: "Conexões", icon: <Cable /> },
   { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
   { id: "livechat" as View, label: "Chat ao Vivo", icon: <Chat /> },
-  { id: "ai-secretary" as View, label: "Secretária IA", icon: <Psychology /> },
-  { id: "secretary-tasks" as View, label: "Tarefas", icon: <Checklist /> },
+  { id: "ai-secretary", label: "Secretária IA", icon: <Psychology /> },
+  { id: "secretary-tasks", label: "Tarefas", icon: <Checklist /> },
   {
     id: "group-automations" as View,
     label: "Automações de Grupo",
@@ -71,10 +71,10 @@ const bottomItems = [
 const Sidebar: React.FC<SidebarProps> = ({
   open,
   onClose,
-  currentView,
-  onNavigate,
 }) => {
   const theme = useTheme();
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -118,23 +118,23 @@ const Sidebar: React.FC<SidebarProps> = ({
       {user && (
         <>
           <Box sx={{ p: 2 }}>
-            <Box
-              onClick={() => onNavigate("profile")}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: currentView === "profile" ? "primary.main" : "action.hover",
-                color: currentView === "profile" ? "primary.contrastText" : "inherit",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                "&:hover": {
-                  bgcolor: currentView === "profile" ? "primary.dark" : "action.selected",
-                },
-              }}
-            >
+          <Box
+            onClick={() => router.push("/profile")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              p: 1.5,
+              borderRadius: 2,
+              bgcolor: pathname?.includes("/profile") ? "primary.main" : "action.hover",
+              color: pathname?.includes("/profile") ? "primary.contrastText" : "inherit",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              "&:hover": {
+                bgcolor: pathname?.includes("/profile") ? "primary.dark" : "action.selected",
+              },
+            }}
+          >
               <Avatar
                 src={user.picture || undefined}
                 alt={user.name}
@@ -146,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Typography variant="body2" fontWeight={500} noWrap>
                   {user.name}
                 </Typography>
-                <Typography variant="caption" color={currentView === "profile" ? "inherit" : "text.secondary"} noWrap>
+                 <Typography variant="caption" color={pathname?.includes("/profile") ? "inherit" : "text.secondary"} noWrap>
                   {user.email}
                 </Typography>
               </Box>
@@ -157,62 +157,68 @@ const Sidebar: React.FC<SidebarProps> = ({
         </>
       )}
 
-      {/* Main Menu */}
       <List sx={{ flex: 1, px: 2, py: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              selected={currentView === item.id}
-              onClick={() => onNavigate(item.id)}
-              sx={{
-                borderRadius: 2,
-                "&.Mui-selected": {
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "&:hover": {
-                    bgcolor: "primary.dark",
+        {menuItems.map((item) => {
+          const isSelected = pathname === `/${item.id}` || (item.id === 'dashboard' && pathname === '/dashboard');
+          
+          return (
+            <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={isSelected}
+                onClick={() => router.push(`/${item.id}`)}
+                sx={{
+                  borderRadius: 2,
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "&:hover": {
+                      bgcolor: "primary.dark",
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "inherit",
+                    },
                   },
-                  "& .MuiListItemIcon-root": {
-                    color: "inherit",
-                  },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
 
       <Divider />
 
-      {/* Bottom Menu */}
       <List sx={{ px: 2, py: 1 }}>
-        {bottomItems.map((item) => (
-          <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              selected={currentView === item.id}
-              onClick={() => onNavigate(item.id)}
-              sx={{
-                borderRadius: 2,
-                "&.Mui-selected": {
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "&:hover": {
-                    bgcolor: "primary.dark",
+        {bottomItems.map((item) => {
+          const isSelected = pathname === `/${item.id}`;
+          
+          return (
+            <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={isSelected}
+                onClick={() => router.push(`/${item.id}`)}
+                sx={{
+                  borderRadius: 2,
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "&:hover": {
+                      bgcolor: "primary.dark",
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "inherit",
+                    },
                   },
-                  "& .MuiListItemIcon-root": {
-                    color: "inherit",
-                  },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
 
         {/* Logout */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>

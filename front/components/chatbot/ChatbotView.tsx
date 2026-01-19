@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -455,7 +457,7 @@ const ChatbotView: React.FC = () => {
 
       <Grid container spacing={3}>
         {flows.map((flow) => (
-          <Grid item xs={12} md={4} key={flow.id}>
+          <Grid size={{ xs: 12, md: 4 }} key={flow.id}>
             <Paper
               sx={{
                 p: 3,
@@ -541,7 +543,7 @@ const ChatbotView: React.FC = () => {
         ))}
 
         {flows.length === 0 && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Paper sx={{ p: 6, textAlign: "center" }}>
               <AccountTree
                 sx={{ fontSize: 64, color: "text.secondary", mb: 2 }}
@@ -591,7 +593,7 @@ const ChatbotView: React.FC = () => {
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 label="Nome do Fluxo"
@@ -603,7 +605,7 @@ const ChatbotView: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 fullWidth
                 label="Palavra-chave"
@@ -616,7 +618,7 @@ const ChatbotView: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} md={2}>
+            <Grid size={{ xs: 12, md: 2 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -634,7 +636,7 @@ const ChatbotView: React.FC = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Typography
                 variant="h6"
@@ -648,7 +650,7 @@ const ChatbotView: React.FC = () => {
               </Typography>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               {currentFlow.nodes.map((node, index) =>
                 renderNodeEditor(node, index)
               )}

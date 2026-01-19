@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -336,7 +338,7 @@ const PricingView: React.FC = () => {
           const isCurrentPlan = currentSubscription?.planId === plan.id;
 
           return (
-            <Grid item xs={12} sm={6} lg={4} key={plan.id}>
+            <Grid size={{ xs: 12, sm: 6 }} lg={4} key={plan.id}>
               <Card
                 elevation={plan.popular ? 8 : 2}
                 sx={{
@@ -561,7 +563,7 @@ const PricingView: React.FC = () => {
             { icon: <LocalOffer />, title: 'Sem fidelidade', desc: 'Cancele quando quiser sem multas' },
             { icon: <SmartToy />, title: 'IA de última geração', desc: 'Tecnologia avançada para automação inteligente' },
           ].map((item, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Box
                   sx={{

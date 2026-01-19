@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { Box, Typography, IconButton, useTheme } from "@mui/material";
 import {
@@ -8,16 +10,16 @@ import {
 } from "@mui/icons-material";
 import NotificationCenter from "./NotificationCenter";
 
-interface HeaderProps {
+export interface HeaderProps {
   toggleTheme: () => void;
   isDarkMode: boolean;
-  onNavigate?: (url: string) => void;
+  onNavigate?: (url: string) => void; 
 }
 
 const Header: React.FC<HeaderProps> = ({
   toggleTheme,
   isDarkMode,
-  onNavigate,
+  onNavigate, // Keeping it optional to avoid breaking NotificationCenter for now, but not using it here
 }) => {
   const theme = useTheme();
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   Dialog,
@@ -75,7 +77,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         ) : (
           <Grid container spacing={2}>
             {products.map((product) => (
-              <Grid item xs={6} sm={4} key={product.id}>
+              <Grid size={{ xs: 6, sm: 4 }} key={product.id}>
                 <Card
                   sx={{
                     bgcolor: isDark ? "#111b21" : "#ffffff",

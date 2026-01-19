@@ -1,10 +1,63 @@
+"use client";
+
 import React from "react";
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  AppBar,
+  Toolbar,
+  Grid,
+  Paper,
+  Divider,
+  Card,
+  CardContent,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Chip,
+  useTheme,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@mui/material";
+import {
+  AutoAwesome,
+  PlayCircle,
+  CheckCircle,
+  Schedule,
+  PersonOff,
+  EventBusy,
+  HearingDisabled,
+  MoneyOff,
+  Repeat,
+  Psychology,
+  CalendarMonth,
+  RecordVoiceOver,
+  AccountBalanceWallet,
+  Checklist,
+  Forum,
+  Campaign,
+  Inventory2,
+  DoneAll,
+  SentimentSatisfied,
+  AttachFile,
+  Mic,
+  Check,
+  Star,
+} from "@mui/icons-material";
 
 interface LandingPageProps {
   onLoginClick: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
+  const theme = useTheme();
+
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -12,1410 +65,939 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
     }
   };
 
+  // Pain points data
+  const painPoints = [
+    {
+      icon: <Schedule sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Sem tempo",
+      description: '"Passo o dia inteiro respondendo WhatsApp e não consigo trabalhar no que realmente importa."',
+    },
+    {
+      icon: <PersonOff sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Perdendo clientes",
+      description: '"Cliente mandou mensagem às 22h, vi só no dia seguinte. Ele já tinha comprado do concorrente."',
+    },
+    {
+      icon: <EventBusy sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Esquecendo compromissos",
+      description: '"Marquei uma reunião por WhatsApp e esqueci de anotar. Perdi o cliente."',
+    },
+    {
+      icon: <HearingDisabled sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Áudios intermináveis",
+      description: '"Cliente manda áudio de 5 minutos e não tenho tempo de ouvir. Acabo ignorando."',
+    },
+    {
+      icon: <MoneyOff sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Gastando demais",
+      description: '"Queria uma secretária mas não posso pagar R$ 2.000/mês de salário + encargos."',
+    },
+    {
+      icon: <Repeat sx={{ fontSize: 28, color: "#f87171" }} />,
+      title: "Repetição infinita",
+      description: '"Respondo as mesmas perguntas 50 vezes por dia: preço, horário, endereço..."',
+    },
+  ];
+
+  // Features data
+  const features = [
+    {
+      icon: <Psychology />,
+      title: "Secretária IA",
+      description: "Uma assistente inteligente com memória de conversas. Gerencia agenda, despesas, tarefas e responde como uma secretária profissional.",
+    },
+    {
+      icon: <CalendarMonth />,
+      title: "Integração com Agenda do Google",
+      description: "Agende compromissos pelo WhatsApp. A IA verifica horários disponíveis e cria eventos automaticamente no seu calendário.",
+    },
+    {
+      icon: <AutoAwesome />,
+      title: "Automações de Grupo",
+      description: "Crie regras automáticas para grupos: colete dados de apostas, valores em dinheiro, e-mails. Perfeito para bolões e enquetes.",
+    },
+    {
+      icon: <RecordVoiceOver />,
+      title: "Transcrição de Áudio",
+      description: "Mensagens de voz são transcritas automaticamente. A IA entende e responde como se fosse texto normal.",
+    },
+    {
+      icon: <AccountBalanceWallet />,
+      title: "Controle de Despesas",
+      description: 'Registre gastos pelo WhatsApp: "Gastei 50 reais no mercado". A IA categoriza e controla suas finanças automaticamente.',
+    },
+    {
+      icon: <Checklist />,
+      title: "Gestão de Tarefas",
+      description: "Crie e gerencie tarefas por voz ou texto. A IA organiza prioridades, define prazos e envia lembretes automáticos.",
+    },
+    {
+      icon: <Forum />,
+      title: "Chat ao Vivo",
+      description: "Acompanhe todas as conversas em tempo real, incluindo grupos. Intervenha quando necessário e monitore o atendimento.",
+    },
+    {
+      icon: <Campaign />,
+      title: "Campanhas em Massa",
+      description: "Envie mensagens personalizadas para milhares de contatos. Programe campanhas e acompanhe métricas de entrega.",
+    },
+    {
+      icon: <Inventory2 />,
+      title: "Gestão de Estoque",
+      description: "Controle seu inventário integrado ao WhatsApp. A IA consulta disponibilidade e informa clientes automaticamente.",
+    },
+  ];
+
+  // Use cases data
+  const useCases = [
+    { icon: "🎰", title: "Bolão da Mega-Sena", description: '"Crio uma automação temporária no grupo que coleta os números apostados por cada participante. No final, tenho um relatório completo!"', tag: "Automações de Grupo" },
+    { icon: "🍽️", title: "Restaurante Delivery", description: '"A IA atende pedidos, verifica cardápio e disponibilidade no estoque. Reduzi 80% das ligações telefônicas."', tag: "Secretária IA + Estoque" },
+    { icon: "💆", title: "Clínica de Estética", description: '"Pacientes agendam consultas pelo WhatsApp e já aparece direto na minha Agenda do Google. Nunca mais perdi um horário!"', tag: "Agenda do Google" },
+    { icon: "💰", title: "Controle Financeiro", description: '"Envio áudio: \'Gastei 150 no mercado\'. A IA transcreve, categoriza e no final do mês tenho meu relatório de despesas."', tag: "Despesas + Transcrição" },
+    { icon: "👥", title: "Rifa Beneficente", description: '"A automação coleta os números escolhidos e valores pagos. Posso ver quem confirmou e o total arrecadado em tempo real."', tag: "Automações de Grupo" },
+    { icon: "🏋️", title: "Personal Trainer", description: '"Meus alunos agendam treinos e a IA organiza minha semana. Ainda envia lembretes automáticos um dia antes."', tag: "Agenda + Tarefas" },
+  ];
+
+  // Pricing plans
+  const pricingPlans = [
+    {
+      name: "Starter",
+      price: "R$ 97",
+      period: "/mês",
+      description: "Perfeito para começar a automatizar",
+      features: ["1 conexão WhatsApp", "Secretária IA básica", "Transcrição de áudio", "Suporte por e-mail"],
+      popular: false,
+    },
+    {
+      name: "Professional",
+      price: "R$ 197",
+      period: "/mês",
+      description: "Para negócios em crescimento",
+      features: ["3 conexões WhatsApp", "Secretária IA avançada", "Integração Google Calendar", "Automações de grupo", "CRM completo", "Suporte prioritário"],
+      popular: true,
+    },
+    {
+      name: "Enterprise",
+      price: "R$ 497",
+      period: "/mês",
+      description: "Solução completa para grandes operações",
+      features: ["10 conexões WhatsApp", "Todas as funcionalidades", "Campanhas em massa", "API personalizada", "Gerente de conta dedicado", "SLA garantido"],
+      popular: false,
+    },
+  ];
+
   return (
-    <div className="bg-background text-text-main font-display antialiased selection:bg-primary/30 selection:text-primary min-h-screen">
+    <Box sx={{ bgcolor: "#111b21", color: "#e9edef", minHeight: "100vh" }}>
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 w-full bg-surface/95 backdrop-blur-sm border-b border-surface-hover">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <AppBar
+        position="sticky"
+        sx={{
+          bgcolor: "rgba(32, 44, 51, 0.95)",
+          backdropFilter: "blur(8px)",
+          borderBottom: "1px solid #2a3942",
+          boxShadow: "none",
+        }}
+      >
+        <Container maxWidth="lg">
+          <Toolbar sx={{ justifyContent: "space-between", px: { xs: 0 } }}>
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-600 shadow-lg shadow-primary/20">
-                <span
-                  className="material-symbols-outlined text-white"
-                  style={{ fontSize: "22px" }}
-                >
-                  auto_awesome
-                </span>
-              </div>
-              <span className="text-xl font-bold tracking-tight">
-                <span className="text-white">Respond</span>
-                <span className="text-primary">IA</span>
-              </span>
-            </div>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 12px rgba(0, 168, 132, 0.3)",
+                }}
+              >
+                <AutoAwesome sx={{ color: "white", fontSize: 22 }} />
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                <span>Respond</span>
+                <span style={{ color: "#00a884" }}>IA</span>
+              </Typography>
+            </Box>
+
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
-              <button
+            <Box sx={{ display: { xs: "none", md: "flex" }, gap: 4 }}>
+              <Button
+                color="inherit"
                 onClick={() => scrollToSection("features")}
-                className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
+                sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
               >
                 Funcionalidades
-              </button>
-              <button
+              </Button>
+              <Button
+                color="inherit"
                 onClick={() => scrollToSection("pricing")}
-                className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
+                sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
               >
                 Preços
-              </button>
-              <a
-                className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
-                href="#"
+              </Button>
+              <Button
+                color="inherit"
+                sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
               >
                 Documentação
-              </a>
-            </div>
+              </Button>
+            </Box>
+
             {/* Auth Buttons */}
-            <div className="flex items-center gap-3">
-              <button
+            <Box sx={{ display: "flex", gap: 1.5 }}>
+              <Button
                 onClick={onLoginClick}
-                className="hidden sm:flex items-center justify-center px-4 h-9 rounded-md text-sm font-medium text-text-main hover:bg-surface-hover transition-colors"
+                sx={{
+                  display: { xs: "none", sm: "flex" },
+                  color: "#e9edef",
+                  "&:hover": { bgcolor: "#2a3942" },
+                }}
               >
                 Entrar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onLoginClick}
-                className="flex items-center justify-center px-5 h-9 rounded-md bg-primary hover:bg-primary-hover text-[#111b21] text-sm font-bold transition-all shadow-[0_0_15px_rgba(19,236,193,0.15)]"
+                variant="contained"
+                sx={{
+                  bgcolor: "#00a884",
+                  color: "#111b21",
+                  fontWeight: "bold",
+                  "&:hover": { bgcolor: "#008f6f" },
+                  boxShadow: "0 0 15px rgba(0, 168, 132, 0.2)",
+                }}
               >
                 Começar Agora
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+              </Button>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
 
       {/* Hero Section */}
-      <section className="relative pt-16 pb-20 lg:pt-24 lg:pb-32 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+      <Box component="section" sx={{ py: { xs: 8, lg: 12 }, position: "relative", overflow: "hidden" }}>
+        <Container maxWidth="lg">
+          <Grid container spacing={4} alignItems="center">
             {/* Hero Content */}
-            <div className="flex flex-col gap-6 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-surface-hover w-fit">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Secretária IA Integrada
-                </span>
-              </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.15] tracking-tight">
-                Sua <span className="text-primary">Secretária IA</span> no
-                WhatsApp
-              </h1>
-              <p className="text-lg text-text-secondary leading-relaxed max-w-lg">
-                Automatize atendimento, gerencie agenda, controle despesas e
-                organize tarefas. Uma secretária inteligente que aprende e
-                memoriza conversas, integrada ao Calendário do Google e muito
-                mais.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <button
-                  onClick={onLoginClick}
-                  className="flex items-center justify-center px-8 h-12 rounded-lg bg-primary hover:bg-primary-hover text-[#111b21] text-base font-bold transition-all transform hover:scale-[1.02] shadow-[0_4px_20px_rgba(19,236,193,0.2)]"
-                >
-                  Testar Grátis
-                </button>
-                <button
-                  onClick={() => scrollToSection("demo")}
-                  className="flex items-center justify-center gap-2 px-8 h-12 rounded-lg bg-surface hover:bg-surface-hover border border-surface-hover text-text-main text-base font-medium transition-all"
-                >
-                  <span
-                    className="material-symbols-outlined text-primary"
-                    style={{ fontSize: "20px" }}
-                  >
-                    play_circle
-                  </span>
-                  Ver Demonstração
-                </button>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-text-secondary pt-4">
-                <div className="flex items-center gap-1">
-                  <span
-                    className="material-symbols-outlined text-primary"
-                    style={{ fontSize: "16px" }}
-                  >
-                    check_circle
-                  </span>
-                  <span>Sem cartão de crédito</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span
-                    className="material-symbols-outlined text-primary"
-                    style={{ fontSize: "16px" }}
-                  >
-                    check_circle
-                  </span>
-                  <span>7 dias grátis</span>
-                </div>
-              </div>
-            </div>
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: 600 }}>
+                <Chip
+                  icon={<Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#00a884", animation: "pulse 2s infinite" }} />}
+                  label="Secretária IA Integrada"
+                  sx={{
+                    bgcolor: "#202c33",
+                    border: "1px solid #2a3942",
+                    color: "#8696a0",
+                    fontSize: "0.75rem",
+                    width: "fit-content",
+                    "& .MuiChip-label": { textTransform: "uppercase", letterSpacing: 1 },
+                  }}
+                />
 
-            {/* Hero Visual - Hidden on mobile, shown on lg+ */}
-            <div
-              id="demo"
-              className="hidden lg:flex relative lg:h-[550px] w-full items-center justify-center lg:justify-end"
-            >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px]"></div>
-
-              <div className="relative w-full max-w-sm bg-surface rounded-2xl shadow-2xl border border-surface-hover overflow-hidden flex flex-col h-[480px]">
-                {/* Chat Header */}
-                <div className="bg-[#202c33] px-4 py-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
-                    <span
-                      className="material-symbols-outlined text-white"
-                      style={{ fontSize: "22px" }}
-                    >
-                      auto_awesome
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-white">
-                      RespondIA
-                    </h3>
-                    <p className="text-xs text-primary flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                      Respondendo agora...
-                    </p>
-                  </div>
-                </div>
-
-                {/* Chat Area */}
-                <div
-                  className="landing-chat-scroll flex-1 bg-[#0b141a] p-3 flex flex-col gap-3 overflow-y-auto relative"
-                  style={{
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "rgba(255,255,255,0.2) transparent",
+                <Typography
+                  variant="h1"
+                  sx={{
+                    fontSize: { xs: "2.5rem", sm: "3rem", lg: "3.75rem" },
+                    fontWeight: 800,
+                    lineHeight: 1.15,
+                    color: "white",
                   }}
                 >
-                  <style>{`
-                    .landing-chat-scroll::-webkit-scrollbar { width: 6px; }
-                    .landing-chat-scroll::-webkit-scrollbar-track { background: transparent; }
-                    .landing-chat-scroll::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.2); border-radius: 3px; }
-                    .landing-chat-scroll::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,0.3); }
-                  `}</style>
-                  <div
-                    className="absolute inset-0 opacity-5 pointer-events-none"
-                    style={{
-                      backgroundImage:
-                        "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5. truncated')",
+                  Sua <span style={{ color: "#00a884" }}>Secretária IA</span> no WhatsApp
+                </Typography>
+
+                <Typography
+                  variant="body1"
+                  sx={{ fontSize: "1.125rem", color: "#8696a0", lineHeight: 1.7, maxWidth: 500 }}
+                >
+                  Automatize atendimento, gerencie agenda, controle despesas e organize tarefas. 
+                  Uma secretária inteligente que aprende e memoriza conversas, integrada ao Calendário do Google e muito mais.
+                </Typography>
+
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, pt: 1 }}>
+                  <Button
+                    onClick={onLoginClick}
+                    variant="contained"
+                    size="large"
+                    sx={{
+                      bgcolor: "#00a884",
+                      color: "#111b21",
+                      fontWeight: "bold",
+                      px: 4,
+                      py: 1.5,
+                      "&:hover": { bgcolor: "#008f6f", transform: "scale(1.02)" },
+                      transition: "all 0.2s",
+                      boxShadow: "0 4px 20px rgba(0, 168, 132, 0.25)",
                     }}
-                  ></div>
+                  >
+                    Testar Grátis
+                  </Button>
+                  <Button
+                    onClick={() => scrollToSection("demo")}
+                    variant="outlined"
+                    size="large"
+                    startIcon={<PlayCircle sx={{ color: "#00a884" }} />}
+                    sx={{
+                      borderColor: "#2a3942",
+                      color: "#e9edef",
+                      px: 4,
+                      py: 1.5,
+                      "&:hover": { bgcolor: "#2a3942", borderColor: "#2a3942" },
+                    }}
+                  >
+                    Ver Demonstração
+                  </Button>
+                </Box>
 
-                  {/* Mensagem do cliente */}
-                  <div className="self-end max-w-[80%] relative z-10">
-                    <div className="bg-[#005c4b] p-3 rounded-xl rounded-tr-sm shadow-sm text-sm text-white">
-                      <p>Oi, queria agendar um horário pra amanhã às 15h</p>
-                      <span className="text-[10px] text-white/60 block text-right mt-1 flex items-center justify-end gap-1">
-                        10:42
-                        <span className="material-symbols-outlined text-[12px] text-[#53bdeb]">
-                          done_all
-                        </span>
-                      </span>
-                    </div>
-                  </div>
+                <Box sx={{ display: "flex", gap: 3, pt: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <CheckCircle sx={{ fontSize: 16, color: "#00a884" }} />
+                    <Typography variant="caption" color="#8696a0">Sem cartão de crédito</Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <CheckCircle sx={{ fontSize: 16, color: "#00a884" }} />
+                    <Typography variant="caption" color="#8696a0">7 dias grátis</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Grid>
 
-                  {/* Resposta da IA */}
-                  <div className="self-start max-w-[80%] relative z-10">
-                    <div className="bg-[#202c33] p-3 rounded-xl rounded-tl-sm shadow-sm text-sm text-white">
-                      <p>Olá! 👋 Deixa eu verificar a agenda...</p>
-                      <span className="text-[10px] text-white/40 block text-right mt-1">
-                        10:42
-                      </span>
-                    </div>
-                  </div>
+            {/* Hero Visual - Chat Demo */}
+            <Grid size={{ xs: 12, lg: 6 }} sx={{ display: { xs: "none", lg: "flex" }, justifyContent: "flex-end" }}>
+              <Box id="demo" sx={{ position: "relative" }}>
+                {/* Glow effect */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: 400,
+                    height: 400,
+                    bgcolor: "rgba(0, 168, 132, 0.05)",
+                    borderRadius: "50%",
+                    filter: "blur(100px)",
+                  }}
+                />
 
-                  {/* Resposta da IA com confirmação */}
-                  <div className="self-start max-w-[80%] relative z-10">
-                    <div className="bg-[#202c33] p-3 rounded-xl rounded-tl-sm shadow-sm text-sm text-white">
-                      <p>
-                        ✅ <strong>Horário disponível!</strong>
-                      </p>
-                      <p className="mt-2 text-white/80">Agendei para você:</p>
-                      <div className="mt-2 p-2 bg-primary/10 rounded-lg border border-primary/20">
-                        <p className="text-primary font-medium">
-                          📅 Amanhã, 15:00
-                        </p>
-                        <p className="text-xs text-white/60 mt-1">
-                          Já adicionei na sua agenda
-                        </p>
-                      </div>
-                      <p className="mt-2 text-white/80">
-                        Posso ajudar em mais alguma coisa?
-                      </p>
-                      <span className="text-[10px] text-white/40 block text-right mt-1">
-                        10:43
-                      </span>
-                    </div>
-                  </div>
+                {/* Chat Window */}
+                <Paper
+                  sx={{
+                    width: 360,
+                    height: 480,
+                    bgcolor: "#202c33",
+                    borderRadius: 3,
+                    border: "1px solid #2a3942",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+                  }}
+                >
+                  {/* Chat Header */}
+                  <Box sx={{ bgcolor: "#202c33", px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 2,
+                        background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <AutoAwesome sx={{ color: "white", fontSize: 22 }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle2" fontWeight={600} color="white">RespondIA</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#00a884", animation: "pulse 2s infinite" }} />
+                        <Typography variant="caption" sx={{ color: "#00a884" }}>Respondendo agora...</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
 
-                  {/* Indicador de digitando */}
-                  <div className="self-start max-w-[80%] relative z-10">
-                    <div className="bg-[#202c33] px-4 py-3 rounded-xl rounded-tl-sm shadow-sm inline-flex gap-1">
-                      <span
-                        className="w-2 h-2 bg-white/40 rounded-full animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      ></span>
-                      <span
-                        className="w-2 h-2 bg-white/40 rounded-full animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      ></span>
-                      <span
-                        className="w-2 h-2 bg-white/40 rounded-full animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      ></span>
-                    </div>
-                  </div>
-                </div>
+                  {/* Chat Messages */}
+                  <Box sx={{ flex: 1, bgcolor: "#0b141a", p: 1.5, display: "flex", flexDirection: "column", gap: 1.5, overflow: "auto" }}>
+                    {/* User message */}
+                    <Box sx={{ alignSelf: "flex-end", maxWidth: "80%" }}>
+                      <Paper sx={{ bgcolor: "#005c4b", p: 1.5, borderRadius: 2, borderTopRightRadius: 0.5 }}>
+                        <Typography variant="body2" color="white">Oi, queria agendar um horário pra amanhã às 15h</Typography>
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>10:42</Typography>
+                          <DoneAll sx={{ fontSize: 14, color: "#53bdeb" }} />
+                        </Box>
+                      </Paper>
+                    </Box>
 
-                {/* Input */}
-                <div className="bg-[#202c33] px-3 py-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-white/40 text-xl">
-                    sentiment_satisfied
-                  </span>
-                  <span className="material-symbols-outlined text-white/40 text-xl">
-                    attach_file
-                  </span>
-                  <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 text-sm text-white/40">
-                    Mensagem
-                  </div>
-                  <span className="material-symbols-outlined text-white/40 text-xl">
-                    mic
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+                    {/* AI response 1 */}
+                    <Box sx={{ alignSelf: "flex-start", maxWidth: "80%" }}>
+                      <Paper sx={{ bgcolor: "#202c33", p: 1.5, borderRadius: 2, borderTopLeftRadius: 0.5 }}>
+                        <Typography variant="body2" color="white">Olá! 👋 Deixa eu verificar a agenda...</Typography>
+                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.4)", display: "block", textAlign: "right", fontSize: 10, mt: 0.5 }}>10:42</Typography>
+                      </Paper>
+                    </Box>
+
+                    {/* AI response 2 */}
+                    <Box sx={{ alignSelf: "flex-start", maxWidth: "80%" }}>
+                      <Paper sx={{ bgcolor: "#202c33", p: 1.5, borderRadius: 2, borderTopLeftRadius: 0.5 }}>
+                        <Typography variant="body2" color="white">✅ <strong>Horário disponível!</strong></Typography>
+                        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)", mt: 1 }}>Agendei para você:</Typography>
+                        <Box sx={{ mt: 1, p: 1, bgcolor: "rgba(0, 168, 132, 0.1)", borderRadius: 1, border: "1px solid rgba(0, 168, 132, 0.2)" }}>
+                          <Typography variant="body2" sx={{ color: "#00a884", fontWeight: 500 }}>📅 Amanhã, 15:00</Typography>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>Já adicionei na sua agenda</Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)", mt: 1 }}>Posso ajudar em mais alguma coisa?</Typography>
+                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.4)", display: "block", textAlign: "right", fontSize: 10, mt: 0.5 }}>10:43</Typography>
+                      </Paper>
+                    </Box>
+
+                    {/* Typing indicator */}
+                    <Box sx={{ alignSelf: "flex-start" }}>
+                      <Paper sx={{ bgcolor: "#202c33", px: 2, py: 1.5, borderRadius: 2, borderTopLeftRadius: 0.5, display: "flex", gap: 0.5 }}>
+                        {[0, 150, 300].map((delay) => (
+                          <Box
+                            key={delay}
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              bgcolor: "rgba(255,255,255,0.4)",
+                              animation: "bounce 1s infinite",
+                              animationDelay: `${delay}ms`,
+                            }}
+                          />
+                        ))}
+                      </Paper>
+                    </Box>
+                  </Box>
+
+                  {/* Chat Input */}
+                  <Box sx={{ bgcolor: "#202c33", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                    <SentimentSatisfied sx={{ color: "rgba(255,255,255,0.4)" }} />
+                    <AttachFile sx={{ color: "rgba(255,255,255,0.4)" }} />
+                    <Box sx={{ flex: 1, bgcolor: "#2a3942", borderRadius: 4, px: 2, py: 1 }}>
+                      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.4)" }}>Mensagem</Typography>
+                    </Box>
+                    <Mic sx={{ color: "rgba(255,255,255,0.4)" }} />
+                  </Box>
+                </Paper>
+              </Box>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
 
       {/* Pain Points Section */}
-      <section className="py-20 bg-surface border-y border-surface-hover">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-              Você se identifica com alguma dessas situações?
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  schedule
-                </span>
-                <h3 className="text-lg font-bold text-white">Sem tempo</h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Passo o dia inteiro respondendo WhatsApp e não consigo
-                trabalhar no que realmente importa."
-              </p>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  person_off
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Perdendo clientes
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Cliente mandou mensagem às 22h, vi só no dia seguinte. Ele já
-                tinha comprado do concorrente."
-              </p>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  event_busy
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Esquecendo compromissos
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Marquei uma reunião por WhatsApp e esqueci de anotar. Perdi o
-                cliente."
-              </p>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  hearing_disabled
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Áudios intermináveis
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Cliente manda áudio de 5 minutos e não tenho tempo de ouvir.
-                Acabo ignorando."
-              </p>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  money_off
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Gastando demais
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Queria uma secretária mas não posso pagar R$ 2.000/mês de
-                salário + encargos."
-              </p>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-red-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="material-symbols-outlined text-red-400"
-                  style={{ fontSize: "28px" }}
-                >
-                  repeat
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Repetição infinita
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm">
-                "Respondo as mesmas perguntas 50 vezes por dia: preço, horário,
-                endereço..."
-              </p>
-            </div>
-          </div>
-          <div className="text-center mt-12">
-            <p className="text-xl text-primary font-bold mb-2">
+      <Box component="section" sx={{ py: 10, bgcolor: "#202c33", borderTop: "1px solid #2a3942", borderBottom: "1px solid #2a3942" }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={1}>
+            Você se identifica com alguma dessas situações?
+          </Typography>
+          <Grid container spacing={3} sx={{ mt: 4 }}>
+            {painPoints.map((point, index) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
+                <Paper sx={{ p: 3, bgcolor: "#111b21", borderRadius: 2, border: "1px solid rgba(248, 113, 113, 0.3)", height: "100%" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                    {point.icon}
+                    <Typography variant="h6" fontWeight="bold" color="white">{point.title}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="#8696a0">{point.description}</Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+          <Box sx={{ textAlign: "center", mt: 6 }}>
+            <Typography variant="h6" sx={{ color: "#00a884", fontWeight: "bold", mb: 1 }}>
               ✨ E se existisse uma solução para tudo isso?
-            </p>
-            <p className="text-text-secondary">
-              Uma secretária que trabalha 24h, nunca esquece nada, e custa menos
-              que uma pizza por dia.
-            </p>
-          </div>
-        </div>
-      </section>
+            </Typography>
+            <Typography color="#8696a0">
+              Uma secretária que trabalha 24h, nunca esquece nada, e custa menos que uma pizza por dia.
+            </Typography>
+          </Box>
+        </Container>
+      </Box>
 
-      {/* Integrations Section */}
-      <section className="border-y border-surface-hover bg-background py-8 md:py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-xs md:text-sm font-medium text-text-secondary mb-6 md:mb-8">
-            INTEGRAÇÕES DISPONÍVEIS
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-8">
-            <div className="flex flex-col items-center gap-2 text-white">
-              <span className="material-symbols-outlined text-2xl md:text-3xl text-primary">
-                auto_awesome
-              </span>
-              <span className="font-medium text-sm md:text-base">
-                IA Avançada
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-white">
-              <span className="material-symbols-outlined text-2xl md:text-3xl text-primary">
-                calendar_month
-              </span>
-              <span className="font-medium text-sm md:text-base">
-                Agenda Google
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-white">
-              <span className="material-symbols-outlined text-2xl md:text-3xl text-primary">
-                chat
-              </span>
-              <span className="font-medium text-sm md:text-base">WhatsApp</span>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-white">
-              <span className="material-symbols-outlined text-2xl md:text-3xl text-violet-500">
-                bar_chart
-              </span>
-              <span className="font-medium text-sm md:text-base">
-                Gastometria
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-white col-span-2 md:col-span-1">
-              <span className="material-symbols-outlined text-2xl md:text-3xl text-primary">
-                graphic_eq
-              </span>
-              <span className="font-medium text-sm md:text-base">
-                Transcrição
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Integrations */}
+      <Box component="section" sx={{ py: 5, borderBottom: "1px solid #2a3942" }}>
+        <Container maxWidth="lg">
+          <Typography variant="body2" textAlign="center" color="#8696a0" mb={4} sx={{ textTransform: "uppercase", letterSpacing: 2 }}>
+            Integrações Disponíveis
+          </Typography>
+          <Grid container spacing={4} justifyContent="center">
+            {[
+              { icon: <AutoAwesome sx={{ color: "#00a884" }} />, label: "IA Avançada" },
+              { icon: <CalendarMonth sx={{ color: "#00a884" }} />, label: "Agenda Google" },
+              { icon: <Forum sx={{ color: "#00a884" }} />, label: "WhatsApp" },
+              { icon: <Psychology sx={{ color: "#8b5cf6" }} />, label: "Gastometria" },
+              { icon: <RecordVoiceOver sx={{ color: "#00a884" }} />, label: "Transcrição" },
+            ].map((item, idx) => (
+              <Grid size={{ xs: 6, md: 2.4 }} key={idx}>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                  {item.icon}
+                  <Typography variant="body2" fontWeight={500} color="white">{item.label}</Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
-      {/* How It Works Section */}
-      <section className="py-24 bg-surface relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Como Funciona
-            </h2>
-            <p className="text-text-secondary text-lg">
-              Configure sua Secretária IA em poucos minutos e veja a mágica
-              acontecer.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center relative">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6 relative z-10">
-                <span className="text-2xl font-bold text-primary">1</span>
-              </div>
-              <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-primary/20"></div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Conecte seu WhatsApp
-              </h3>
-              <p className="text-text-secondary text-sm">
-                Escaneie o QR Code e conecte sua conta em segundos. Sem
-                complicação.
-              </p>
-            </div>
-            <div className="text-center relative">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6 relative z-10">
-                <span className="text-2xl font-bold text-primary">2</span>
-              </div>
-              <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-primary/20"></div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Configure a IA
-              </h3>
-              <p className="text-text-secondary text-sm">
-                Defina o nome, tom de voz e informações do seu negócio ou vida
-                pessoal.
-              </p>
-            </div>
-            <div className="text-center relative">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6 relative z-10">
-                <span className="text-2xl font-bold text-primary">3</span>
-              </div>
-              <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-primary/20"></div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Integre Serviços
-              </h3>
-              <p className="text-text-secondary text-sm">
-                Conecte sua Agenda do Google, configure automações de grupo e
-                integrações.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mx-auto mb-6">
-                <span
-                  className="material-symbols-outlined text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  check
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">Pronto!</h3>
-              <p className="text-text-secondary text-sm">
-                Sua secretária começa a trabalhar 24/7, respondendo e
-                organizando tudo.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* How It Works */}
+      <Box component="section" sx={{ py: 12, bgcolor: "#202c33" }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={1}>
+            Como Funciona
+          </Typography>
+          <Typography textAlign="center" color="#8696a0" mb={8}>
+            Configure sua Secretária IA em poucos minutos e veja a mágica acontecer.
+          </Typography>
+          <Grid container spacing={4}>
+            {[
+              { step: "1", title: "Conecte seu WhatsApp", desc: "Escaneie o QR Code e conecte sua conta em segundos. Sem complicação." },
+              { step: "2", title: "Configure a IA", desc: "Defina o nome, tom de voz e informações do seu negócio ou vida pessoal." },
+              { step: "3", title: "Integre Serviços", desc: "Conecte sua Agenda do Google, configure automações de grupo e integrações." },
+              { step: "✓", title: "Pronto!", desc: "Sua secretária começa a trabalhar 24/7, respondendo e organizando tudo.", done: true },
+            ].map((item, idx) => (
+              <Grid size={{ xs: 12, md: 3 }} key={idx}>
+                <Box sx={{ textAlign: "center" }}>
+                  <Box
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: "50%",
+                      bgcolor: item.done ? "#00a884" : "rgba(0, 168, 132, 0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 3,
+                    }}
+                  >
+                    {item.done ? (
+                      <Check sx={{ color: "#111b21", fontSize: 28 }} />
+                    ) : (
+                      <Typography variant="h5" fontWeight="bold" sx={{ color: "#00a884" }}>{item.step}</Typography>
+                    )}
+                  </Box>
+                  <Typography variant="h6" fontWeight="bold" color="white" mb={1}>{item.title}</Typography>
+                  <Typography variant="body2" color="#8696a0">{item.desc}</Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
       {/* Features Section */}
-      <section id="features" className="py-24 bg-background relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Recursos Completos para seu Negócio
-            </h2>
-            <p className="text-text-secondary text-lg">
-              Uma plataforma completa com IA avançada, automações inteligentes e
-              integrações poderosas.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
+      <Box component="section" id="features" sx={{ py: 12 }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={1}>
+            Recursos Completos para seu Negócio
+          </Typography>
+          <Typography textAlign="center" color="#8696a0" mb={8}>
+            Uma plataforma completa com IA avançada, automações inteligentes e integrações poderosas.
+          </Typography>
+          <Grid container spacing={4}>
+            {features.map((feature, idx) => (
+              <Grid size={{ xs: 12, md: 4 }} key={idx}>
+                <Paper
+                  sx={{
+                    p: 4,
+                    bgcolor: "#202c33",
+                    borderRadius: 2,
+                    border: "1px solid #2a3942",
+                    height: "100%",
+                    transition: "all 0.3s",
+                    "&:hover": { borderColor: "rgba(0, 168, 132, 0.5)" },
+                  }}
                 >
-                  psychology
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Secretária IA
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Uma assistente inteligente com memória de conversas. Gerencia
-                agenda, despesas, tarefas e responde como uma secretária
-                profissional.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  calendar_month
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Integração com Agenda do Google
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Agende compromissos pelo WhatsApp. A IA verifica horários
-                disponíveis e cria eventos automaticamente no seu calendário.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  auto_awesome
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Automações de Grupo
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Crie regras automáticas para grupos: colete dados de apostas,
-                valores em dinheiro, e-mails. Perfeito para bolões e enquetes.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  record_voice_over
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Transcrição de Áudio
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Mensagens de voz são transcritas automaticamente. A IA entende e
-                responde como se fosse texto normal.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  account_balance_wallet
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Controle de Despesas
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Registre gastos pelo WhatsApp: "Gastei 50 reais no mercado". A
-                IA categoriza e controla suas finanças automaticamente.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  checklist
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Gestão de Tarefas
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Crie e gerencie tarefas por voz ou texto. A IA organiza
-                prioridades, define prazos e envia lembretes automáticos.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  forum
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Chat ao Vivo
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Acompanhe todas as conversas em tempo real, incluindo grupos.
-                Intervenha quando necessário e monitore o atendimento.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  campaign
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Campanhas em Massa
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Envie mensagens personalizadas para milhares de contatos.
-                Programe campanhas e acompanhe métricas de entrega.
-              </p>
-            </div>
-            <div className="bg-surface p-8 rounded-xl border border-surface-hover hover:border-primary/50 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-background transition-all">
-                <span
-                  className="material-symbols-outlined text-primary group-hover:text-[#111b21]"
-                  style={{ fontSize: "28px" }}
-                >
-                  inventory_2
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">
-                Gestão de Estoque
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Controle seu inventário integrado ao WhatsApp. A IA consulta
-                disponibilidade e informa clientes automaticamente.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 2,
+                      bgcolor: "rgba(0, 168, 132, 0.1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 3,
+                      color: "#00a884",
+                    }}
+                  >
+                    {feature.icon}
+                  </Box>
+                  <Typography variant="h6" fontWeight="bold" color="white" mb={1.5}>{feature.title}</Typography>
+                  <Typography variant="body2" color="#8696a0" lineHeight={1.7}>{feature.description}</Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
-      {/* Use Cases Section */}
-      <section className="py-24 bg-surface relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Casos de Uso
-            </h2>
-            <p className="text-text-secondary text-lg">
-              Veja como nossos usuários estão aproveitando a plataforma.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  casino
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Bolão da Mega-Sena
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "Crio uma automação temporária no grupo que coleta os números
-                apostados por cada participante. No final, tenho um relatório
-                completo!"
-              </p>
-              <span className="text-xs text-primary">Automações de Grupo</span>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  restaurant
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Restaurante Delivery
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "A IA atende pedidos, verifica cardápio e disponibilidade no
-                estoque. Reduzi 80% das ligações telefônicas."
-              </p>
-              <span className="text-xs text-primary">
-                Secretária IA + Estoque
-              </span>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  spa
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Clínica de Estética
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "Pacientes agendam consultas pelo WhatsApp e já aparece direto
-                na minha Agenda do Google. Nunca mais perdi um horário!"
-              </p>
-              <span className="text-xs text-primary">Agenda do Google</span>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  attach_money
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Controle Financeiro
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "Envio áudio: 'Gastei 150 no mercado'. A IA transcreve,
-                categoriza e no final do mês tenho meu relatório de despesas."
-              </p>
-              <span className="text-xs text-primary">
-                Despesas + Transcrição
-              </span>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  groups
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  Rifa Beneficente
-                </h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "A automação coleta os números escolhidos e valores pagos. Posso
-                ver quem confirmou e o total arrecadado em tempo real."
-              </p>
-              <span className="text-xs text-primary">Automações de Grupo</span>
-            </div>
-            <div className="bg-background p-6 rounded-xl border border-surface-hover">
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="material-symbols-outlined text-primary"
-                  style={{ fontSize: "24px" }}
-                >
-                  work
-                </span>
-                <h3 className="text-lg font-bold text-white">Freelancer</h3>
-              </div>
-              <p className="text-text-secondary text-sm mb-4">
-                "Minha secretária IA responde clientes, agenda reuniões e me
-                lembra das tarefas do dia. Funciona mesmo quando durmo!"
-              </p>
-              <span className="text-xs text-primary">
-                Secretária IA + Tarefas
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12 md:py-20 bg-background border-y border-surface-hover">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center">
-            <div className="p-3 md:p-4">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">
-                9+
-              </div>
-              <div className="text-xs md:text-sm text-text-secondary uppercase tracking-wide">
-                Recursos
-              </div>
-            </div>
-            <div className="p-3 md:p-4">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">
-                IA
-              </div>
-              <div className="text-xs md:text-sm text-text-secondary uppercase tracking-wide">
-                Inteligente
-              </div>
-            </div>
-            <div className="p-3 md:p-4">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">
-                24/7
-              </div>
-              <div className="text-xs md:text-sm text-text-secondary uppercase tracking-wide">
-                Automático
-              </div>
-            </div>
-            <div className="p-3 md:p-4">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">
-                ∞
-              </div>
-              <div className="text-xs md:text-sm text-text-secondary uppercase tracking-wide">
-                Memória
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Use Cases */}
+      <Box component="section" sx={{ py: 12, bgcolor: "#202c33" }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={1}>
+            Casos de Uso
+          </Typography>
+          <Typography textAlign="center" color="#8696a0" mb={8}>
+            Veja como nossos usuários estão aproveitando a plataforma.
+          </Typography>
+          <Grid container spacing={3}>
+            {useCases.map((useCase, idx) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={idx}>
+                <Paper sx={{ p: 3, bgcolor: "#111b21", borderRadius: 2, border: "1px solid #2a3942", height: "100%" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+                    <Typography fontSize={24}>{useCase.icon}</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="white">{useCase.title}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="#8696a0" mb={2}>{useCase.description}</Typography>
+                  <Typography variant="caption" sx={{ color: "#00a884" }}>{useCase.tag}</Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
       {/* Gastometria Partnership Section */}
-      <section className="py-12 md:py-20 bg-gradient-to-r from-violet-600/10 via-[#0d0d1a] to-purple-600/10 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 left-1/4 w-64 h-64 bg-violet-500/30 rounded-full blur-[100px]"></div>
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-500/30 rounded-full blur-[100px]"></div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-            {/* Content */}
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-500/30 mb-4">
-                <span
-                  className="material-symbols-outlined text-violet-400"
-                  style={{ fontSize: "16px" }}
-                >
-                  bar_chart
-                </span>
-                <span className="text-xs font-medium text-violet-300 uppercase tracking-wider">
-                  Parceria Exclusiva
-                </span>
-              </div>
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
-                Sua vida financeira,{" "}
-                <span className="text-violet-400">sob controle total.</span>
-              </h2>
-              <p className="text-gray-400 text-base md:text-lg mb-6 max-w-xl">
-                O <strong className="text-violet-400">Gastometria</strong> é o
-                app de gestão financeira pessoal com IA que categoriza seus
-                gastos automaticamente, cria metas e gera relatórios completos.
-                Importe seus extratos bancários de forma simples e segura - por
-                questões de segurança, não solicitamos documentos ou senhas.
-                <span className="text-white font-medium">
-                  {" "}
-                  Clientes Gastometria com{" "}
-                  <span className="text-violet-400 font-bold">plano Infinity</span>{" "}
-                  integram o controle financeiro ao WhatsApp{" "}
-                  <span className="text-emerald-400">sem custo adicional!</span>
-                </span>
-              </p>
-              <p className="text-amber-400/80 text-sm mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>info</span>
-                Integração disponível apenas para assinantes do plano Infinity do Gastometria (libera acesso à API).
-              </p>
-              <div className="flex flex-wrap gap-2 mb-6">
-                <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                  📊 Relatórios Inteligentes
-                </span>
-                <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                  🎯 Metas Financeiras
-                </span>
-                <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                  🤖 IA Categoriza Tudo
-                </span>
-                <span className="px-3 py-1 text-xs rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                  📁 Importa Extratos
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <a
-                  href="https://gastometria.com.br"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-bold transition-all shadow-lg shadow-violet-500/20"
-                >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: "20px" }}
+      <Box
+          component="section"
+          sx={{
+            py: { xs: 8, md: 12 },
+            background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, #0d0d1a 50%, rgba(168, 85, 247, 0.1) 100%)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Glow effects */}
+          <Box sx={{ position: "absolute", top: 0, left: "25%", width: 256, height: 256, bgcolor: "rgba(139, 92, 246, 0.3)", borderRadius: "50%", filter: "blur(100px)" }} />
+          <Box sx={{ position: "absolute", bottom: 0, right: "25%", width: 256, height: 256, bgcolor: "rgba(168, 85, 247, 0.3)", borderRadius: "50%", filter: "blur(100px)" }} />
+
+          <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
+            <Grid container spacing={4} alignItems="center" justifyContent="space-between">
+              {/* Content */}
+              <Grid size={{ xs: 12, md: 5 }}>
+                <Chip
+                  icon={<AccountBalanceWallet sx={{ fontSize: 16, color: "#a78bfa" }} />}
+                  label="Parceria Exclusiva"
+                  sx={{
+                    bgcolor: "rgba(139, 92, 246, 0.2)",
+                    border: "1px solid rgba(139, 92, 246, 0.3)",
+                    color: "#c4b5fd",
+                    mb: 3,
+                    "& .MuiChip-label": { fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 1 },
+                  }}
+                />
+
+                <Typography variant="h3" sx={{ fontWeight: "bold", color: "white", mb: 2, fontSize: { xs: "1.75rem", md: "2.5rem" } }}>
+                  Sua vida financeira, <Box component="span" sx={{ color: "#a78bfa" }}>sob controle total.</Box>
+                </Typography>
+
+                <Typography sx={{ color: "#9ca3af", fontSize: { xs: "1rem", md: "1.125rem" }, mb: 4, maxWidth: 560 }}>
+                  O <strong style={{ color: "#a78bfa" }}>Gastometria</strong> é o app de gestão financeira pessoal com IA que categoriza seus gastos automaticamente, cria metas e gera relatórios completos. Importe seus extratos bancários de forma simples e segura. <Box component="span" sx={{ color: "white", fontWeight: 500 }}>Agora integrado ao RespondIA, registre despesas pelo WhatsApp!</Box>
+                </Typography>
+
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    href="https://gastometria.com.br"
+                    target="_blank"
+                    sx={{
+                      bgcolor: "#8b5cf6",
+                      color: "white",
+                      fontWeight: "bold",
+                      px: 4,
+                      py: 1.5,
+                      "&:hover": { bgcolor: "#7c3aed" },
+                    }}
                   >
-                    open_in_new
-                  </span>
-                  Conhecer Gastometria
-                </a>
-                <button
-                  onClick={() => scrollToSection("pricing")}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-violet-500/50 text-violet-400 font-medium hover:bg-violet-500/10 transition-all"
-                >
-                  Ver plano especial
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: "20px" }}
+                    Começar Grátis
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={onLoginClick}
+                    sx={{
+                      borderColor: "rgba(139, 92, 246, 0.5)",
+                      color: "#a78bfa",
+                      px: 4,
+                      py: 1.5,
+                      "&:hover": { bgcolor: "rgba(139, 92, 246, 0.1)", borderColor: "#8b5cf6" },
+                    }}
                   >
-                    arrow_downward
-                  </span>
-                </button>
-              </div>
-            </div>
-            {/* Visual */}
-            <div className="flex-shrink-0">
-              <div className="relative">
-                <div className="w-56 h-56 md:w-72 md:h-72 rounded-2xl bg-gradient-to-br from-violet-600/20 to-purple-600/10 border border-violet-500/30 p-4">
-                  <div className="text-center mb-3">
-                    <span
-                      className="material-symbols-outlined text-violet-400"
-                      style={{ fontSize: "40px" }}
+                    Ver Integração
+                  </Button>
+                </Box>
+              </Grid>
+
+              {/* Features List */}
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Paper
+                  sx={{
+                    bgcolor: "rgba(17, 17, 26, 0.8)",
+                    borderRadius: 3,
+                    border: "1px solid rgba(139, 92, 246, 0.3)",
+                    p: 4,
+                  }}
+                >
+                  <Typography variant="h6" fontWeight="bold" color="white" mb={3}>🔗 Como funciona a integração</Typography>
+                  <List>
+                    {[{ icon: <Check sx={{ color: "#10b981" }} />, text: "Registre gastos pelo WhatsApp" },
+                      { icon: <Check sx={{ color: "#10b981" }} />, text: "Envie fotos de notas fiscais" },
+                      { icon: <Check sx={{ color: "#10b981" }} />, text: "IA categoriza automaticamente" },
+                      { icon: <Check sx={{ color: "#10b981" }} />, text: "Sincroniza com seu Gastometria" },
+                      { icon: <Check sx={{ color: "#10b981" }} />, text: "Relatórios financeiros completos" }].map((item, idx) => (
+                      <ListItem key={idx} sx={{ px: 0, py: 1 }}>
+                        <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                        <ListItemText primary={item.text} primaryTypographyProps={{ color: "#e9edef" }} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <Divider sx={{ borderColor: "rgba(139, 92, 246, 0.2)", my: 2 }} />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 2,
+                        background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
                     >
-                      account_balance_wallet
-                    </span>
-                    <p className="text-violet-300 font-bold text-lg">
-                      Gastometria
-                    </p>
-                  </div>
-                  <div className="space-y-2 text-xs text-left">
-                    <div className="flex items-center gap-2 bg-violet-500/10 px-2 py-1 rounded">
-                      <span
-                        className="material-symbols-outlined text-emerald-400"
-                        style={{ fontSize: "14px" }}
-                      >
-                        check_circle
-                      </span>
-                      <span className="text-gray-300">Múltiplas carteiras</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-violet-500/10 px-2 py-1 rounded">
-                      <span
-                        className="material-symbols-outlined text-emerald-400"
-                        style={{ fontSize: "14px" }}
-                      >
-                        check_circle
-                      </span>
-                      <span className="text-gray-300">
-                        IA categoriza gastos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-violet-500/10 px-2 py-1 rounded">
-                      <span
-                        className="material-symbols-outlined text-emerald-400"
-                        style={{ fontSize: "14px" }}
-                      >
-                        check_circle
-                      </span>
-                      <span className="text-gray-300">Metas financeiras</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-violet-500/10 px-2 py-1 rounded">
-                      <span
-                        className="material-symbols-outlined text-emerald-400"
-                        style={{ fontSize: "14px" }}
-                      >
-                        check_circle
-                      </span>
-                      <span className="text-gray-300">Importa extratos</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Badge */}
-                <div className="absolute -bottom-3 -right-3 bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  GRÁTIS
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+                      <AccountBalanceWallet sx={{ color: "white" }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500} color="white">Gastometria</Typography>
+                      <Typography variant="caption" color="#8696a0">Gestão Financeira com IA</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            </Grid>
+
+            {/* Plans Table */}
+            <Box sx={{ mt: 8 }}>
+              <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={2}>Planos</Typography>
+              <Table sx={{ color: "white", "& .MuiTableCell-root": { borderBottom: "1px solid rgba(255,255,255,0.1)" } }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell align="center"><Typography color="white" fontWeight="bold">Básico</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white" fontWeight="bold">Pro</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white" fontWeight="bold">Plus</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white" fontWeight="bold">Infinity</Typography></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell><Typography color="#8696a0">Carteiras</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Até 3</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Ilimitadas</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Ilimitadas</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Ilimitadas</Typography></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><Typography color="#8696a0">Créditos IA/mês</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">0</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">100</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">300</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">500</Typography></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><Typography color="#8696a0">Importação CSV/OFX</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><Typography color="#8696a0">OCR notas fiscais</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✕</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">✓</Typography></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><Typography color="#8696a0">Suporte</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Email</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">Prioritário</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">24/7</Typography></TableCell>
+                    <TableCell align="center"><Typography color="white">24/7</Typography></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </Box>
+          </Container>
+        </Box>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 md:py-24 bg-background relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-3 md:mb-4">
-              Planos simples e transparentes
-            </h2>
-            <p className="text-text-secondary text-base md:text-lg">
-              Escolha o plano ideal. Cancele a qualquer momento.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-            {/* Starter Plan */}
-            <div className="bg-surface rounded-2xl border border-surface-hover p-6 md:p-8 flex flex-col">
-              <h3 className="text-lg md:text-xl font-bold text-white mb-2">
-                Essencial
-              </h3>
-              <p className="text-text-secondary text-xs md:text-sm mb-4 md:mb-6">
-                Pare de perder clientes por não responder a tempo.
-              </p>
-              <div className="mb-4 md:mb-6">
-                <span className="text-3xl md:text-4xl font-bold text-white">
-                  R$ 197
-                </span>
-                <span className="text-text-secondary text-sm">/mês</span>
-              </div>
-              <button
-                onClick={onLoginClick}
-                className="w-full py-3 rounded-lg border border-primary text-primary font-bold hover:bg-primary/10 transition-colors mb-6 md:mb-8 text-sm md:text-base"
-              >
-                Testar 7 Dias Grátis
-              </button>
-              <ul className="space-y-3 md:space-y-4 text-xs md:text-sm text-text-secondary flex-1">
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[18px] md:text-[20px]">
-                    check
-                  </span>
-                  Respostas automáticas 24h
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Entende áudios longos pra você
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Lembra das conversas anteriores
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Até 1.000 mensagens/mês
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Suporte por WhatsApp
-                </li>
-              </ul>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="bg-surface rounded-2xl border-2 border-primary p-8 flex flex-col relative transform md:-translate-y-4 shadow-2xl shadow-primary/10">
-              <div className="absolute top-0 right-0 bg-primary text-[#111b21] text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                MAIS VENDIDO
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Profissional
-              </h3>
-              <p className="text-text-secondary text-sm mb-6">
-                Nunca mais perca um cliente ou compromisso.
-              </p>
-              <div className="mb-2">
-                <span className="text-lg text-text-secondary line-through">
-                  R$ 497
-                </span>
-              </div>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">R$ 297</span>
-                <span className="text-text-secondary">/mês</span>
-              </div>
-              <button
-                onClick={onLoginClick}
-                className="w-full py-3 rounded-lg bg-primary text-[#111b21] font-bold hover:bg-primary-hover transition-colors mb-8 shadow-lg shadow-primary/20"
-              >
-                Quero Minha Secretária IA
-              </button>
-              <ul className="space-y-4 text-sm text-text-secondary flex-1">
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  <span className="font-bold text-white">
-                    Atendimento 24h sem você fazer nada
-                  </span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Agenda compromissos na sua agenda
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Controla suas despesas automaticamente
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Cria e lembra suas tarefas
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Transcreve áudios longos em segundos
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Mensagens ilimitadas
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Suporte prioritário
-                </li>
-              </ul>
-            </div>
-
-            {/* Gastometria Plan */}
-            <div className="bg-surface rounded-2xl border border-violet-500/30 p-8 flex flex-col relative">
-              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                🎁 GRÁTIS
-              </div>
-              <div className="absolute top-0 left-0 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg rounded-tl-lg">
-                PLANO INFINITY
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2 mt-4">
-                Já usa Gastometria Infinity?
-              </h3>
-              <p className="text-text-secondary text-sm mb-4">
-                Integre o controle financeiro ao WhatsApp usando seus próprios
-                créditos de IA.
-              </p>
-              <p className="text-amber-400/80 text-xs mb-6 flex items-start gap-2">
-                <span className="material-symbols-outlined" style={{ fontSize: "14px", marginTop: "2px" }}>info</span>
-                <span>Requer plano <strong>Infinity</strong> do Gastometria para acesso à API.</span>
-              </p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-emerald-400">
-                  Grátis
-                </span>
-                <span className="text-text-secondary text-sm ml-2">
-                  usa créditos do seu plano
-                </span>
-              </div>
-              <a
-                href="https://gastometria.com.br"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-bold transition-colors mb-8 text-center block"
-              >
-                Conhecer Gastometria
-              </a>
-              <ul className="space-y-4 text-sm text-text-secondary flex-1">
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-                    check
-                  </span>
-                  Registre gastos pelo WhatsApp
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-                    check
-                  </span>
-                  Envie fotos de notas fiscais
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-                    check
-                  </span>
-                  IA categoriza automaticamente
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-                    check
-                  </span>
-                  Usa créditos do seu Gastometria
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-violet-400 text-[20px]">
-                    add_circle
-                  </span>
-                  <span className="text-text-secondary">
-                    Quer agenda, tarefas e mais?{" "}
-                    <span className="text-violet-400">+R$ 47/mês</span>
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="bg-surface rounded-2xl border border-slate-500/30 p-6 md:p-8 flex flex-col relative">
-              <div className="absolute top-0 right-0 bg-slate-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                🏢 EMPRESAS
-              </div>
-              <h3 className="text-lg md:text-xl font-bold text-white mb-2">
-                Empresarial
-              </h3>
-              <p className="text-text-secondary text-xs md:text-sm mb-4 md:mb-6">
-                Soluções personalizadas para sua empresa.
-              </p>
-              <div className="mb-4 md:mb-6">
-                <span className="text-2xl md:text-3xl font-bold text-white">
-                  Sob consulta
-                </span>
-              </div>
-              <a
-                href="https://wa.me/5535984216196?text=Olá!%20Tenho%20interesse%20no%20plano%20Empresarial%20do%20RespondIA."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold transition-colors mb-6 md:mb-8 text-sm md:text-base flex items-center justify-center gap-2"
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: "20px" }}
+      <Box component="section" id="pricing" sx={{ py: 12 }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" color="white" mb={1}>
+            Planos simples e transparentes
+          </Typography>
+          <Typography textAlign="center" color="#8696a0" mb={8}>
+            Comece grátis por 7 dias. Cancele quando quiser.
+          </Typography>
+          <Grid container spacing={4} justifyContent="center">
+            {pricingPlans.map((plan, idx) => (
+              <Grid item xs={12} md={4} key={idx}>
+                <Paper
+                  sx={{
+                    p: 4,
+                    bgcolor: "#202c33",
+                    borderRadius: 3,
+                    border: plan.popular ? "2px solid #00a884" : "1px solid #2a3942",
+                    position: "relative",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
                 >
-                  chat
-                </span>
-                Falar no WhatsApp
-              </a>
-              <ul className="space-y-3 md:space-y-4 text-xs md:text-sm text-text-secondary flex-1">
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Múltiplos números de WhatsApp
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Equipe com vários atendentes
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Integrações personalizadas
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  Treinamento da IA para seu negócio
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-[20px]">
-                    check
-                  </span>
-                  <span className="font-bold text-white">Suporte dedicado</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+                  {plan.popular && (
+                    <Chip
+                      icon={<Star sx={{ fontSize: 14 }} />}
+                      label="Mais Popular"
+                      sx={{
+                        position: "absolute",
+                        top: -12,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        bgcolor: "#00a884",
+                        color: "#111b21",
+                        fontWeight: "bold",
+                        fontSize: "0.75rem",
+                      }}
+                    />
+                  )}
+                  <Typography variant="h6" fontWeight="bold" color="white" mb={1}>{plan.name}</Typography>
+                  <Box sx={{ display: "flex", alignItems: "baseline", mb: 1 }}>
+                    <Typography variant="h3" fontWeight="bold" color="white">{plan.price}</Typography>
+                    <Typography color="#8696a0">{plan.period}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="#8696a0" mb={3}>{plan.description}</Typography>
+                  <Divider sx={{ borderColor: "#2a3942", mb: 3 }} />
+                  <List sx={{ flex: 1 }}>
+                    {plan.features.map((feature, fIdx) => (
+                      <ListItem key={fIdx} sx={{ px: 0, py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <CheckCircle sx={{ color: "#00a884", fontSize: 20 }} />
+                        </ListItemIcon>
+                        <ListItemText primary={feature} primaryTypographyProps={{ variant: "body2", color: "#e9edef" }} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <Button
+                    fullWidth
+                    variant={plan.popular ? "contained" : "outlined"}
+                    onClick={onLoginClick}
+                    sx={{
+                      mt: 3,
+                      py: 1.5,
+                      fontWeight: "bold",
+                      ...(plan.popular
+                        ? { bgcolor: "#00a884", color: "#111b21", "&:hover": { bgcolor: "#008f6f" } }
+                        : { borderColor: "#2a3942", color: "#e9edef", "&:hover": { bgcolor: "#2a3942" } }),
+                    }}
+                  >
+                    Começar Agora
+                  </Button>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-background">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: "radial-gradient(#202c33 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-            }}
-          ></div>
-        </div>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Tenha sua Secretária IA hoje
-          </h2>
-          <p className="text-xl text-text-secondary mb-10 max-w-2xl mx-auto">
-            Agenda, tarefas, despesas e atendimento automatizado. Tudo integrado
-            ao seu WhatsApp. Comece a testar gratuitamente em minutos.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button
+      <Box component="section" sx={{ py: 12, bgcolor: "#202c33", borderTop: "1px solid #2a3942" }}>
+        <Container maxWidth="md">
+          <Box sx={{ textAlign: "center" }}>
+            <Typography variant="h4" fontWeight="bold" color="white" mb={2}>
+              Pronto para transformar seu atendimento?
+            </Typography>
+            <Typography color="#8696a0" mb={4}>
+              Junte-se a milhares de negócios que já automatizaram seu WhatsApp com inteligência artificial.
+            </Typography>
+            <Button
               onClick={onLoginClick}
-              className="flex items-center justify-center px-8 h-14 rounded-lg bg-primary hover:bg-primary-hover text-[#111b21] text-lg font-bold transition-all shadow-[0_4px_20px_rgba(19,236,193,0.3)]"
+              variant="contained"
+              size="large"
+              sx={{
+                bgcolor: "#00a884",
+                color: "#111b21",
+                fontWeight: "bold",
+                px: 6,
+                py: 1.5,
+                fontSize: "1rem",
+                "&:hover": { bgcolor: "#008f6f" },
+                boxShadow: "0 4px 20px rgba(0, 168, 132, 0.25)",
+              }}
             >
-              Criar Conta Grátis
-            </button>
-            <a
-              href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20RespondIA."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-8 h-14 rounded-lg bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-white text-lg font-medium transition-all"
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: "22px" }}
-              >
-                chat
-              </span>
-              Falar com Vendas
-            </a>
-          </div>
-        </div>
-      </section>
+              Testar Grátis por 7 Dias
+            </Button>
+          </Box>
+        </Container>
+      </Box>
 
       {/* Footer */}
-      <footer className="bg-surface border-t border-surface-hover pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-600 shadow-lg shadow-primary/20">
-                  <span
-                    className="material-symbols-outlined text-white"
-                    style={{ fontSize: "20px" }}
-                  >
-                    auto_awesome
-                  </span>
-                </div>
-                <span className="text-xl font-bold">
-                  <span className="text-white">Respond</span>
-                  <span className="text-primary">IA</span>
-                </span>
-              </div>
-              <p className="text-text-secondary text-sm leading-relaxed mb-6">
-                Sua secretária IA no WhatsApp. Automatize atendimento, agenda e
-                muito mais.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-white font-semibold mb-4">Produto</h3>
-              <ul className="space-y-3">
-                <li>
-                  <button
-                    onClick={() => scrollToSection("features")}
-                    className="text-text-secondary hover:text-primary text-sm transition-colors"
-                  >
-                    Funcionalidades
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => scrollToSection("pricing")}
-                    className="text-text-secondary hover:text-primary text-sm transition-colors"
-                  >
-                    Preços
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-white font-semibold mb-4">Empresa</h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20RespondIA."
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-text-secondary hover:text-primary text-sm transition-colors"
-                  >
-                    Contato
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://wa.me/5535984216196?text=Olá!%20Gostaria%20de%20falar%20com%20vendas."
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-text-secondary hover:text-primary text-sm transition-colors"
-                  >
-                    Vendas
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-surface-hover pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-text-secondary text-sm">
+      <Box component="footer" sx={{ py: 4, borderTop: "1px solid #2a3942" }}>
+        <Container maxWidth="lg">
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: "center", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 1.5,
+                  background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AutoAwesome sx={{ color: "white", fontSize: 18 }} />
+              </Box>
+              <Typography variant="body2" fontWeight="bold">
+                <span>Respond</span>
+                <span style={{ color: "#00a884" }}>IA</span>
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="#8696a0">
               © 2026 RespondIA. Todos os direitos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
-    </div>
+            </Typography>
+            <Box sx={{ display: "flex", gap: 3 }}>
+              <Typography variant="caption" sx={{ color: "#8696a0", cursor: "pointer", "&:hover": { color: "#00a884" } }}>
+                Termos de Uso
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#8696a0", cursor: "pointer", "&:hover": { color: "#00a884" } }}>
+                Política de Privacidade
+              </Typography>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* CSS Animations */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
+    </Box>
   );
 };
 

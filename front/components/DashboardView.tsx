@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { Box, Grid, Typography, CircularProgress, Alert } from "@mui/material";
 import { Forum, PersonAdd, Api } from "@mui/icons-material";
@@ -67,7 +69,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToChat }) => {
       {/* Stats Grid */}
       <Grid container spacing={2}>
         {statCards.map((stat, index) => (
-          <Grid item xs={12} md={4} key={index}>
+          <Grid size={{ xs: 12, md: 4 }} key={index}>
             <StatCard data={stat} />
           </Grid>
         ))}

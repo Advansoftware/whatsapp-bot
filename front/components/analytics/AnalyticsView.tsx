@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -254,7 +256,7 @@ const AnalyticsView: React.FC = () => {
 
       {/* Overview Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card
             sx={{
               background: `linear-gradient(135deg, ${alpha(
@@ -288,7 +290,7 @@ const AnalyticsView: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card
             sx={{
               background: `linear-gradient(135deg, ${alpha(
@@ -322,7 +324,7 @@ const AnalyticsView: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card
             sx={{
               background: `linear-gradient(135deg, ${alpha(
@@ -356,7 +358,7 @@ const AnalyticsView: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card
             sx={{
               background: `linear-gradient(135deg, ${alpha(
@@ -393,7 +395,7 @@ const AnalyticsView: React.FC = () => {
 
       <Grid container spacing={3}>
         {/* Message Volume Chart */}
-        <Grid item xs={12} lg={8}>
+        <Grid size={{ xs: 12 }} lg={8}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Volume de Mensagens
@@ -434,7 +436,7 @@ const AnalyticsView: React.FC = () => {
         </Grid>
 
         {/* AI Performance Pie */}
-        <Grid item xs={12} lg={4}>
+        <Grid size={{ xs: 12 }} lg={4}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Desempenho da IA
@@ -480,13 +482,13 @@ const AnalyticsView: React.FC = () => {
         </Grid>
 
         {/* Contact Growth */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Contatos
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography
                     variant="h4"
@@ -500,7 +502,7 @@ const AnalyticsView: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography
                     variant="h4"
@@ -514,7 +516,7 @@ const AnalyticsView: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography variant="h4" color="info.main" fontWeight="bold">
                     {data?.contactStats.newThisWeek || 0}
@@ -529,13 +531,13 @@ const AnalyticsView: React.FC = () => {
         </Grid>
 
         {/* Campaign Stats */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Campanhas
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography
                     variant="h4"
@@ -549,7 +551,7 @@ const AnalyticsView: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography
                     variant="h4"
@@ -563,7 +565,7 @@ const AnalyticsView: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={4}>
+              <Grid size={{ xs: 4 }}>
                 <Box textAlign="center">
                   <Typography
                     variant="h4"
@@ -598,7 +600,7 @@ const AnalyticsView: React.FC = () => {
           <Grid container spacing={3}>
             {/* Por Cidade */}
             {demographics.byCity.length > 0 && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, height: 350 }}>
                   <Typography
                     variant="h6"
@@ -641,7 +643,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Faixa Etária */}
             {demographics.byAge.some((a) => a.count > 0) && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, height: 350 }}>
                   <Typography
                     variant="h6"
@@ -676,7 +678,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Gênero */}
             {demographics.byGender.some((g) => g.count > 0) && (
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Paper sx={{ p: 3, height: 300 }}>
                   <Typography
                     variant="h6"
@@ -726,7 +728,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Status de Lead */}
             {demographics.byLeadStatus.some((s) => s.count > 0) && (
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Paper sx={{ p: 3, height: 300 }}>
                   <Typography
                     variant="h6"
@@ -777,7 +779,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Estado */}
             {demographics.byState.length > 0 && (
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Paper sx={{ p: 3, height: 300 }}>
                   <Typography
                     variant="h6"
@@ -828,7 +830,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Universidade */}
             {demographics.byUniversity.length > 0 && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, height: 350 }}>
                   <Typography
                     variant="h6"
@@ -871,7 +873,7 @@ const AnalyticsView: React.FC = () => {
 
             {/* Por Ocupação */}
             {demographics.byOccupation.length > 0 && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, height: 350 }}>
                   <Typography
                     variant="h6"

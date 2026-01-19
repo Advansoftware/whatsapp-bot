@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
@@ -457,7 +459,7 @@ const TasksView: React.FC = () => {
         <DialogContent dividers>
           <Grid container spacing={2}>
             {/* Basic Info */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Nome da Tarefa"
@@ -466,7 +468,7 @@ const TasksView: React.FC = () => {
                 placeholder="Ex: Modo Dormir"
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -479,13 +481,13 @@ const TasksView: React.FC = () => {
             </Grid>
 
             {/* Trigger Type */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" color="primary" gutterBottom>
                 ⚡ Quando Executar
               </Typography>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Tipo de Gatilho</InputLabel>
                 <Select
@@ -501,7 +503,7 @@ const TasksView: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -515,7 +517,7 @@ const TasksView: React.FC = () => {
             {/* Trigger Config - Time Range */}
             {form.triggerType === "time_range" && (
               <>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -526,7 +528,7 @@ const TasksView: React.FC = () => {
                     helperText="0 = meia-noite"
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -537,7 +539,7 @@ const TasksView: React.FC = () => {
                     helperText="8 = 8h da manhã"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Typography variant="body2" gutterBottom>
                     Dias da Semana:
                   </Typography>
@@ -564,7 +566,7 @@ const TasksView: React.FC = () => {
             {/* Trigger Config - Keyword */}
             {form.triggerType === "keyword" && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     label="Palavras-chave (separadas por vírgula)"
@@ -573,7 +575,7 @@ const TasksView: React.FC = () => {
                     placeholder="preço, valor, quanto custa"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <FormControl fullWidth>
                     <InputLabel>Correspondência</InputLabel>
                     <Select
@@ -591,7 +593,7 @@ const TasksView: React.FC = () => {
 
             {/* Trigger Config - First Message */}
             {form.triggerType === "first_message" && (
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -605,13 +607,13 @@ const TasksView: React.FC = () => {
             )}
 
             {/* Action Type */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" color="primary" gutterBottom>
                 💬 O Que Fazer
               </Typography>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl fullWidth>
                 <InputLabel>Tipo de Ação</InputLabel>
                 <Select
@@ -631,7 +633,7 @@ const TasksView: React.FC = () => {
             {/* Action Config - Send Message */}
             {form.actionType === "send_message" && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     multiline
@@ -642,7 +644,7 @@ const TasksView: React.FC = () => {
                     placeholder="O Rafael está descansando, ele responde assim que acordar! 😊"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -659,7 +661,7 @@ const TasksView: React.FC = () => {
             {/* Action Config - Add to Response */}
             {form.actionType === "add_to_response" && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     multiline
@@ -670,7 +672,7 @@ const TasksView: React.FC = () => {
                     placeholder="⚠️ Atenção: Estou em horário de descanso."
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     multiline
@@ -686,7 +688,7 @@ const TasksView: React.FC = () => {
 
             {/* Action Config - Set Tag */}
             {form.actionType === "set_tag" && (
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label="Tags a adicionar (separadas por vírgula)"

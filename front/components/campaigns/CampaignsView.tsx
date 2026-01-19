@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
@@ -353,7 +355,7 @@ const CampaignsView: React.FC = () => {
       {/* Stats */}
       {stats && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} md={2.4}>
+          <Grid size={{ xs: 6, md: 2.4 }}>
             <Paper sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="h4" color="primary.main">
                 {stats.totalCampaigns}
@@ -363,7 +365,7 @@ const CampaignsView: React.FC = () => {
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={6} md={2.4}>
+          <Grid size={{ xs: 6, md: 2.4 }}>
             <Paper sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="h4" color="warning.main">
                 {stats.runningCampaigns}
@@ -373,7 +375,7 @@ const CampaignsView: React.FC = () => {
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={6} md={2.4}>
+          <Grid size={{ xs: 6, md: 2.4 }}>
             <Paper sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="h4" color="success.main">
                 {stats.completedCampaigns}
@@ -383,7 +385,7 @@ const CampaignsView: React.FC = () => {
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={6} md={2.4}>
+          <Grid size={{ xs: 6, md: 2.4 }}>
             <Paper sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="h4" color="info.main">
                 {stats.scheduledCampaigns}
@@ -393,7 +395,7 @@ const CampaignsView: React.FC = () => {
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={2.4}>
+          <Grid size={{ xs: 12, md: 2.4 }}>
             <Paper sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="h4" color="secondary.main">
                 {stats.totalMessagesSent}
@@ -409,7 +411,7 @@ const CampaignsView: React.FC = () => {
       {/* Campaigns List */}
       <Grid container spacing={3}>
         {campaigns.map((campaign) => (
-          <Grid item xs={12} md={6} lg={4} key={campaign.id}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={campaign.id}>
             <Card
               sx={{
                 height: "100%",
@@ -585,7 +587,7 @@ const CampaignsView: React.FC = () => {
         ))}
 
         {campaigns.length === 0 && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Paper sx={{ p: 6, textAlign: "center" }}>
               <CampaignIcon
                 sx={{ fontSize: 64, color: "text.secondary", mb: 2 }}
@@ -620,7 +622,7 @@ const CampaignsView: React.FC = () => {
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Nome da Campanha"
@@ -632,7 +634,7 @@ const CampaignsView: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -647,13 +649,13 @@ const CampaignsView: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" gutterBottom>
                 Segmentação
               </Typography>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -668,7 +670,7 @@ const CampaignsView: React.FC = () => {
             </Grid>
             {!formData.targetAll && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Alert severity="info" sx={{ mb: 2 }}>
                     Configure os filtros abaixo. Contatos que correspondem a{" "}
                     <strong>todos</strong> os critérios selecionados receberão a
@@ -677,7 +679,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Tags */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Autocomplete
                     multiple
                     options={segments.tags}
@@ -706,7 +708,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Gênero */}
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Autocomplete
                     multiple
                     options={[
@@ -749,7 +751,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Faixa etária */}
-                <Grid item xs={3}>
+                <Grid size={{ xs: 3 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -761,7 +763,7 @@ const CampaignsView: React.FC = () => {
                     placeholder="18"
                   />
                 </Grid>
-                <Grid item xs={3}>
+                <Grid size={{ xs: 3 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -775,7 +777,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Cidade */}
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -808,7 +810,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Estado */}
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -841,7 +843,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Universidade */}
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -874,7 +876,7 @@ const CampaignsView: React.FC = () => {
                 </Grid>
 
                 {/* Curso */}
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Autocomplete
                     multiple
                     freeSolo

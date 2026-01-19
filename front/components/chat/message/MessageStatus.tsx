@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo } from 'react';
 import { Box } from '@mui/material';
 import { Done, DoneAll, Schedule, ErrorOutline } from '@mui/icons-material';

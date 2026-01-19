@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Paper, Typography, Box, Chip } from '@mui/material';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';

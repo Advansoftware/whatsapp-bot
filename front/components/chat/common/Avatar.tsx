@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo, useMemo } from 'react';
 import { Avatar as MuiAvatar, Badge, Box } from '@mui/material';
 

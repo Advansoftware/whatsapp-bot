@@ -1,3 +1,5 @@
+"use client";
+
 import React, { memo, useState, useCallback } from 'react';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import {

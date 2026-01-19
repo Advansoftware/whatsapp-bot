@@ -1,5 +1,7 @@
+"use client";
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../lib/api';
+import { authApi, getToken } from '@/lib/api';
 
 interface User {
   id: string;
@@ -18,8 +20,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   loginWithGoogle: (idToken: string) => Promise<void>;
-  login: (data: any) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  login: (data: { email: string; password: string }) => Promise<void>;
+  register: (data: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -45,18 +47,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = api.getToken();
+      const token = getToken();
       if (!token) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const profile = await api.getProfile();
+        const profile = await authApi.getProfile();
         setUser(profile);
       } catch (error) {
         console.error('Auth check failed:', error);
-        api.logout();
+        authApi.logout();
       } finally {
         setIsLoading(false);
       }
@@ -68,27 +70,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithGoogle = useCallback(async (idToken: string) => {
     setIsLoading(true);
     try {
-      const response = await api.loginWithGoogle(idToken);
+      const response = await authApi.loginWithGoogle(idToken);
       setUser(response.user);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const login = useCallback(async (data: any) => {
+  const login = useCallback(async (data: { email: string; password: string }) => {
     setIsLoading(true);
     try {
-      const response = await api.login(data);
+      const response = await authApi.login(data);
       setUser(response.user);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const register = useCallback(async (data: any) => {
+  const register = useCallback(async (data: { name: string; email: string; password: string }) => {
     setIsLoading(true);
     try {
-      const response = await api.register(data);
+      const response = await authApi.register(data);
       setUser(response.user);
     } finally {
       setIsLoading(false);
@@ -96,13 +98,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const logout = useCallback(() => {
-    api.logout();
+    authApi.logout();
     setUser(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
     try {
-      const profile = await api.getProfile();
+      const profile = await authApi.getProfile();
       setUser(profile);
     } catch (error) {
       console.error('Refresh user failed:', error);
