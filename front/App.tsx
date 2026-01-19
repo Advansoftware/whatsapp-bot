@@ -33,7 +33,7 @@ import PricingView from "./components/subscription/PricingView";
 
 // Fallback to placeholder if env var missing to prevent crash
 const GOOGLE_CLIENT_ID =
-  import.meta.env.VITE_GOOGLE_CLIENT_ID || "placeholder_client_id";
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "placeholder_client_id";
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -132,8 +132,6 @@ const AppContent: React.FC = () => {
           <Sidebar
             open={true}
             onClose={() => {}}
-            currentView={currentView}
-            onNavigate={setCurrentView}
           />
 
           <Box flex={1} display="flex" flexDirection="column" overflow="hidden">

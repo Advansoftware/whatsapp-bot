@@ -45,7 +45,7 @@ const GastrometrySection: React.FC<GastrometrySectionProps> = ({ onLoginClick })
       <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
         <Grid container spacing={8} alignItems="center">
           {/* Content */}
-          <Grid item xs={12} lg={6}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Chip
               icon={<AccountBalanceWallet sx={{ fontSize: 16, color: "#a78bfa" }} />}
               label="Parceria Exclusiva"
@@ -96,7 +96,7 @@ const GastrometrySection: React.FC<GastrometrySectionProps> = ({ onLoginClick })
           </Grid>
 
           {/* Features List */}
-          <Grid item xs={12} lg={6}>
+          <Grid size={{ xs: 12, lg: 6 }}>
             <Paper
               sx={{
                 bgcolor: "rgba(17, 17, 26, 0.8)",

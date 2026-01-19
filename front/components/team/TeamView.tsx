@@ -339,7 +339,7 @@ export const TeamView: React.FC = () => {
                         label="Ativo"
                         color="success"
                         size="small"
-                        variant="soft"
+                        variant="outlined"
                       />
                     ) : (
                       <Chip
@@ -347,7 +347,7 @@ export const TeamView: React.FC = () => {
                         label="Inativo"
                         color="default"
                         size="small"
-                        variant="soft"
+                        variant="outlined"
                       />
                     )}
                   </TableCell>

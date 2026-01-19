@@ -9,6 +9,7 @@ import {
   Typography,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   ListItemIcon,
   Divider,
@@ -200,8 +201,7 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
                 const icon = getIcon(notification.type, notification.category);
                 return (
                   <React.Fragment key={notification.id}>
-                    <ListItem
-                      button
+                    <ListItemButton
                       onClick={() => handleNotificationClick(notification)}
                       sx={{
                         bgcolor: notification.read
@@ -270,7 +270,7 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
                       >
                         <Close fontSize="small" />
                       </IconButton>
-                    </ListItem>
+                    </ListItemButton>
                     {index < notifications.length - 1 && <Divider />}
                   </React.Fragment>
                 );

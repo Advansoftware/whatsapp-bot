@@ -131,7 +131,7 @@ const ProfileView: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <Avatar
-              src={user?.picture}
+              src={user?.picture || undefined}
               sx={{ width: 80, height: 80, mr: 3 }}
             >
               {user?.name?.charAt(0).toUpperCase()}

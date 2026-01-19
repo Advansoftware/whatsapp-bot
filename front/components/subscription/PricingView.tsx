@@ -201,8 +201,8 @@ const PricingView: React.FC = () => {
     setLoadingPlan('manage');
     try {
       const response = await api.post('/api/subscription/create-portal-session');
-      if (response.url) {
-        window.location.href = response.url;
+      if (response.data.url) {
+        window.location.href = response.data.url;
       }
     } catch (err: any) {
       setError(err.message || 'Erro ao abrir portal');
@@ -338,7 +338,7 @@ const PricingView: React.FC = () => {
           const isCurrentPlan = currentSubscription?.planId === plan.id;
 
           return (
-            <Grid size={{ xs: 12, sm: 6 }} lg={4} key={plan.id}>
+            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={plan.id}>
               <Card
                 elevation={plan.popular ? 8 : 2}
                 sx={{

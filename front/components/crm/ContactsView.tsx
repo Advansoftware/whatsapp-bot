@@ -68,11 +68,6 @@ interface Contact {
   university: string | null;
   course: string | null;
   occupation: string | null;
-  city: string | null;
-  state: string | null;
-  university: string | null;
-  course: string | null;
-  occupation: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
   messageCount: number;
@@ -80,6 +75,7 @@ interface Contact {
   leadScore?: number;
   leadStatus?: string;
   instanceKey?: string;
+  instanceId?: string;
 }
 
 interface ContactStats {

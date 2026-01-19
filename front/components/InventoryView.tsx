@@ -230,7 +230,7 @@ const InventoryView: React.FC = () => {
               sx: { width: 300 }
             }}
           />
-          <IconButton color="action">
+          <IconButton color="default">
             <FilterList />
           </IconButton>
         </Box>

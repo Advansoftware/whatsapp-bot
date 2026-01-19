@@ -518,7 +518,7 @@ export default function ContactDetailsModal({
                     <Box display="flex" alignItems="center" gap={1}>
                         <Brain size={20} color={theme.palette.secondary.main} />
                         <Typography variant="h6">Memória da IA</Typography>
-                        <Chip label={`${getTotalMemories()} itens`} size="small" color="secondary" variant="soft" />
+                        <Chip label={`${getTotalMemories()} itens`} size="small" color="secondary" variant="outlined" />
                     </Box>
                     {expandedSections.has("memories") ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </Box>
@@ -533,7 +533,7 @@ export default function ContactDetailsModal({
                              return (
                                  <Box key={type}>
                                      <Box display="flex" alignItems="center" gap={1} mb={1}>
-                                         <Icon size={16} color={theme.palette[config.color || 'info'].main} />
+                                         <Icon size={16} color={config.color && config.color !== 'default' ? theme.palette[config.color].main : theme.palette.info.main} />
                                          <Typography variant="subtitle2" fontWeight="bold">{config.label}</Typography>
                                          <Typography variant="caption" color="text.secondary">({memories.length})</Typography>
                                      </Box>

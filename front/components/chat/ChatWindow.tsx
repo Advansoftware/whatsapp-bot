@@ -57,7 +57,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: "success" | "error";
+    severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "success" });
   const [transcribingMessageId, setTranscribingMessageId] = useState<
     string | null
@@ -156,7 +156,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     api
       .get("/api/team/members")
-      .then((data) => setTeamMembers(data))
+      .then((response) => setTeamMembers(response.data))
       .catch((err) => console.error("Failed to fetch team members:", err));
   }, []);
 
@@ -323,7 +323,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     setIsTogglingAI(true);
     try {
-      const result = await api.toggleConversationAI(conversationId, !aiEnabled);
+      const result = await api.toggleConversationAI(targetId, !aiEnabled);
       setAiEnabled(result.aiEnabled);
       setSnackbar({
         open: true,
@@ -918,7 +918,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onClose={closeInventory}
         products={products}
         loading={productsLoading}
-        onSendProduct={handleSendProduct}
+        onSelectProduct={handleSendProduct}
         colors={colors}
         isDark={isDark}
       />

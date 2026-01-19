@@ -849,7 +849,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
           </Typography>
           <Grid container spacing={4} justifyContent="center">
             {pricingPlans.map((plan, idx) => (
-              <Grid item xs={12} md={4} key={idx}>
+              <Grid size={{ xs: 12, md: 4 }} key={idx}>
                 <Paper
                   sx={{
                     p: 4,

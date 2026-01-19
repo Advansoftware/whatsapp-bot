@@ -143,7 +143,7 @@ const CheckoutView: React.FC<CheckoutViewProps> = ({
           billingPeriod,
         });
 
-        setClientSecret(response.clientSecret);
+        setClientSecret(response.data.clientSecret);
         setActiveStep(1);
       } catch (err: any) {
         setError(err.message || 'Erro ao iniciar checkout');

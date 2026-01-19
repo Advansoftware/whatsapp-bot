@@ -362,6 +362,29 @@ export const aiSecretaryApi = {
   },
 };
 
+// Secretary Tasks endpoints
+export const secretaryTasksApi = {
+  getAll: async () => {
+    const response = await axiosClient.get('/api/secretary-tasks');
+    return response.data;
+  },
+  create: async (data: any) => {
+    const response = await axiosClient.post('/api/secretary-tasks', data);
+    return response.data;
+  },
+  update: async (id: string, data: any) => {
+    const response = await axiosClient.put(`/api/secretary-tasks/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    await axiosClient.delete(`/api/secretary-tasks/${id}`);
+  },
+  toggle: async (id: string) => {
+    const response = await axiosClient.patch(`/api/secretary-tasks/${id}/toggle`);
+    return response.data;
+  },
+};
+
 // Campaigns endpoints
 export const campaignsApi = {
   getAll: async () => {
@@ -465,11 +488,43 @@ export const teamApi = {
 export const integrationsApi = {
   getGastometriaStatus: async () => {
     try {
-      const response = await axiosClient.get<{ connected: boolean; settings?: any }>('/api/integrations/gastometria/status');
+      const response = await axiosClient.get<{ connected: boolean; settings?: any; config?: any }>('/api/integrations/gastometria/status');
       return response.data;
     } catch {
       return { connected: false };
     }
+  },
+  connectGastometria: async (email: string, password: string) => {
+    const response = await axiosClient.post('/api/integrations/gastometria/connect', { email, password });
+    return response.data;
+  },
+  disconnectGastometria: async () => {
+    const response = await axiosClient.post('/api/integrations/gastometria/disconnect');
+    return response.data;
+  },
+  setGastometriaConfig: async (config: { defaultWalletId: string }) => {
+    const response = await axiosClient.put('/api/integrations/gastometria/config', config);
+    return response.data;
+  },
+  getGastometriaWallets: async () => {
+    const response = await axiosClient.get('/api/integrations/gastometria/wallets');
+    return response.data;
+  },
+  getGoogleCalendarStatus: async () => {
+    try {
+      const response = await axiosClient.get<{ connected: boolean }>('/api/integrations/google-calendar/status');
+      return response.data;
+    } catch {
+      return { connected: false };
+    }
+  },
+  getGoogleCalendarAuthUrl: async () => {
+    const response = await axiosClient.get('/api/integrations/google-calendar/auth-url');
+    return response.data;
+  },
+  disconnectGoogleCalendar: async () => {
+    const response = await axiosClient.post('/api/integrations/google-calendar/disconnect');
+    return response.data;
   }
 }
 
@@ -564,6 +619,15 @@ const defaultClient = {
   getDashboardActivity: dashboardApi.getActivity,
 
   // Connections
+  getConnections: connectionsApi.getAll,
+  createConnection: connectionsApi.create,
+  deleteConnection: connectionsApi.delete,
+  refreshQr: connectionsApi.refreshQr,
+  refreshQrCode: connectionsApi.refreshQr,
+  reconnect: connectionsApi.reconnect,
+  reconnectInstance: connectionsApi.reconnect,
+
+  // Notifications
   getNotifications: notificationsApi.getNotifications,
   getNotificationCount: notificationsApi.getNotificationCount,
   markNotificationAsRead: notificationsApi.markNotificationAsRead,
@@ -571,14 +635,50 @@ const defaultClient = {
   deleteNotification: notificationsApi.deleteNotification,
 
   getFlows: chatbotApi.getFlows,
+  createFlow: chatbotApi.createFlow,
+  updateFlow: chatbotApi.updateFlow,
+  deleteFlow: chatbotApi.deleteFlow,
 
   getContactStats: contactsApi.getStats,
+  qualifyContact: contactsApi.qualify,
+  updateContact: contactsApi.update,
+  updateCRMContact: contactsApi.update,
+  deleteContact: contactsApi.delete,
+  deleteCRMContact: contactsApi.delete,
+  getContactTags: contactsApi.getTags,
+  getSegmentOptions: contactsApi.getSegmentOptions,
+  getDemographicAnalytics: contactsApi.getDemographicAnalytics,
+  fetchAddressByCep: async (cep: string) => {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    return response.json();
+  },
 
   getGastometriaStatus: integrationsApi.getGastometriaStatus,
+  connectGastometria: integrationsApi.connectGastometria,
+  disconnectGastometria: integrationsApi.disconnectGastometria,
+  setGastometriaConfig: integrationsApi.setGastometriaConfig,
+  getGastometriaWallets: integrationsApi.getGastometriaWallets,
+  getGoogleCalendarStatus: integrationsApi.getGoogleCalendarStatus,
+  getGoogleCalendarAuthUrl: integrationsApi.getGoogleCalendarAuthUrl,
+  disconnectGoogleCalendar: integrationsApi.disconnectGoogleCalendar,
 
   getAIStats: aiSecretaryApi.getStats,
+  getAISecretaryConfig: aiSecretaryApi.getConfig,
+  updateAISecretaryConfig: aiSecretaryApi.updateConfig,
+  getAIConversations: aiSecretaryApi.getConversations,
+  getAISuggestions: aiSecretaryApi.getSuggestions,
+  approveAISuggestion: aiSecretaryApi.approve,
+  overrideAISuggestion: aiSecretaryApi.override,
   getConversationByJid: aiSecretaryApi.getConversationByJid,
   toggleAI: aiSecretaryApi.toggleAI,
+  toggleConversationAI: aiSecretaryApi.toggleAI,
+
+  // Secretary Tasks
+  getSecretaryTasks: secretaryTasksApi.getAll,
+  createSecretaryTask: secretaryTasksApi.create,
+  updateSecretaryTask: secretaryTasksApi.update,
+  deleteSecretaryTask: secretaryTasksApi.delete,
+  toggleSecretaryTask: secretaryTasksApi.toggle,
 
   getGroupAutomations: groupAutomationsApi.getGroupAutomations,
   getAvailableGroups: groupAutomationsApi.getAvailableGroups,
@@ -590,16 +690,27 @@ const defaultClient = {
 
   getTeamMembers: teamApi.getTeamMembers,
 
+  // Products methods
+  getProducts: productsApi.getAll,
+  createProduct: productsApi.create,
+  updateProduct: productsApi.update,
+  deleteProduct: productsApi.delete,
+
   // Message methods
   getMessages: messagesApi.getMessages,
   sendMessage: messagesApi.send, // Alias if needed, but likely api.send is used? check usages. Error says api.getMediaUrl.
   send: messagesApi.send,
   sendMedia: messagesApi.sendMedia,
   transcribe: messagesApi.transcribe,
+  transcribeMessage: messagesApi.transcribe,
   getRecentConversations: messagesApi.getRecentConversations,
   searchMessages: messagesApi.search, // api.search is generic, maybe?
   search: messagesApi.search,
+  searchConversations: messagesApi.search,
   getMessageContacts: messagesApi.getContacts,
+  getContacts: (page?: number, limit?: number, q?: string) => messagesApi.getContacts({ page, limit, q }),
+  getCRMContacts: (page?: number, limit?: number, q?: string, tag?: string, status?: string) =>
+    contactsApi.getAll({ page, limit, q, tag, status }),
   getMediaUrl: messagesApi.getMediaUrl,
 
   // Also expose the groups themselves
@@ -611,6 +722,13 @@ const defaultClient = {
   getContactDetails: contactsApi.getById,
   aiSecretary: aiSecretaryApi,
   campaigns: campaignsApi,
+  getCampaignStats: campaignsApi.getStats,
+  getCampaigns: campaignsApi.getAll,
+  createCampaign: campaignsApi.create,
+  updateCampaign: campaignsApi.update,
+  deleteCampaign: campaignsApi.delete,
+  startCampaign: campaignsApi.start,
+  cancelCampaign: campaignsApi.cancel,
   chatbot: chatbotApi,
   products: productsApi,
   integrations: integrationsApi,

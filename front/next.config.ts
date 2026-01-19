@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Output standalone for Docker deployment
+  output: 'standalone',
+
   // Image optimization
   images: {
     remotePatterns: [

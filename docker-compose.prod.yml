@@ -147,31 +147,37 @@ services:
           memory: 256M
 
   # ===========================================
-  # FRONTEND - React + Nginx
+  # FRONTEND - Next.js
   # ===========================================
   frontend:
     build:
       context: ./front
       dockerfile: Dockerfile.prod
       args:
-        - VITE_API_URL=https://api.respondia.pro
-        - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-        - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_API_URL=https://api.respondia.pro
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
     image: respondia-frontend:latest
     container_name: respondia-frontend
     restart: always
     ports:
       - "5173:5173"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.respondia.pro
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
     networks:
+      - internal-network
       - proxy-network
     depends_on:
       - backend
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 512M
         reservations:
-          memory: 64M
+          memory: 256M
 
 volumes:
   postgres_data:

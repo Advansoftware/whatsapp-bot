@@ -50,7 +50,7 @@ import {
 import api from "../../lib/api";
 
 interface AnalyticsData {
-  messageVolume: Array<{ date: string; incoming: number; outgoing: number }>;
+  messageVolume: Array<{ name: string; incoming: number; outgoing: number }>;
   aiPerformance: {
     totalInteractions: number;
     approvedSuggestions: number;
@@ -395,7 +395,7 @@ const AnalyticsView: React.FC = () => {
 
       <Grid container spacing={3}>
         {/* Message Volume Chart */}
-        <Grid size={{ xs: 12 }} lg={8}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Volume de Mensagens
@@ -436,7 +436,7 @@ const AnalyticsView: React.FC = () => {
         </Grid>
 
         {/* AI Performance Pie */}
-        <Grid size={{ xs: 12 }} lg={4}>
+        <Grid size={{ xs: 12, lg: 4 }}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Desempenho da IA

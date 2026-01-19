@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { View } from "../types";
 import {
   Box,
   Drawer,
