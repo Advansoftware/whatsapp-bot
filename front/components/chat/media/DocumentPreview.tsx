@@ -1,8 +1,8 @@
 "use client";
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Box } from '@mui/material';
-import { InsertDriveFile, Download } from '@mui/icons-material';
+import { InsertDriveFile, OpenInNew } from '@mui/icons-material';
 
 interface DocumentPreviewProps {
   src: string;
@@ -12,23 +12,55 @@ interface DocumentPreviewProps {
 
 /**
  * Document preview component
- * Shows file icon, name and download button
+ * Shows file icon, name and opens document in new tab
  */
 const DocumentPreview: React.FC<DocumentPreviewProps> = memo(({
   src,
   fileName,
   fileSize,
 }) => {
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = src;
-    link.download = fileName;
-    link.click();
+  // Determine file extension from src data URL or fileName
+  const displayFileName = useMemo(() => {
+    let name = fileName || 'Documento';
+    
+    // Check if src is a data URL and try to get the type
+    if (src?.startsWith('data:')) {
+      const mimeMatch = src.match(/^data:([^;]+)/);
+      if (mimeMatch) {
+        const mimeType = mimeMatch[1];
+        const extensionMap: Record<string, string> = {
+          'application/pdf': '.pdf',
+          'application/msword': '.doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+          'application/vnd.ms-excel': '.xls',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+          'text/plain': '.txt',
+        };
+        const extension = extensionMap[mimeType];
+        
+        // If name doesn't have proper extension, add it
+        if (extension && !name.toLowerCase().endsWith(extension)) {
+          // Remove cryptic names and use a generic name
+          if (name.match(/^[a-f0-9]{32,}$/i) || name === '[Documento]' || name === 'Documento') {
+            name = `Documento${extension}`;
+          } else if (!name.includes('.')) {
+            name = `${name}${extension}`;
+          }
+        }
+      }
+    }
+    
+    return name;
+  }, [fileName, src]);
+
+  const handleOpenDocument = () => {
+    // Open document in new tab for viewing
+    window.open(src, '_blank');
   };
 
   return (
     <Box
-      onClick={handleDownload}
+      onClick={handleOpenDocument}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -53,7 +85,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = memo(({
             whiteSpace: 'nowrap',
           }}
         >
-          {fileName}
+          {displayFileName}
         </Box>
         {fileSize && (
           <Box sx={{ fontSize: 12, color: '#8696a0' }}>
@@ -61,7 +93,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = memo(({
           </Box>
         )}
       </Box>
-      <Download sx={{ color: '#8696a0' }} />
+      <OpenInNew sx={{ color: '#8696a0' }} />
     </Box>
   );
 });
