@@ -487,6 +487,37 @@ export class MessagesController {
     const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
     const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
+    // Helper function to get proper filename based on message type and content
+    const getFileName = (mimetype: string): string => {
+      // For documents, use the content which contains the original filename
+      if (message.mediaType === 'document' && message.content && !message.content.startsWith('[')) {
+        return message.content;
+      }
+
+      // Generate filename based on mimetype
+      const extensionMap: Record<string, string> = {
+        'application/pdf': '.pdf',
+        'application/msword': '.doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'application/vnd.ms-excel': '.xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        'text/plain': '.txt',
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/gif': '.gif',
+        'image/webp': '.webp',
+        'video/mp4': '.mp4',
+        'audio/mpeg': '.mp3',
+        'audio/ogg': '.ogg',
+      };
+
+      const extension = extensionMap[mimetype] || '';
+      const prefix = message.mediaType || 'arquivo';
+      const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
+
+      return `${prefix}_${timestamp}${extension}`;
+    };
+
     try {
       // If we have mediaData, use Evolution API to download
       if (message.mediaData) {
@@ -500,10 +531,12 @@ export class MessagesController {
           const base64 = response.data.base64;
           const mimetype = response.data.mimetype || 'application/octet-stream';
           const buffer = Buffer.from(base64, 'base64');
+          const fileName = getFileName(mimetype);
 
           res.set({
             'Content-Type': mimetype,
             'Content-Length': buffer.length,
+            'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`,
             'Cache-Control': 'public, max-age=31536000',
           });
 
@@ -519,10 +552,12 @@ export class MessagesController {
         });
 
         const contentType = mediaResponse.headers['content-type'] || 'application/octet-stream';
+        const fileName = getFileName(contentType);
 
         res.set({
           'Content-Type': contentType,
           'Content-Length': mediaResponse.data.length,
+          'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`,
           'Cache-Control': 'public, max-age=31536000',
         });
 
