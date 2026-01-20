@@ -1,15 +1,23 @@
-import { Controller, Get, Put, Post, Body, Param, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param, Query, Request, UseGuards, Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from './ai.service';
+import axios from 'axios';
 
 @Controller('api/ai-secretary')
 @UseGuards(JwtAuthGuard)
 export class AISecretaryController {
+  private readonly logger = new Logger(AISecretaryController.name);
+  private readonly evolutionApiUrl: string;
+  private readonly evolutionApiKey: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
-  ) { }
+  ) {
+    this.evolutionApiUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+    this.evolutionApiKey = process.env.EVOLUTION_API_KEY || '';
+  }
 
   /**
    * Get AI Secretary configuration
@@ -261,5 +269,186 @@ Se não souber algo, admita e ofereça ajuda.`,
       approvalRate: approvalRate.toFixed(1) + '%',
       activeConversations: conversations.filter((c) => c.status === 'active').length,
     };
+  }
+
+  // ========================================
+  // PERSONAL ASSISTANT CHAT (Dashboard)
+  // ========================================
+
+  /**
+   * Get personal assistant chat info (owner phone, instance, etc.)
+   */
+  @Get('assistant/info')
+  async getAssistantInfo(@Request() req: any) {
+    const companyId = req.user.companyId;
+
+    // Get AI config with owner phone
+    const aiConfig = await this.prisma.aISecretary.findUnique({
+      where: { companyId },
+    });
+
+    // Get first connected instance
+    const instance = await this.prisma.instance.findFirst({
+      where: { companyId, status: 'connected' },
+      select: { id: true, instanceKey: true, name: true },
+    });
+
+    if (!aiConfig?.ownerPhone || !instance) {
+      return {
+        available: false,
+        reason: !aiConfig?.ownerPhone
+          ? 'Telefone do proprietário não configurado'
+          : 'Nenhuma instância conectada',
+      };
+    }
+
+    const ownerJid = `${aiConfig.ownerPhone.replace(/\D/g, '')}@s.whatsapp.net`;
+
+    return {
+      available: true,
+      ownerPhone: aiConfig.ownerPhone,
+      ownerJid,
+      instanceKey: instance.instanceKey,
+      instanceName: instance.name,
+      assistantName: aiConfig.ownerName || 'Assistente',
+      testMode: aiConfig.testMode,
+    };
+  }
+
+  /**
+   * Get personal assistant chat messages
+   */
+  @Get('assistant/messages')
+  async getAssistantMessages(
+    @Request() req: any,
+    @Query('limit') limit: string = '50',
+  ) {
+    const companyId = req.user.companyId;
+    const limitNum = parseInt(limit, 10);
+
+    // Get AI config with owner phone
+    const aiConfig = await this.prisma.aISecretary.findUnique({
+      where: { companyId },
+    });
+
+    if (!aiConfig?.ownerPhone) {
+      return { messages: [] };
+    }
+
+    const ownerJid = `${aiConfig.ownerPhone.replace(/\D/g, '')}@s.whatsapp.net`;
+
+    // Get messages to/from owner
+    const messages = await this.prisma.message.findMany({
+      where: {
+        companyId,
+        remoteJid: ownerJid,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limitNum,
+      select: {
+        id: true,
+        content: true,
+        direction: true,
+        createdAt: true,
+        mediaUrl: true,
+        mediaType: true,
+        status: true,
+      },
+    });
+
+    // Reverse to get chronological order
+    return {
+      messages: messages.reverse(),
+      ownerJid,
+    };
+  }
+
+  /**
+   * Send message to personal assistant (sends to owner's number which triggers assistant mode)
+   */
+  @Post('assistant/send')
+  async sendToAssistant(
+    @Request() req: any,
+    @Body() body: { content: string; mediaUrl?: string; mediaType?: string },
+  ) {
+    const companyId = req.user.companyId;
+    const { content, mediaUrl, mediaType } = body;
+
+    // Get AI config
+    const aiConfig = await this.prisma.aISecretary.findUnique({
+      where: { companyId },
+    });
+
+    if (!aiConfig?.ownerPhone) {
+      throw new Error('Telefone do proprietário não configurado');
+    }
+
+    // Get connected instance
+    const instance = await this.prisma.instance.findFirst({
+      where: { companyId, status: 'connected' },
+    });
+
+    if (!instance) {
+      throw new Error('Nenhuma instância conectada');
+    }
+
+    const ownerPhone = aiConfig.ownerPhone.replace(/\D/g, '');
+    const ownerJid = `${ownerPhone}@s.whatsapp.net`;
+
+    try {
+      let response;
+
+      if (mediaUrl && mediaType) {
+        // Send media
+        const endpoint = mediaType === 'audio' ? 'sendWhatsAppAudio' :
+          mediaType === 'image' ? 'sendMedia' : 'sendMedia';
+
+        response = await axios.post(
+          `${this.evolutionApiUrl}/message/${endpoint}/${instance.instanceKey}`,
+          {
+            number: ownerPhone,
+            media: mediaUrl,
+            caption: content || undefined,
+          },
+          { headers: { apikey: this.evolutionApiKey } }
+        );
+      } else {
+        // Send text
+        response = await axios.post(
+          `${this.evolutionApiUrl}/message/sendText/${instance.instanceKey}`,
+          {
+            number: ownerPhone,
+            text: content,
+          },
+          { headers: { apikey: this.evolutionApiKey } }
+        );
+      }
+
+      const messageId = response.data?.key?.id;
+
+      // Save message
+      if (messageId) {
+        await this.prisma.message.create({
+          data: {
+            messageId,
+            remoteJid: ownerJid,
+            content,
+            direction: 'outgoing',
+            status: 'sent',
+            companyId,
+            instanceId: instance.id,
+            mediaUrl,
+            mediaType,
+          },
+        });
+      }
+
+      this.logger.log(`Assistant message sent to owner: ${content.substring(0, 50)}...`);
+
+      return { success: true, messageId };
+    } catch (error: any) {
+      this.logger.error('Error sending assistant message:', error.message);
+      throw new Error('Falha ao enviar mensagem');
+    }
   }
 }

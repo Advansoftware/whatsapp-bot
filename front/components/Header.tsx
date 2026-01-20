@@ -2,13 +2,9 @@
 
 import React from "react";
 import { Box, Typography, IconButton, useTheme } from "@mui/material";
-import {
-  Menu as MenuIcon,
-  DarkMode,
-  LightMode,
-  Help,
-} from "@mui/icons-material";
+import { Menu as MenuIcon, DarkMode, LightMode } from "@mui/icons-material";
 import NotificationCenter from "./NotificationCenter";
+import AssistantChat from "./AssistantChat";
 
 export interface HeaderProps {
   toggleTheme: () => void;
@@ -75,15 +71,7 @@ const Header: React.FC<HeaderProps> = ({
 
         <NotificationCenter onNavigate={onNavigate} />
 
-        <IconButton
-          sx={{
-            bgcolor: "action.hover",
-            display: { xs: "none", sm: "flex" },
-          }}
-          size="small"
-        >
-          <Help fontSize="small" />
-        </IconButton>
+        <AssistantChat />
       </Box>
     </Box>
   );
