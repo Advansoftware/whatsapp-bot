@@ -29,7 +29,6 @@ import {
   CreateFieldDto,
   AvailableContact,
   BOT_TYPES,
-  FIELD_TYPES,
 } from "./types";
 
 interface ProfileDialogProps {
@@ -200,26 +199,30 @@ export default function ProfileDialog({
                   setContactName(newValue.name);
                 }
               }}
-              renderOption={(props, option) => (
-                <Box
-                  component="li"
-                  {...props}
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <Avatar
-                    src={option.profilePicUrl}
-                    sx={{ width: 32, height: 32 }}
+              renderOption={(props, option) => {
+                const { key, ...restProps } = props;
+                return (
+                  <Box
+                    component="li"
+                    key={option.remoteJid}
+                    {...restProps}
+                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
                   >
-                    {option.name[0]}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body2">{option.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {option.remoteJid.replace("@s.whatsapp.net", "")}
-                    </Typography>
+                    <Avatar
+                      src={option.profilePicUrl}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {option.name[0]}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2">{option.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.remoteJid.replace("@s.whatsapp.net", "")}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              )}
+                );
+              }}
               renderInput={(params) => (
                 <TextField {...params} label="Selecione o Contato" required />
               )}
@@ -343,7 +346,7 @@ export default function ProfileDialog({
               </Box>
 
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     label="Nome do Campo"
                     value={field.fieldLabel}
@@ -352,26 +355,9 @@ export default function ProfileDialog({
                     }
                     fullWidth
                     required
-                    placeholder="Ex: CPF, Identificador"
+                    placeholder="Ex: CPF, Identificador, Matrícula"
+                    helperText="Como você quer chamar este dado"
                   />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Tipo</InputLabel>
-                    <Select
-                      value={field.fieldType}
-                      label="Tipo"
-                      onChange={(e) =>
-                        handleFieldChange(index, "fieldType", e.target.value)
-                      }
-                    >
-                      {FIELD_TYPES.map((type) => (
-                        <MenuItem key={type.value} value={type.value}>
-                          {type.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <TextField
@@ -383,6 +369,7 @@ export default function ProfileDialog({
                     fullWidth
                     required
                     placeholder="Ex: 123.456.789-00"
+                    helperText="O valor que a IA deve fornecer ao bot"
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
