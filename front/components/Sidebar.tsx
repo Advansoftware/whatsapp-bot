@@ -15,6 +15,7 @@ import {
   Avatar,
   Divider,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Dashboard,
@@ -44,11 +45,17 @@ interface SidebarProps {
 
 const DRAWER_WIDTH = 280;
 
+// Itens do menu principal
 const menuItems = [
   { id: "dashboard" as View, label: "Dashboard", icon: <Dashboard /> },
   { id: "connections" as View, label: "Conexões", icon: <Cable /> },
   { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
-  { id: "livechat" as View, label: "Chat ao Vivo", icon: <Chat /> },
+  {
+    id: "livechat" as View,
+    label: "Chat ao Vivo",
+    icon: <Chat />,
+    hideOnMobile: true,
+  },
   { id: "ai-secretary", label: "Secretária IA", icon: <Psychology /> },
   { id: "secretary-tasks", label: "Tarefas", icon: <Checklist /> },
   {
@@ -69,18 +76,37 @@ const bottomItems = [
   { id: "settings" as View, label: "Configurações", icon: <Settings /> },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({
-  open,
-  onClose,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  // Verificar se é mobile (celular - xs)
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // Verificar se é tablet ou menor
+  const isTabletOrMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   const handleLogout = () => {
     logout();
   };
+
+  const handleNavigation = (itemId: string) => {
+    router.push(`/${itemId}`);
+    // Fechar drawer em mobile após navegação
+    if (isTabletOrMobile) {
+      onClose();
+    }
+  };
+
+  // Filtrar itens do menu baseado no dispositivo
+  const filteredMenuItems = menuItems.filter((item) => {
+    // Se hideOnMobile é true e estamos em celular (xs), não mostrar
+    if (item.hideOnMobile && isMobile) {
+      return false;
+    }
+    return true;
+  });
 
   const drawerContent = (
     <Box
@@ -119,23 +145,29 @@ const Sidebar: React.FC<SidebarProps> = ({
       {user && (
         <>
           <Box sx={{ p: 2 }}>
-          <Box
-            onClick={() => router.push("/profile")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: pathname?.includes("/profile") ? "primary.main" : "action.hover",
-              color: pathname?.includes("/profile") ? "primary.contrastText" : "inherit",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              "&:hover": {
-                bgcolor: pathname?.includes("/profile") ? "primary.dark" : "action.selected",
-              },
-            }}
-          >
+            <Box
+              onClick={() => router.push("/profile")}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: pathname?.includes("/profile")
+                  ? "primary.main"
+                  : "action.hover",
+                color: pathname?.includes("/profile")
+                  ? "primary.contrastText"
+                  : "inherit",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                "&:hover": {
+                  bgcolor: pathname?.includes("/profile")
+                    ? "primary.dark"
+                    : "action.selected",
+                },
+              }}
+            >
               <Avatar
                 src={user.picture || undefined}
                 alt={user.name}
@@ -147,7 +179,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Typography variant="body2" fontWeight={500} noWrap>
                   {user.name}
                 </Typography>
-                 <Typography variant="caption" color={pathname?.includes("/profile") ? "inherit" : "text.secondary"} noWrap>
+                <Typography
+                  variant="caption"
+                  color={
+                    pathname?.includes("/profile")
+                      ? "inherit"
+                      : "text.secondary"
+                  }
+                  noWrap
+                >
                   {user.email}
                 </Typography>
               </Box>
@@ -159,14 +199,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <List sx={{ flex: 1, px: 2, py: 1 }}>
-        {menuItems.map((item) => {
-          const isSelected = pathname === `/${item.id}` || (item.id === 'dashboard' && pathname === '/dashboard');
-          
+        {filteredMenuItems.map((item) => {
+          const isSelected =
+            pathname === `/${item.id}` ||
+            (item.id === "dashboard" && pathname === "/dashboard");
+
           return (
             <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 selected={isSelected}
-                onClick={() => router.push(`/${item.id}`)}
+                onClick={() => handleNavigation(item.id)}
                 sx={{
                   borderRadius: 2,
                   "&.Mui-selected": {
@@ -194,12 +236,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       <List sx={{ px: 2, py: 1 }}>
         {bottomItems.map((item) => {
           const isSelected = pathname === `/${item.id}`;
-          
+
           return (
             <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 selected={isSelected}
-                onClick={() => router.push(`/${item.id}`)}
+                onClick={() => handleNavigation(item.id)}
                 sx={{
                   borderRadius: 2,
                   "&.Mui-selected": {
@@ -247,21 +289,43 @@ const Sidebar: React.FC<SidebarProps> = ({
     </Box>
   );
 
+  // Em mobile/tablet usa drawer temporário, em desktop usa permanente
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: DRAWER_WIDTH,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: DRAWER_WIDTH,
-          boxSizing: "border-box",
-          borderRight: `1px solid ${theme.palette.divider}`,
-        },
-      }}
-    >
-      {drawerContent}
-    </Drawer>
+    <>
+      {/* Drawer para mobile e tablet */}
+      <Drawer
+        variant="temporary"
+        open={open}
+        onClose={onClose}
+        ModalProps={{
+          keepMounted: true, // Melhor performance em mobile
+        }}
+        sx={{
+          display: { xs: "block", md: "none" },
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* Drawer permanente para desktop */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: "none", md: "block" },
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+            borderRight: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    </>
   );
 };
 

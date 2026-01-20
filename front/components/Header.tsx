@@ -13,13 +13,15 @@ import NotificationCenter from "./NotificationCenter";
 export interface HeaderProps {
   toggleTheme: () => void;
   isDarkMode: boolean;
-  onNavigate?: (url: string) => void; 
+  onNavigate?: (url: string) => void;
+  onMenuClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   toggleTheme,
   isDarkMode,
-  onNavigate, // Keeping it optional to avoid breaking NotificationCenter for now, but not using it here
+  onNavigate,
+  onMenuClick,
 }) => {
   const theme = useTheme();
 
@@ -28,7 +30,8 @@ const Header: React.FC<HeaderProps> = ({
       component="header"
       sx={{
         height: 64,
-        px: 3,
+        width: "100%",
+        px: { xs: 2, sm: 3 },
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -40,10 +43,14 @@ const Header: React.FC<HeaderProps> = ({
       }}
     >
       <Box display="flex" alignItems="center" gap={2}>
-        <IconButton sx={{ display: { md: "none" } }}>
+        <IconButton
+          sx={{ display: { xs: "flex", md: "none" } }}
+          onClick={onMenuClick}
+          aria-label="Abrir menu"
+        >
           <MenuIcon />
         </IconButton>
-        <Box display={{ xs: "none", md: "block" }}>
+        <Box display={{ xs: "none", sm: "block" }}>
           <Typography variant="h6" color="text.primary">
             Visão Geral
           </Typography>
@@ -53,8 +60,12 @@ const Header: React.FC<HeaderProps> = ({
         </Box>
       </Box>
 
-      <Box display="flex" alignItems="center" gap={1.5}>
-        <IconButton onClick={toggleTheme} sx={{ bgcolor: "action.hover" }}>
+      <Box display="flex" alignItems="center" gap={{ xs: 0.5, sm: 1.5 }}>
+        <IconButton
+          onClick={toggleTheme}
+          sx={{ bgcolor: "action.hover" }}
+          size="small"
+        >
           {isDarkMode ? (
             <LightMode fontSize="small" />
           ) : (
@@ -64,7 +75,13 @@ const Header: React.FC<HeaderProps> = ({
 
         <NotificationCenter onNavigate={onNavigate} />
 
-        <IconButton sx={{ bgcolor: "action.hover" }}>
+        <IconButton
+          sx={{
+            bgcolor: "action.hover",
+            display: { xs: "none", sm: "flex" },
+          }}
+          size="small"
+        >
           <Help fontSize="small" />
         </IconButton>
       </Box>

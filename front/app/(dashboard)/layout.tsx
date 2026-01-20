@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, useMediaQuery, useTheme } from "@mui/material";
 
-import { useState } from "react";
 import { useThemeMode } from "@/components/ThemeRegistry";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -18,7 +17,9 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -58,19 +59,32 @@ export default function DashboardLayout({
 
   return (
     <Box display="flex" minHeight="100vh" bgcolor="background.default">
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <Box flex={1} display="flex" flexDirection="column" overflow="hidden">
+      <Box
+        flex={1}
+        display="flex"
+        flexDirection="column"
+        overflow="hidden"
+        sx={{
+          // Margem para o drawer permanente em desktop
+          ml: { xs: 0, md: "280px" },
+          width: { xs: "100%", md: "calc(100% - 280px)" },
+        }}
+      >
         <Header
           toggleTheme={toggleTheme}
           isDarkMode={mode === "dark"}
           onNavigate={(url) => router.push(url)}
+          onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <Box flex={1} overflow="auto" p={{ xs: 2, md: 4 }}>
+        <Box
+          component="main"
+          flex={1}
+          overflow="auto"
+          p={{ xs: 2, sm: 3, md: 4 }}
+        >
           {children}
         </Box>
       </Box>
