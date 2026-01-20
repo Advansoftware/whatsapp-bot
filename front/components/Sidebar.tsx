@@ -63,6 +63,11 @@ const menuItems = [
     label: "Automações de Grupo",
     icon: <AutoAwesome />,
   },
+  {
+    id: "contact-automation" as View,
+    label: "Automação de Contatos",
+    icon: <SmartToy />,
+  },
   { id: "integrations" as View, label: "Integrações", icon: <Extension /> },
   { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
   { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },

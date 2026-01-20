@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService } from '../ai/ai.service';
+import axios from 'axios';
 
 export interface AutomationMatchResult {
   matched: boolean;
@@ -10,14 +12,28 @@ export interface AutomationMatchResult {
   skipAi?: boolean;
 }
 
+export interface AvailableGroup {
+  remoteJid: string;
+  name: string;
+  description?: string;
+  pictureUrl?: string;
+  participantsCount?: number;
+}
+
 @Injectable()
 export class GroupAutomationsService {
   private readonly logger = new Logger(GroupAutomationsService.name);
+  private evolutionApiUrl: string;
+  private evolutionApiKey: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
-  ) { }
+    private readonly configService: ConfigService,
+  ) {
+    this.evolutionApiUrl = this.configService.get('EVOLUTION_API_URL') || 'http://evolution:8080';
+    this.evolutionApiKey = this.configService.get('EVOLUTION_API_KEY') || '';
+  }
 
   /**
    * Processa uma mensagem de grupo e verifica se há automações aplicáveis
@@ -590,9 +606,116 @@ export class GroupAutomationsService {
     });
   }
 
-  async getGroups(companyId: string) {
-    // Buscar grupos únicos dos contatos
-    return this.prisma.contact.findMany({
+  async getGroups(companyId: string): Promise<AvailableGroup[]> {
+    try {
+      // Buscar todas as instâncias conectadas da company
+      const instances = await this.prisma.instance.findMany({
+        where: {
+          companyId,
+          status: 'connected',
+        },
+        select: {
+          instanceKey: true,
+        },
+      });
+
+      if (instances.length === 0) {
+        this.logger.warn(`No connected instances found for company ${companyId}`);
+        // Fallback: retornar grupos salvos no banco
+        return this.getGroupsFromDatabase(companyId);
+      }
+
+      const allGroups: AvailableGroup[] = [];
+      const seenJids = new Set<string>();
+
+      // Para cada instância, buscar grupos da Evolution API
+      for (const instance of instances) {
+        try {
+          const response = await axios.post(
+            `${this.evolutionApiUrl}/group/fetchAllGroups/${instance.instanceKey}`,
+            { getParticipants: 'false' },
+            {
+              headers: { 'apikey': this.evolutionApiKey },
+              timeout: 10000,
+            }
+          );
+
+          const groups = response.data || [];
+
+          for (const group of groups) {
+            // Evitar duplicatas
+            if (seenJids.has(group.id)) continue;
+            seenJids.add(group.id);
+
+            // Tentar buscar foto do grupo
+            let pictureUrl: string | undefined;
+            try {
+              const picResponse = await axios.post(
+                `${this.evolutionApiUrl}/chat/fetchProfilePictureUrl/${instance.instanceKey}`,
+                { number: group.id },
+                {
+                  headers: { 'apikey': this.evolutionApiKey },
+                  timeout: 5000,
+                }
+              );
+              pictureUrl = picResponse.data?.profilePictureUrl || picResponse.data?.picture || undefined;
+            } catch (picError) {
+              // Foto não disponível, continuar sem ela
+            }
+
+            allGroups.push({
+              remoteJid: group.id,
+              name: group.subject || 'Grupo sem nome',
+              description: group.desc || undefined,
+              pictureUrl,
+              participantsCount: group.size || group.participants?.length || undefined,
+            });
+
+            // Sincronizar com banco de dados (upsert)
+            await this.prisma.contact.upsert({
+              where: {
+                remoteJid_companyId: {
+                  remoteJid: group.id,
+                  companyId,
+                },
+              },
+              create: {
+                remoteJid: group.id,
+                companyId,
+                instanceId: (await this.prisma.instance.findFirst({ where: { instanceKey: instance.instanceKey } }))?.id || '',
+                isGroup: true,
+                groupName: group.subject || 'Grupo sem nome',
+                groupDescription: group.desc || null,
+                profilePicUrl: pictureUrl || null,
+              },
+              update: {
+                isGroup: true,
+                groupName: group.subject || undefined,
+                groupDescription: group.desc || undefined,
+                profilePicUrl: pictureUrl || undefined,
+              },
+            });
+          }
+
+          this.logger.log(`Fetched ${groups.length} groups from instance ${instance.instanceKey}`);
+        } catch (instanceError) {
+          this.logger.warn(`Failed to fetch groups from instance ${instance.instanceKey}: ${instanceError.message}`);
+        }
+      }
+
+      // Ordenar por nome
+      allGroups.sort((a, b) => a.name.localeCompare(b.name));
+
+      return allGroups;
+    } catch (error) {
+      this.logger.error(`Failed to fetch groups: ${error.message}`);
+      // Fallback: retornar grupos salvos no banco
+      return this.getGroupsFromDatabase(companyId);
+    }
+  }
+
+  private async getGroupsFromDatabase(companyId: string): Promise<AvailableGroup[]> {
+    const contacts = await this.prisma.contact.findMany({
       where: {
         companyId,
         isGroup: true,
@@ -601,8 +724,16 @@ export class GroupAutomationsService {
         remoteJid: true,
         groupName: true,
         groupDescription: true,
+        profilePicUrl: true,
       },
       orderBy: { groupName: 'asc' },
     });
+
+    return contacts.map(c => ({
+      remoteJid: c.remoteJid,
+      name: c.groupName || 'Grupo sem nome',
+      description: c.groupDescription || undefined,
+      pictureUrl: c.profilePicUrl || undefined,
+    }));
   }
 }

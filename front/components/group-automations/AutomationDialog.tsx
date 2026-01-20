@@ -17,6 +17,7 @@ import {
   Switch,
   FormControlLabel,
   Autocomplete,
+  Avatar,
 } from "@mui/material";
 import { Group } from "@mui/icons-material";
 import {
@@ -26,6 +27,11 @@ import {
   ACTION_TYPES,
   DATA_TYPES,
 } from "./types";
+
+// Helper para obter o nome do grupo (compatibilidade)
+const getGroupName = (group: AvailableGroup): string => {
+  return group.name || group.groupName || group.remoteJid;
+};
 
 interface AutomationDialogProps {
   open: boolean;
@@ -83,7 +89,7 @@ export default function AutomationDialog({
 
           <Autocomplete
             options={groups}
-            getOptionLabel={(option) => option.groupName || option.remoteJid}
+            getOptionLabel={(option) => getGroupName(option)}
             value={
               groups.find((g) => g.remoteJid === formData.groupRemoteJid) ||
               null
@@ -102,12 +108,38 @@ export default function AutomationDialog({
                 placeholder="Selecione um grupo"
               />
             )}
-            renderOption={(props, option) => (
-              <li {...props}>
-                <Group sx={{ mr: 1, color: "text.secondary" }} />
-                {option.groupName || option.remoteJid}
-              </li>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...restProps } = props as any;
+              return (
+                <li key={key} {...restProps}>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={1.5}
+                    width="100%"
+                  >
+                    <Avatar
+                      src={option.pictureUrl}
+                      alt={getGroupName(option)}
+                      sx={{ width: 36, height: 36 }}
+                    >
+                      <Group />
+                    </Avatar>
+                    <Box flex={1} overflow="hidden">
+                      <Typography variant="body2" noWrap fontWeight={500}>
+                        {getGroupName(option)}
+                      </Typography>
+                      {option.participantsCount && (
+                        <Typography variant="caption" color="text.secondary">
+                          {option.participantsCount} participantes
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </li>
+              );
+            }}
+            noOptionsText="Nenhum grupo encontrado. Verifique se há uma conexão ativa."
           />
 
           <Typography

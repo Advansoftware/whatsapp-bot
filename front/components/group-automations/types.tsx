@@ -28,8 +28,13 @@ export interface GroupAutomation {
 
 export interface AvailableGroup {
   remoteJid: string;
-  groupName: string | null;
-  groupDescription: string | null;
+  name: string;
+  description?: string;
+  pictureUrl?: string;
+  participantsCount?: number;
+  // Campos antigos para compatibilidade
+  groupName?: string | null;
+  groupDescription?: string | null;
 }
 
 export interface AutomationFormData {
@@ -128,9 +133,10 @@ export const PREDEFINED_TEMPLATES: AutomationTemplate[] = [
       dataType: "lottery_numbers",
       shouldReply: true,
       replyOnlyOnce: false,
-      replyTemplate: "✅ Palpite registrado!\n👤 {{participantName}}\n🔢 {{numbers}}",
+      replyTemplate:
+        "✅ Palpite registrado!\n👤 {{participantName}}\n🔢 {{numbers}}",
       isActive: true,
-    }
+    },
   },
   {
     title: "Lista de Presença",
@@ -144,7 +150,7 @@ export const PREDEFINED_TEMPLATES: AutomationTemplate[] = [
       shouldReply: true,
       replyTemplate: "📝 Presença confirmada! Total: {{count}}",
       isActive: true,
-    }
+    },
   },
   {
     title: "Captura de Emails",
@@ -159,11 +165,12 @@ export const PREDEFINED_TEMPLATES: AutomationTemplate[] = [
       replyOnlyOnce: true,
       replyTemplate: "📧 Email recebido! Entraremos em contato.",
       isActive: true,
-    }
+    },
   },
   {
     title: "Integração Externa",
-    description: "Envia todas as mensagens para um sistema externo via Webhook.",
+    description:
+      "Envia todas as mensagens para um sistema externo via Webhook.",
     icon: <Webhook fontSize="large" />,
     config: {
       name: "Integração CRM",
@@ -172,8 +179,8 @@ export const PREDEFINED_TEMPLATES: AutomationTemplate[] = [
       webhookUrl: "https://api.seucrm.com/webhook/whatsapp",
       shouldReply: false,
       isActive: true,
-    }
-  }
+    },
+  },
 ];
 
 /**
@@ -195,6 +202,7 @@ export const INITIAL_FORM_DATA: AutomationFormData = {
   skipAiAfter: true,
   isActive: true,
   dataType: "lottery_numbers",
-  replyTemplate: "✅ Dados registrados!\n👤 {{participantName}}\n📊 {{numbers}}",
+  replyTemplate:
+    "✅ Dados registrados!\n👤 {{participantName}}\n📊 {{numbers}}",
   webhookUrl: "",
 };

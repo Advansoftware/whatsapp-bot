@@ -45,13 +45,13 @@ model Company {
   cancelAtPeriodEnd       Boolean   @default(false) @map("cancel_at_period_end")
 
   // Usage limits based on plan
-  maxInstances        Int @default(1) @map("max_instances")
-  maxMessagesPerMonth Int @default(1000) @map("max_messages_per_month")
-  maxContacts         Int @default(500) @map("max_contacts")
+  maxInstances        Int  @default(1) @map("max_instances")
+  maxMessagesPerMonth Int  @default(1000) @map("max_messages_per_month")
+  maxContacts         Int  @default(500) @map("max_contacts")
   maxCampaigns        Int? @map("max_campaigns") // null = unlimited
-  maxTeamMembers      Int @default(1) @map("max_team_members")
-  aiCreditsLimit      Int @default(100) @map("ai_credits_limit")
-  aiCreditsUsed       Int @default(0) @map("ai_credits_used")
+  maxTeamMembers      Int  @default(1) @map("max_team_members")
+  aiCreditsLimit      Int  @default(100) @map("ai_credits_limit")
+  aiCreditsUsed       Int  @default(0) @map("ai_credits_used")
 
   users     User[]
   instances Instance[]
@@ -205,15 +205,15 @@ model ChatNode {
 }
 
 model Instance {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
-  instanceKey String   @unique @map("instance_key")
-  companyId   String   @map("company_id")
-  status      String   @default("disconnected")
-  errorReason String?  @map("error_reason") // Motivo do erro de conexão
+  instanceKey String    @unique @map("instance_key")
+  companyId   String    @map("company_id")
+  status      String    @default("disconnected")
+  errorReason String?   @map("error_reason") // Motivo do erro de conexão
   lastErrorAt DateTime? @map("last_error_at") // Quando ocorreu o último erro
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages      Message[]
@@ -571,4 +571,128 @@ model GroupAutomationData {
   @@index([automationId])
   @@index([groupRemoteJid, participantJid])
   @@map("group_automation_data")
+}
+
+// ================================
+// AUTOMAÇÃO DE CONTATOS (Interação com Bots)
+// ================================
+
+// Perfil de automação para contatos específicos (ex: Copasa, Banco, etc)
+model ContactAutomationProfile {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  // Identificação do contato
+  remoteJid       String  @map("remote_jid") // JID do contato (ex: 5531800001@s.whatsapp.net)
+  contactName     String  @map("contact_name") // Nome amigável (ex: "Copasa")
+  contactNickname String? @map("contact_nickname") // Apelido alternativo para IA entender (ex: "empresa de água")
+  profilePicUrl   String? @map("profile_pic_url")
+
+  // Descrição do que este contato faz (para IA entender contexto)
+  description String? @db.Text // "Empresa de água e esgoto de Minas Gerais"
+
+  // Tipo de bot/atendimento
+  botType String @default("menu") @map("bot_type") // 'menu' | 'free_text' | 'mixed'
+
+  // Configurações de interação
+  isActive       Boolean @default(true) @map("is_active")
+  maxWaitSeconds Int     @default(120) @map("max_wait_seconds") // Timeout para respostas
+  maxRetries     Int     @default(3) @map("max_retries") // Máximo de tentativas
+
+  // Instruções específicas para IA navegar (opcional)
+  navigationHints String? @map("navigation_hints") @db.Text // JSON com dicas de navegação
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  fields   ContactAutomationField[]
+  sessions ContactAutomationSession[]
+
+  @@unique([companyId, remoteJid])
+  @@index([companyId, isActive])
+  @@map("contact_automation_profiles")
+}
+
+// Campos personalizados para automação (ex: CPF, Identificador, Conta)
+model ContactAutomationField {
+  id        String @id @default(cuid())
+  profileId String @map("profile_id")
+
+  // Identificação do campo
+  fieldName  String @map("field_name") // Nome técnico (ex: "cpf", "identificador")
+  fieldLabel String @map("field_label") // Label amigável (ex: "CPF", "Número do Identificador")
+  fieldValue String @map("field_value") @db.Text // Valor do campo
+
+  // Como o bot pede este campo (para IA identificar)
+  botPromptPatterns String[] @default([]) @map("bot_prompt_patterns") // ["digite seu cpf", "informe o cpf", "qual seu cpf"]
+
+  // Tipo de dado para validação
+  fieldType String @default("text") @map("field_type") // 'text' | 'number' | 'cpf' | 'phone' | 'date'
+
+  // Ordem de prioridade (se bot pedir múltiplos dados)
+  priority Int @default(0)
+
+  // Se é obrigatório
+  isRequired Boolean @default(true) @map("is_required")
+
+  // Metadados
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile ContactAutomationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, fieldName])
+  @@index([profileId])
+  @@map("contact_automation_fields")
+}
+
+// Sessões de automação ativas (quando IA está interagindo com um bot)
+model ContactAutomationSession {
+  id        String @id @default(cuid())
+  profileId String @map("profile_id")
+  companyId String @map("company_id")
+
+  // Quem solicitou a automação
+  requestedBy   String @map("requested_by") // 'owner' | 'user_{userId}'
+  requestedFrom String @map("requested_from") // remoteJid de onde veio a solicitação
+  originalQuery String @map("original_query") @db.Text // "verificar com a copasa se estou sem água"
+
+  // Status da sessão
+  status String @default("pending") // 'pending' | 'navigating' | 'waiting_response' | 'completed' | 'failed' | 'timeout'
+
+  // Objetivo da interação (extraído pela IA)
+  objective     String  @map("objective") @db.Text // "Verificar falta de água na região"
+  objectiveType String? @map("objective_type") // 'consulta' | 'reclamacao' | 'segunda_via' | 'informacao'
+
+  // Histórico de navegação
+  navigationLog Json @default("[]") @map("navigation_log") // Array de passos: [{step, botMessage, ourResponse, timestamp}]
+
+  // Resultado final
+  result        String? @db.Text // Resposta final do bot
+  resultSummary String? @map("result_summary") @db.Text // Resumo da IA
+  success       Boolean @default(false)
+
+  // Controle de tempo
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  expiresAt   DateTime  @map("expires_at") // Timeout automático
+
+  // Última interação
+  lastBotMessage  String?  @map("last_bot_message") @db.Text
+  lastOurResponse String?  @map("last_our_response") @db.Text
+  lastActivityAt  DateTime @default(now()) @map("last_activity_at")
+
+  // Contagem
+  messagesSent     Int @default(0) @map("messages_sent")
+  messagesReceived Int @default(0) @map("messages_received")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile ContactAutomationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([profileId])
+  @@index([expiresAt])
+  @@map("contact_automation_sessions")
 }

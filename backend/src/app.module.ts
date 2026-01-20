@@ -14,6 +14,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GroupAutomationsModule } from './group-automations/group-automations.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { ContactAutomationModule } from './contact-automation/contact-automation.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -46,6 +47,7 @@ import { HealthController } from './health.controller';
     NotificationsModule,
     GroupAutomationsModule,
     SubscriptionModule,
+    ContactAutomationModule,
   ],
   controllers: [HealthController],
 })

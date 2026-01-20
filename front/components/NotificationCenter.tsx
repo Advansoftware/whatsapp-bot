@@ -70,8 +70,10 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
       if (notification.actionUrl) {
         onNavigate(notification.actionUrl);
       } else if (notification.metadata?.remoteJid) {
-        // Construct URL for chat navigation
-        onNavigate(`/livechat/${notification.metadata.remoteJid}`);
+        // Construct URL for chat navigation using query parameter
+        onNavigate(
+          `/livechat?jid=${encodeURIComponent(notification.metadata.remoteJid)}`,
+        );
       }
       handleClose();
     }
@@ -254,7 +256,7 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
                                 {
                                   addSuffix: true,
                                   locale: ptBR,
-                                }
+                                },
                               )}
                             </Typography>
                           </Box>

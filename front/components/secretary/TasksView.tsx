@@ -19,10 +19,6 @@ import {
   Switch,
   FormControlLabel,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Divider,
   CircularProgress,
   Alert,
@@ -200,7 +196,10 @@ const TasksView: React.FC = () => {
         };
       case "keyword":
         return {
-          keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+          keywords: form.keywords
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean),
           matchType: form.matchType,
         };
       case "first_message":
@@ -226,7 +225,10 @@ const TasksView: React.FC = () => {
         };
       case "set_tag":
         return {
-          tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+          tags: form.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
         };
       default:
         return {};
@@ -277,7 +279,7 @@ const TasksView: React.FC = () => {
         } catch (err) {
           setError("Erro ao excluir tarefa");
         } finally {
-            setConfirmDialog((prev) => ({ ...prev, open: false }));
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
         }
       },
     });
@@ -305,7 +307,9 @@ const TasksView: React.FC = () => {
       case "keyword":
         return `Palavras: ${(config.keywords || []).join(", ")}`;
       case "first_message":
-        return config.onlyNewContacts ? "Apenas novos contatos" : "Qualquer primeira mensagem";
+        return config.onlyNewContacts
+          ? "Apenas novos contatos"
+          : "Qualquer primeira mensagem";
       case "always":
         return "Sempre ativo";
       default:
@@ -324,9 +328,13 @@ const TasksView: React.FC = () => {
   };
 
   return (
-    <Box p={4}>
+    <Box p={{ xs: 2, sm: 3, md: 4 }}>
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
+        >
           {success}
         </Alert>
       )}
@@ -348,13 +356,21 @@ const TasksView: React.FC = () => {
       />
 
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+      <Box
+        display="flex"
+        flexDirection={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        gap={2}
+        mb={4}
+      >
         <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
+          <Typography variant="h5" fontWeight="bold" gutterBottom>
             📋 Tarefas da Secretária
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Configure tarefas automatizadas para sua assistente pessoal executar.
+          <Typography variant="body2" color="text.secondary">
+            Configure tarefas automatizadas para sua assistente pessoal
+            executar.
           </Typography>
         </Box>
         <Button
@@ -390,69 +406,107 @@ const TasksView: React.FC = () => {
             </Button>
           </Box>
         ) : (
-          <List>
-            {tasks.map((task, idx) => (
-              <React.Fragment key={task.id}>
-                {idx > 0 && <Divider />}
-                <ListItem
-                  sx={{
-                    py: 2,
-                    opacity: task.isActive ? 1 : 0.6,
-                    "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.05) },
-                  }}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              p: { xs: 2, sm: 0 },
+            }}
+          >
+            {tasks.map((task) => (
+              <Paper
+                key={task.id}
+                sx={{
+                  p: 2,
+                  opacity: task.isActive ? 1 : 0.6,
+                  border: `1px solid ${theme.palette.divider}`,
+                  "&:hover": {
+                    bgcolor: alpha(theme.palette.primary.main, 0.03),
+                  },
+                }}
+              >
+                <Box
+                  display="flex"
+                  flexDirection={{ xs: "column", sm: "row" }}
+                  justifyContent="space-between"
+                  gap={2}
                 >
-                  <ListItemText
-                    primary={
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Typography fontWeight="600">{task.name}</Typography>
-                        <Chip
-                          label={getTriggerLabel(task.triggerType)}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                        {!task.isActive && (
-                          <Chip label="Pausada" size="small" color="warning" />
-                        )}
-                      </Box>
-                    }
-                    secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {task.description}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          ⚡ {getTriggerDescription(task)} • Prioridade: {task.priority}
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                  <ListItemSecondaryAction>
+                  {/* Content */}
+                  <Box flex={1}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      flexWrap="wrap"
+                      mb={1}
+                    >
+                      <Typography fontWeight="600">{task.name}</Typography>
+                      <Chip
+                        label={getTriggerLabel(task.triggerType)}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                      {!task.isActive && (
+                        <Chip label="Pausada" size="small" color="warning" />
+                      )}
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 0.5 }}
+                    >
+                      {task.description}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      ⚡ {getTriggerDescription(task)} • Prioridade:{" "}
+                      {task.priority}
+                    </Typography>
+                  </Box>
+
+                  {/* Actions */}
+                  <Box display="flex" alignItems="center" gap={0.5}>
                     <Tooltip title={task.isActive ? "Pausar" : "Ativar"}>
-                      <IconButton onClick={() => handleToggle(task.id)}>
+                      <IconButton
+                        onClick={() => handleToggle(task.id)}
+                        size="small"
+                      >
                         {task.isActive ? <Pause /> : <PlayArrow />}
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Editar">
-                      <IconButton onClick={() => handleOpenDialog(task)}>
+                      <IconButton
+                        onClick={() => handleOpenDialog(task)}
+                        size="small"
+                      >
                         <Edit />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Excluir">
-                      <IconButton onClick={() => handleDelete(task.id)} color="error">
+                      <IconButton
+                        onClick={() => handleDelete(task.id)}
+                        color="error"
+                        size="small"
+                      >
                         <Delete />
                       </IconButton>
                     </Tooltip>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              </React.Fragment>
+                  </Box>
+                </Box>
+              </Paper>
             ))}
-          </List>
+          </Box>
         )}
       </Paper>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>
           {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
         </DialogTitle>
@@ -475,7 +529,9 @@ const TasksView: React.FC = () => {
                 rows={2}
                 label="Descrição"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
                 placeholder="O que essa tarefa faz?"
               />
             </Grid>
@@ -493,7 +549,9 @@ const TasksView: React.FC = () => {
                 <Select
                   value={form.triggerType}
                   label="Tipo de Gatilho"
-                  onChange={(e) => setForm({ ...form, triggerType: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, triggerType: e.target.value })
+                  }
                 >
                   {TRIGGER_TYPES.map((t) => (
                     <MenuItem key={t.value} value={t.value}>
@@ -509,7 +567,9 @@ const TasksView: React.FC = () => {
                 type="number"
                 label="Prioridade (1-10)"
                 value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) || 5 })}
+                onChange={(e) =>
+                  setForm({ ...form, priority: parseInt(e.target.value) || 5 })
+                }
                 inputProps={{ min: 1, max: 10 }}
               />
             </Grid>
@@ -523,7 +583,12 @@ const TasksView: React.FC = () => {
                     type="number"
                     label="Hora Início"
                     value={form.startHour}
-                    onChange={(e) => setForm({ ...form, startHour: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        startHour: parseInt(e.target.value) || 0,
+                      })
+                    }
                     inputProps={{ min: 0, max: 23 }}
                     helperText="0 = meia-noite"
                   />
@@ -534,7 +599,12 @@ const TasksView: React.FC = () => {
                     type="number"
                     label="Hora Fim"
                     value={form.endHour}
-                    onChange={(e) => setForm({ ...form, endHour: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        endHour: parseInt(e.target.value) || 0,
+                      })
+                    }
                     inputProps={{ min: 0, max: 23 }}
                     helperText="8 = 8h da manhã"
                   />
@@ -551,7 +621,10 @@ const TasksView: React.FC = () => {
                         color={form.days.includes(key) ? "primary" : "default"}
                         onClick={() => {
                           if (form.days.includes(key)) {
-                            setForm({ ...form, days: form.days.filter((d) => d !== key) });
+                            setForm({
+                              ...form,
+                              days: form.days.filter((d) => d !== key),
+                            });
                           } else {
                             setForm({ ...form, days: [...form.days, key] });
                           }
@@ -571,7 +644,9 @@ const TasksView: React.FC = () => {
                     fullWidth
                     label="Palavras-chave (separadas por vírgula)"
                     value={form.keywords}
-                    onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, keywords: e.target.value })
+                    }
                     placeholder="preço, valor, quanto custa"
                   />
                 </Grid>
@@ -581,7 +656,9 @@ const TasksView: React.FC = () => {
                     <Select
                       value={form.matchType}
                       label="Correspondência"
-                      onChange={(e) => setForm({ ...form, matchType: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, matchType: e.target.value })
+                      }
                     >
                       <MenuItem value="any">Qualquer palavra</MenuItem>
                       <MenuItem value="all">Todas as palavras</MenuItem>
@@ -598,7 +675,9 @@ const TasksView: React.FC = () => {
                   control={
                     <Switch
                       checked={form.onlyNewContacts}
-                      onChange={(e) => setForm({ ...form, onlyNewContacts: e.target.checked })}
+                      onChange={(e) =>
+                        setForm({ ...form, onlyNewContacts: e.target.checked })
+                      }
                     />
                   }
                   label="Apenas contatos novos (nunca vistos antes)"
@@ -619,7 +698,9 @@ const TasksView: React.FC = () => {
                 <Select
                   value={form.actionType}
                   label="Tipo de Ação"
-                  onChange={(e) => setForm({ ...form, actionType: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, actionType: e.target.value })
+                  }
                 >
                   {ACTION_TYPES.map((a) => (
                     <MenuItem key={a.value} value={a.value}>
@@ -640,7 +721,9 @@ const TasksView: React.FC = () => {
                     rows={3}
                     label="Mensagem"
                     value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, message: e.target.value })
+                    }
                     placeholder="O Rafael está descansando, ele responde assim que acordar! 😊"
                   />
                 </Grid>
@@ -649,7 +732,12 @@ const TasksView: React.FC = () => {
                     control={
                       <Switch
                         checked={form.replaceResponse}
-                        onChange={(e) => setForm({ ...form, replaceResponse: e.target.checked })}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            replaceResponse: e.target.checked,
+                          })
+                        }
                       />
                     }
                     label="Substituir resposta da IA (desligado = envia antes da IA responder)"
@@ -668,7 +756,9 @@ const TasksView: React.FC = () => {
                     rows={2}
                     label="Texto antes da resposta"
                     value={form.prefix}
-                    onChange={(e) => setForm({ ...form, prefix: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, prefix: e.target.value })
+                    }
                     placeholder="⚠️ Atenção: Estou em horário de descanso."
                   />
                 </Grid>
@@ -679,7 +769,9 @@ const TasksView: React.FC = () => {
                     rows={2}
                     label="Texto depois da resposta"
                     value={form.suffix}
-                    onChange={(e) => setForm({ ...form, suffix: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, suffix: e.target.value })
+                    }
                     placeholder="Responderei com mais detalhes amanhã!"
                   />
                 </Grid>

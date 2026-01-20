@@ -13,6 +13,7 @@ import { ChatbotService } from '../chatbot/chatbot.service';
 import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { GroupAutomationsService } from '../group-automations/group-automations.service';
+import { ContactAutomationProcessorService } from '../contact-automation/contact-automation-processor.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -55,6 +56,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly secretaryTasksService: SecretaryTasksService,
     private readonly notificationsService: NotificationsService,
     private readonly groupAutomationsService: GroupAutomationsService,
+    private readonly contactAutomationProcessor: ContactAutomationProcessorService,
   ) {
     super();
   }
@@ -263,6 +265,8 @@ export class WhatsappProcessor extends WorkerHost {
       }
 
       // 3.2 AUTOMAÇÕES DE GRUPO - Verificar se há automações aplicáveis
+      // IMPORTANTE: Grupos SÓ são processados se houver automação configurada!
+      // Isso evita que a IA responda em grupos não autorizados
       if (isGroup && participant) {
         try {
           const automationResult = await this.groupAutomationsService.processGroupMessage(
@@ -301,10 +305,70 @@ export class WhatsappProcessor extends WorkerHost {
                 automationName: automationResult.automation?.name
               };
             }
+          } else {
+            // SEM AUTOMAÇÃO CONFIGURADA para este grupo - NÃO processar com IA!
+            // Apenas salvar a mensagem e ignorar
+            this.logger.log(`⚠️ No automation configured for group ${remoteJid} - skipping AI processing`);
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+            return {
+              status: 'group_no_automation',
+              messageId: message.id,
+              reason: 'No automation configured for this group - AI will not respond'
+            };
           }
         } catch (automationError) {
           this.logger.warn(`Group automation error: ${automationError.message}`);
-          // Continuar processamento normal se automação falhar
+          // Em caso de erro, também NÃO processar com IA para segurança
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+              status: 'processed',
+              processedAt: new Date(),
+            },
+          });
+          return {
+            status: 'group_automation_error',
+            messageId: message.id,
+            reason: 'Automation error - skipping AI for safety'
+          };
+        }
+      }
+
+      // 3.3 AUTOMAÇÃO DE CONTATOS - Verificar se esta mensagem é de um bot que estamos automatizando
+      // Isso intercepta respostas de bots (Copasa, Banco, etc) durante uma sessão ativa
+      if (!isGroup && !fromMe) {
+        try {
+          const automationResult = await this.contactAutomationProcessor.processIncomingBotMessage(
+            instance.companyId,
+            instanceKey,
+            remoteJid,
+            processedContent,
+          );
+
+          if (automationResult.handled) {
+            this.logger.log(`🤖 Contact automation handled message for session ${automationResult.sessionId}`);
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+            return {
+              status: 'contact_automation_processed',
+              messageId: message.id,
+              sessionId: automationResult.sessionId,
+            };
+          }
+        } catch (automationError) {
+          this.logger.warn(`Contact automation error: ${automationError.message}`);
+          // Continuar processamento normal em caso de erro
         }
       }
 
@@ -325,6 +389,63 @@ export class WhatsappProcessor extends WorkerHost {
       // MODO SECRETÁRIA PESSOAL - Comandos do dono
       // ========================================
       if (isPersonalAssistantMode) {
+        // ========================================
+        // AUTOMAÇÃO DE CONTATOS - Detectar pedido do dono
+        // Ex: "pergunte na copasa se estou sem água"
+        // ========================================
+        try {
+          const automationDetection = await this.contactAutomationProcessor.detectAutomationRequest(
+            instance.companyId,
+            processedContent,
+          );
+
+          if (automationDetection.isAutomation && automationDetection.profileId) {
+            this.logger.log(`🤖 Owner requested contact automation: ${automationDetection.objective}`);
+
+            // Criar sessão de automação
+            const session = await this.prisma.contactAutomationSession.create({
+              data: {
+                profileId: automationDetection.profileId,
+                companyId: instance.companyId,
+                requestedBy: 'owner',
+                requestedFrom: remoteJid,
+                originalQuery: processedContent,
+                objective: automationDetection.objective || processedContent,
+                status: 'pending',
+                expiresAt: new Date(Date.now() + 20 * 60 * 1000), // 20 minutos
+              },
+              include: {
+                profile: true,
+              },
+            });
+
+            // Iniciar a automação
+            await this.contactAutomationProcessor.initiateSession(session.id, instanceKey);
+
+            // Confirmar para o dono
+            const confirmMessage = `✅ Entendido! Vou entrar em contato com a ${session.profile.contactName} para: "${automationDetection.objective}"\n\n📱 Aguarde, vou te informar assim que tiver uma resposta.`;
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, confirmMessage);
+
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                response: confirmMessage,
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+
+            return {
+              status: 'contact_automation_started',
+              messageId: message.id,
+              sessionId: session.id,
+            };
+          }
+        } catch (automationError) {
+          this.logger.warn(`Contact automation detection error: ${automationError.message}`);
+          // Continuar processamento normal
+        }
+
         // ========================================
         // VERIFICAR FLUXO ATIVO (Despesas, etc)
         // ========================================
