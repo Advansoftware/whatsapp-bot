@@ -124,6 +124,7 @@ services:
       - EVOLUTION_API_URL=http://evolution:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - FRONTEND_URL=https://respondia.pro
+      - APP_URL=https://api.respondia.pro
       # Stripe
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
