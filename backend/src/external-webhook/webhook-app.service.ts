@@ -328,13 +328,33 @@ export class WebhookAppService {
 
     // Validar origem se configurado
     if (app.allowedOrigins.length > 0) {
+      // Tentar obter a origem de vários headers possíveis
       const origin = headers['origin'] || headers['referer'] || '';
-      const isAllowed = app.allowedOrigins.some(allowed =>
-        origin.includes(allowed) || allowed === '*'
-      );
+      const forwardedFor = headers['x-forwarded-for'] || headers['x-real-ip'] || '';
+      const host = headers['host'] || '';
+      const payloadUrl = payload?.url || '';
+
+      // Normalizar para comparação (remover protocolo e trailing slash)
+      const normalize = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+
+      // Verificar se alguma origem configurada corresponde
+      const isAllowed = app.allowedOrigins.some(allowed => {
+        if (allowed === '*') return true;
+        const normalizedAllowed = normalize(allowed);
+
+        // Verificar no header origin/referer
+        if (origin && normalize(origin).includes(normalizedAllowed)) return true;
+        // Verificar no IP de origem
+        if (forwardedFor && forwardedFor.includes(allowed)) return true;
+        // Verificar no host
+        if (host && host.includes(normalizedAllowed)) return true;
+        // Verificar se o payload contém a URL (para Coolify que envia url no body)
+        if (payloadUrl && normalize(payloadUrl).includes(normalizedAllowed)) return true;
+        return false;
+      });
 
       if (!isAllowed) {
-        this.logger.warn(`Webhook rejected - origin not allowed: ${origin}`);
+        this.logger.warn(`Webhook rejected - origin not allowed. Origin: ${origin}, IP: ${forwardedFor}, Host: ${host}`);
         return { success: false, error: 'Origin not allowed' };
       }
     }
