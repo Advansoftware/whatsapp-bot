@@ -696,3 +696,71 @@ model ContactAutomationSession {
   @@index([expiresAt])
   @@map("contact_automation_sessions")
 }
+
+// ================================
+// WEBHOOKS EXTERNOS (Coolify, etc)
+// ================================
+
+// Configuração do webhook externo (template de mensagem, etc)
+model WebhookConfig {
+  id        String  @id @default(cuid())
+  companyId String  @unique @map("company_id")
+
+  // Template da mensagem (com placeholders como {{project}}, {{status}}, etc)
+  messageTemplate String @default("🔔 *Webhook Recebido*\n\n{{payload}}") @map("message_template") @db.Text
+
+  // Se deve salvar logs dos webhooks recebidos
+  logEnabled Boolean @default(true) @map("log_enabled")
+
+  // Prefixo opcional para a URL do webhook (para segurança adicional)
+  secretToken String? @map("secret_token")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("webhook_configs")
+}
+
+// Log de webhooks recebidos (para debug e visualização)
+model WebhookLog {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  // Dados do webhook
+  source     String?  // 'coolify', 'github', etc (opcional, detectado automaticamente)
+  payload    Json     // Payload completo recebido
+  headers    Json?    // Headers da requisição (opcional)
+
+  // Status do processamento
+  status     String   @default("received") // 'received' | 'processed' | 'failed'
+  error      String?  @db.Text
+  
+  // Mensagens enviadas a partir deste webhook
+  messagesSent Int @default(0) @map("messages_sent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@map("webhook_logs")
+}
+
+// Contatos para receber notificações de webhooks externos (Coolify, etc)
+model WebhookNotificationContact {
+  id        String  @id @default(cuid())
+  companyId String  @map("company_id")
+
+  // Identificação
+  name      String  // Nome amigável (ex: "Felipe - DevOps")
+  remoteJid String  @map("remote_jid") // WhatsApp JID
+
+  // Configuração
+  isActive   Boolean  @default(true) @map("is_active")
+  categories String[] @default([]) // Filtrar por categoria (vazio = todas)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, remoteJid])
+  @@index([companyId, isActive])
+  @@map("webhook_notification_contacts")
+}

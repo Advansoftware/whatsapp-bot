@@ -15,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { GroupAutomationsModule } from './group-automations/group-automations.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ContactAutomationModule } from './contact-automation/contact-automation.module';
+import { ExternalWebhookModule } from './external-webhook/external-webhook.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -48,6 +49,7 @@ import { HealthController } from './health.controller';
     GroupAutomationsModule,
     SubscriptionModule,
     ContactAutomationModule,
+    ExternalWebhookModule,
   ],
   controllers: [HealthController],
 })
