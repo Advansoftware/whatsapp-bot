@@ -35,6 +35,7 @@ import {
   AutoAwesome,
   Groups,
   Person,
+  Webhook,
 } from "@mui/icons-material";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -69,6 +70,7 @@ const menuItems = [
     icon: <SmartToy />,
   },
   { id: "integrations" as View, label: "Integrações", icon: <Extension /> },
+  { id: "external-webhook" as View, label: "Webhooks", icon: <Webhook /> },
   { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
   { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },
   { id: "analytics" as View, label: "Analytics", icon: <BarChart /> },
