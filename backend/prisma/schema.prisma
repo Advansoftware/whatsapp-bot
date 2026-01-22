@@ -606,8 +606,9 @@ model ContactAutomationProfile {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  fields   ContactAutomationField[]
-  sessions ContactAutomationSession[]
+  fields      ContactAutomationField[]
+  menuOptions ContactAutomationMenuOption[]
+  sessions    ContactAutomationSession[]
 
   @@unique([companyId, remoteJid])
   @@index([companyId, isActive])
@@ -645,6 +646,37 @@ model ContactAutomationField {
   @@unique([profileId, fieldName])
   @@index([profileId])
   @@map("contact_automation_fields")
+}
+
+// Opções de menu do bot (ex: 1 - Segunda via, 2 - Falta de água)
+model ContactAutomationMenuOption {
+  id        String @id @default(cuid())
+  profileId String @map("profile_id")
+
+  // A opção que deve ser enviada (ex: "1", "2", "sim", "nao")
+  optionValue String @map("option_value")
+
+  // O que esta opção faz (para IA entender)
+  optionLabel       String @map("option_label") // "Segunda via de contas"
+  optionDescription String? @map("option_description") @db.Text // Descrição mais detalhada
+
+  // Palavras-chave que indicam que esta opção deve ser escolhida
+  keywords String[] @default([]) // ["fatura", "segunda via", "conta", "boleto"]
+
+  // Ordem de prioridade (se múltiplas opções combinarem)
+  priority Int @default(0)
+
+  // Se esta é uma opção para sair/encerrar
+  isExitOption Boolean @default(false) @map("is_exit_option")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile ContactAutomationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, optionValue])
+  @@index([profileId])
+  @@map("contact_automation_menu_options")
 }
 
 // Sessões de automação ativas (quando IA está interagindo com um bot)

@@ -21,6 +21,7 @@ import {
   Group,
   PersonAdd,
   AutoMode,
+  AutoFixHigh as AutomationIcon,
 } from "@mui/icons-material";
 
 interface TeamMember {
@@ -44,6 +45,8 @@ interface ChatHeaderProps {
   teamMembers?: TeamMember[];
   onAssignAgent?: (agentId: string | null) => void;
   onClick?: () => void;
+  onCreateAutomation?: () => void;
+  remoteJid?: string;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -67,11 +70,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   teamMembers,
   onAssignAgent,
   onClick,
+  onCreateAutomation,
+  remoteJid,
   colors,
 }) => {
   const avatarBgColor = isGroup ? "#5865F2" : "#00a884";
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [moreAnchorEl, setMoreAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
+  const moreMenuOpen = Boolean(moreAnchorEl);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -340,9 +347,43 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             </Menu>
           </>
         )}
-        <IconButton sx={{ color: colors.iconColor }}>
+        <IconButton
+          sx={{ color: colors.iconColor }}
+          onClick={(e) => setMoreAnchorEl(e.currentTarget)}
+        >
           <MoreVert />
         </IconButton>
+        <Menu
+          anchorEl={moreAnchorEl}
+          open={moreMenuOpen}
+          onClose={() => setMoreAnchorEl(null)}
+          PaperProps={{
+            sx: {
+              bgcolor: colors.headerBg,
+              color: colors.incomingText,
+              minWidth: 200,
+            },
+          }}
+        >
+          {onCreateAutomation && !isGroup && (
+            <MenuItem
+              onClick={() => {
+                setMoreAnchorEl(null);
+                onCreateAutomation();
+              }}
+            >
+              <AutomationIcon sx={{ mr: 1, color: "#00a884" }} />
+              Criar Automação
+            </MenuItem>
+          )}
+          {(!onCreateAutomation || isGroup) && (
+            <MenuItem disabled>
+              <Typography variant="body2" color="text.secondary">
+                Nenhuma ação disponível
+              </Typography>
+            </MenuItem>
+          )}
+        </Menu>
       </Box>
     </Box>
   );

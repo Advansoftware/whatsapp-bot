@@ -14,6 +14,7 @@ interface CreateProfileDto {
   maxRetries?: number;
   navigationHints?: string;
   fields?: CreateFieldDto[];
+  menuOptions?: CreateMenuOptionDto[];
 }
 
 interface UpdateProfileDto {
@@ -26,6 +27,8 @@ interface UpdateProfileDto {
   maxRetries?: number;
   navigationHints?: string;
   isActive?: boolean;
+  fields?: CreateFieldDto[];
+  menuOptions?: CreateMenuOptionDto[];
 }
 
 interface CreateFieldDto {
@@ -45,6 +48,23 @@ interface UpdateFieldDto {
   fieldType?: string;
   priority?: number;
   isRequired?: boolean;
+}
+
+interface CreateMenuOptionDto {
+  optionValue: string;
+  optionLabel: string;
+  optionDescription?: string;
+  keywords?: string[];
+  priority?: number;
+  isExitOption?: boolean;
+}
+
+interface UpdateMenuOptionDto {
+  optionLabel?: string;
+  optionDescription?: string;
+  keywords?: string[];
+  priority?: number;
+  isExitOption?: boolean;
 }
 
 interface StartSessionParams {
@@ -82,6 +102,9 @@ export class ContactAutomationService {
         fields: {
           orderBy: { priority: 'asc' },
         },
+        menuOptions: {
+          orderBy: { priority: 'asc' },
+        },
         sessions: {
           where: {
             status: { in: ['pending', 'navigating', 'waiting_response'] },
@@ -105,6 +128,9 @@ export class ContactAutomationService {
       where: { id, companyId },
       include: {
         fields: {
+          orderBy: { priority: 'asc' },
+        },
+        menuOptions: {
           orderBy: { priority: 'asc' },
         },
         sessions: {
@@ -134,7 +160,7 @@ export class ContactAutomationService {
       throw new BadRequestException('Já existe um perfil de automação para este contato');
     }
 
-    // Criar perfil com campos
+    // Criar perfil com campos e opções de menu
     const profile = await this.prisma.contactAutomationProfile.create({
       data: {
         companyId,
@@ -160,9 +186,22 @@ export class ContactAutomationService {
             })),
           }
           : undefined,
+        menuOptions: dto.menuOptions?.length
+          ? {
+            create: dto.menuOptions.map((m, index) => ({
+              optionValue: m.optionValue,
+              optionLabel: m.optionLabel,
+              optionDescription: m.optionDescription,
+              keywords: m.keywords || [],
+              priority: m.priority ?? index,
+              isExitOption: m.isExitOption ?? false,
+            })),
+          }
+          : undefined,
       },
       include: {
         fields: true,
+        menuOptions: true,
       },
     });
 
@@ -179,11 +218,58 @@ export class ContactAutomationService {
       throw new NotFoundException('Perfil de automação não encontrado');
     }
 
+    // Extrai fields e menuOptions do DTO
+    const { fields, menuOptions, ...profileData } = dto;
+
+    // Se fields foi fornecido, deleta os antigos e cria os novos
+    if (fields !== undefined) {
+      await this.prisma.contactAutomationField.deleteMany({
+        where: { profileId: id },
+      });
+
+      if (fields.length > 0) {
+        await this.prisma.contactAutomationField.createMany({
+          data: fields.map((f, index) => ({
+            profileId: id,
+            fieldName: f.fieldName,
+            fieldLabel: f.fieldLabel,
+            fieldValue: f.fieldValue,
+            botPromptPatterns: f.botPromptPatterns || [],
+            fieldType: f.fieldType || 'text',
+            priority: f.priority ?? index,
+            isRequired: f.isRequired ?? true,
+          })),
+        });
+      }
+    }
+
+    // Se menuOptions foi fornecido, deleta os antigos e cria os novos
+    if (menuOptions !== undefined) {
+      await this.prisma.contactAutomationMenuOption.deleteMany({
+        where: { profileId: id },
+      });
+
+      if (menuOptions.length > 0) {
+        await this.prisma.contactAutomationMenuOption.createMany({
+          data: menuOptions.map((m, index) => ({
+            profileId: id,
+            optionValue: m.optionValue,
+            optionLabel: m.optionLabel,
+            optionDescription: m.optionDescription,
+            keywords: m.keywords || [],
+            priority: m.priority ?? index,
+            isExitOption: m.isExitOption ?? false,
+          })),
+        });
+      }
+    }
+
     return this.prisma.contactAutomationProfile.update({
       where: { id },
-      data: dto,
+      data: profileData,
       include: {
         fields: true,
+        menuOptions: true,
       },
     });
   }
@@ -293,6 +379,80 @@ export class ContactAutomationService {
     });
 
     return { success: true, message: 'Campo removido com sucesso' };
+  }
+
+  // ========== MENU OPTIONS ==========
+
+  async addMenuOption(companyId: string, profileId: string, dto: CreateMenuOptionDto) {
+    const profile = await this.prisma.contactAutomationProfile.findFirst({
+      where: { id: profileId, companyId },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Perfil de automação não encontrado');
+    }
+
+    const existing = await this.prisma.contactAutomationMenuOption.findFirst({
+      where: {
+        profileId,
+        optionValue: dto.optionValue,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException(`Opção "${dto.optionValue}" já existe neste perfil`);
+    }
+
+    return this.prisma.contactAutomationMenuOption.create({
+      data: {
+        profileId,
+        optionValue: dto.optionValue,
+        optionLabel: dto.optionLabel,
+        optionDescription: dto.optionDescription,
+        keywords: dto.keywords || [],
+        priority: dto.priority || 0,
+        isExitOption: dto.isExitOption ?? false,
+      },
+    });
+  }
+
+  async updateMenuOption(companyId: string, profileId: string, optionId: string, dto: UpdateMenuOptionDto) {
+    const profile = await this.prisma.contactAutomationProfile.findFirst({
+      where: { id: profileId, companyId },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Perfil de automação não encontrado');
+    }
+
+    const option = await this.prisma.contactAutomationMenuOption.findFirst({
+      where: { id: optionId, profileId },
+    });
+
+    if (!option) {
+      throw new NotFoundException('Opção de menu não encontrada');
+    }
+
+    return this.prisma.contactAutomationMenuOption.update({
+      where: { id: optionId },
+      data: dto,
+    });
+  }
+
+  async removeMenuOption(companyId: string, profileId: string, optionId: string) {
+    const profile = await this.prisma.contactAutomationProfile.findFirst({
+      where: { id: profileId, companyId },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Perfil de automação não encontrado');
+    }
+
+    await this.prisma.contactAutomationMenuOption.delete({
+      where: { id: optionId },
+    });
+
+    return { success: true, message: 'Opção removida com sucesso' };
   }
 
   // ========== SESSIONS ==========
@@ -428,7 +588,7 @@ export class ContactAutomationService {
 
     const existingJids = new Set(existingProfiles.map((p) => p.remoteJid));
 
-    // Buscar contatos recentes que não são grupos
+    // Buscar TODOS os contatos que não são grupos, ordenados por nome
     const contacts = await this.prisma.contact.findMany({
       where: {
         companyId,
@@ -439,8 +599,7 @@ export class ContactAutomationService {
         pushName: true,
         profilePicUrl: true,
       },
-      orderBy: { updatedAt: 'desc' },
-      take: 100,
+      orderBy: { pushName: 'asc' },
     });
 
     // Filtrar os que já têm perfil
@@ -450,7 +609,8 @@ export class ContactAutomationService {
         remoteJid: c.remoteJid,
         name: c.pushName || c.remoteJid.replace('@s.whatsapp.net', ''),
         profilePicUrl: c.profilePicUrl,
-      }));
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // ========== HELPER METHODS ==========
@@ -503,6 +663,7 @@ export class ContactAutomationService {
         profile: {
           include: {
             fields: true,
+            menuOptions: true,
           },
         },
       },

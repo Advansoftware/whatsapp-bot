@@ -63,6 +63,7 @@ export interface ContactAutomationProfile {
   createdAt: string;
   updatedAt: string;
   fields: ContactAutomationField[];
+  menuOptions?: ContactAutomationMenuOption[];
   sessions?: ContactAutomationSession[];
   hasActiveSession?: boolean;
   activeSession?: ContactAutomationSession | null;
@@ -72,6 +73,19 @@ export interface AvailableContact {
   remoteJid: string;
   name: string;
   profilePicUrl?: string;
+}
+
+export interface ContactAutomationMenuOption {
+  id: string;
+  profileId: string;
+  optionValue: string;
+  optionLabel: string;
+  optionDescription?: string;
+  keywords: string[];
+  priority: number;
+  isExitOption: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateProfileDto {
@@ -84,6 +98,7 @@ export interface CreateProfileDto {
   maxWaitSeconds?: number;
   maxRetries?: number;
   fields?: CreateFieldDto[];
+  menuOptions?: CreateMenuOptionDto[];
 }
 
 export interface CreateFieldDto {
@@ -94,6 +109,15 @@ export interface CreateFieldDto {
   fieldType?: 'text' | 'number' | 'cpf' | 'phone' | 'date';
   priority?: number;
   isRequired?: boolean;
+}
+
+export interface CreateMenuOptionDto {
+  optionValue: string;
+  optionLabel: string;
+  optionDescription?: string;
+  keywords?: string[];
+  priority?: number;
+  isExitOption?: boolean;
 }
 
 export interface UpdateProfileDto {

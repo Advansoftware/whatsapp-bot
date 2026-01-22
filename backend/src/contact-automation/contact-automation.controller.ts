@@ -177,6 +177,48 @@ export class ContactAutomationController {
     return this.automationService.removeField(companyId, profileId, fieldId);
   }
 
+  // ========== MENU OPTIONS ==========
+
+  /**
+   * Adicionar opção de menu a um perfil
+   */
+  @Post('profiles/:profileId/menu-options')
+  async addMenuOption(
+    @Request() req: any,
+    @Param('profileId') profileId: string,
+    @Body() dto: any,
+  ) {
+    const companyId = req.user.companyId;
+    return this.automationService.addMenuOption(companyId, profileId, dto);
+  }
+
+  /**
+   * Atualizar opção de menu
+   */
+  @Put('profiles/:profileId/menu-options/:optionId')
+  async updateMenuOption(
+    @Request() req: any,
+    @Param('profileId') profileId: string,
+    @Param('optionId') optionId: string,
+    @Body() dto: any,
+  ) {
+    const companyId = req.user.companyId;
+    return this.automationService.updateMenuOption(companyId, profileId, optionId, dto);
+  }
+
+  /**
+   * Remover opção de menu
+   */
+  @Delete('profiles/:profileId/menu-options/:optionId')
+  async removeMenuOption(
+    @Request() req: any,
+    @Param('profileId') profileId: string,
+    @Param('optionId') optionId: string,
+  ) {
+    const companyId = req.user.companyId;
+    return this.automationService.removeMenuOption(companyId, profileId, optionId);
+  }
+
   // ========== SESSIONS ==========
 
   /**

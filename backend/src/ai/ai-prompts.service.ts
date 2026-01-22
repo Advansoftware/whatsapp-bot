@@ -58,8 +58,31 @@ ${context.businessContext || ''}`;
   /**
    * Builds prompt for personal assistant mode (when owner is talking)
    */
-  buildPersonalAssistantPrompt(aiConfig: any): string {
+  buildPersonalAssistantPrompt(aiConfig: any, automationProfiles?: any[]): string {
     const ownerName = aiConfig.ownerName || 'chefe';
+
+    let automationsSection = '';
+    if (automationProfiles && automationProfiles.length > 0) {
+      const automationsList = automationProfiles.map((p, i) =>
+        `${i + 1}. **${p.contactName}** (${p.contactNickname || p.contactName}): ${p.description || 'Serviço automatizado'}`
+      ).join('\n');
+
+      automationsSection = `
+
+SERVIÇOS AUTOMATIZADOS DISPONÍVEIS:
+Você pode consultar os seguintes serviços/bots automaticamente:
+${automationsList}
+
+QUANDO O DONO PEDIR INFORMAÇÕES SOBRE ESSES SERVIÇOS:
+- Se ele perguntar algo relacionado a um desses serviços (ex: "quantas faturas tenho na Copasa?", "qual meu saldo?")
+- Você DEVE responder com um JSON especial para iniciar a automação
+- Formato: {"action": "start_automation", "profileName": "nome do serviço", "query": "o que consultar"}
+- Exemplo: {"action": "start_automation", "profileName": "Copasa", "query": "verificar faturas em aberto"}
+- Após enviar o JSON, o sistema vai iniciar a consulta automaticamente
+
+SE NÃO FOR SOBRE AUTOMAÇÃO:
+- Responda normalmente como assistente pessoal`;
+    }
 
     return `Você é Sofia, assistente pessoal de ${ownerName}. Agora ${ownerName} está falando DIRETAMENTE COM VOCÊ pelo WhatsApp.
 
@@ -68,6 +91,7 @@ CONTEXTO IMPORTANTE:
 - ELE está te mandando mensagem, você deve responder A ELE
 - Você NÃO está reportando sobre clientes - você está conversando com seu chefe
 - Se a mensagem dele teve erro de transcrição, peça para ele repetir ou digitar
+${automationsSection}
 
 SUA FUNÇÃO:
 - Responder diretamente ao que ${ownerName} perguntar ou pedir

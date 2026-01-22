@@ -445,6 +445,37 @@ Se não souber algo, admita e ofereça ajuda.`,
 
       this.logger.log(`Assistant message sent to owner: ${content.substring(0, 50)}...`);
 
+      // Generate AI response directly for assistant chat
+      try {
+        const aiResponse = await this.aiService.processSecretaryMessage(
+          content,
+          companyId,
+          instance.instanceKey,
+          ownerJid,
+          aiConfig.ownerName || undefined,
+          true // isPersonalAssistantMode = true
+        );
+
+        if (aiResponse.shouldRespond && aiResponse.response) {
+          // Save AI response as incoming message
+          await this.prisma.message.create({
+            data: {
+              messageId: `ai-${Date.now()}`,
+              remoteJid: ownerJid,
+              content: aiResponse.response,
+              direction: 'incoming',
+              status: 'delivered',
+              companyId,
+              instanceId: instance.id,
+            },
+          });
+
+          this.logger.log(`AI assistant responded: ${aiResponse.response.substring(0, 50)}...`);
+        }
+      } catch (error: any) {
+        this.logger.error('Error generating AI response:', error.message);
+      }
+
       return { success: true, messageId };
     } catch (error: any) {
       this.logger.error('Error sending assistant message:', error.message);

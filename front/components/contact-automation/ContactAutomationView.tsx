@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -57,9 +58,11 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 export default function ContactAutomationView() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preselectedContact, setPreselectedContact] = useState<AvailableContact | null>(null);
 
   // Data
   const [profiles, setProfiles] = useState<ContactAutomationProfile[]>([]);
@@ -114,6 +117,30 @@ export default function ContactAutomationView() {
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Check for URL params to pre-select a contact and open dialog
+  useEffect(() => {
+    const remoteJid = searchParams.get("remoteJid");
+    const name = searchParams.get("name");
+    
+    if (remoteJid && !loading) {
+      // Check if this contact already has a profile
+      const existingProfile = profiles.find(p => p.remoteJid === remoteJid);
+      if (existingProfile) {
+        // Just show message or edit existing
+        setEditingProfile(existingProfile);
+        setProfileDialogOpen(true);
+      } else {
+        // Create preselected contact and open dialog
+        setPreselectedContact({
+          remoteJid,
+          name: name || remoteJid.replace("@s.whatsapp.net", ""),
+          profilePicUrl: undefined,
+        });
+        setProfileDialogOpen(true);
+      }
+    }
+  }, [searchParams, loading, profiles]);
 
   // Handlers
   const handleCreateProfile = async (dto: CreateProfileDto) => {
@@ -383,10 +410,12 @@ export default function ContactAutomationView() {
         onClose={() => {
           setProfileDialogOpen(false);
           setEditingProfile(null);
+          setPreselectedContact(null);
         }}
         onSave={editingProfile ? handleUpdateProfile : handleCreateProfile}
         profile={editingProfile}
         availableContacts={availableContacts}
+        preselectedContact={preselectedContact}
       />
 
       <SessionDialog

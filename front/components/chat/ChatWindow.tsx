@@ -15,6 +15,7 @@ import {
   Alert,
   Typography,
 } from "@mui/material";
+import { useRouter } from "next/navigation";
 import { useChatMessages } from "../../hooks/useApi";
 import { useSocket } from "../../hooks/useSocket";
 import api from "../../lib/api";
@@ -43,6 +44,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const router = useRouter();
 
   const [newMessage, setNewMessage] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -791,6 +793,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onAssignAgent={handleAssignAgent}
         colors={colors}
         onClick={() => setShowContactDetails(!showContactDetails)}
+        remoteJid={chatId}
+        onCreateAutomation={() => {
+          // Navegar para a página de automação com o contato pré-selecionado
+          const encodedJid = encodeURIComponent(chatId);
+          const encodedName = encodeURIComponent(contactName);
+          router.push(`/contact-automation?remoteJid=${encodedJid}&name=${encodedName}`);
+        }}
       />
 
       {/* Messages Area */}

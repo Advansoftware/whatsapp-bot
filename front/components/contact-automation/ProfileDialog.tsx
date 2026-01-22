@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -27,6 +27,7 @@ import {
   ContactAutomationProfile,
   CreateProfileDto,
   CreateFieldDto,
+  CreateMenuOptionDto,
   AvailableContact,
   BOT_TYPES,
 } from "./types";
@@ -37,9 +38,14 @@ interface ProfileDialogProps {
   onSave: (profile: CreateProfileDto) => Promise<void>;
   profile?: ContactAutomationProfile | null;
   availableContacts: AvailableContact[];
+  preselectedContact?: AvailableContact | null;
 }
 
 interface FieldForm extends CreateFieldDto {
+  id?: string;
+}
+
+interface MenuOptionForm extends CreateMenuOptionDto {
   id?: string;
 }
 
@@ -49,10 +55,11 @@ export default function ProfileDialog({
   onSave,
   profile,
   availableContacts,
+  preselectedContact,
 }: ProfileDialogProps) {
   const isEditing = !!profile;
 
-  const [contactName, setContactName] = useState(profile?.contactName || "");
+  const [contactName, setContactName] = useState(profile?.contactName || preselectedContact?.name || "");
   const [contactNickname, setContactNickname] = useState(
     profile?.contactNickname || "",
   );
@@ -64,7 +71,7 @@ export default function ProfileDialog({
             name: profile.contactName,
             profilePicUrl: profile.profilePicUrl,
           }
-        : null,
+        : preselectedContact || null,
     );
   const [description, setDescription] = useState(profile?.description || "");
   const [botType, setBotType] = useState<"menu" | "free_text" | "mixed">(
@@ -82,8 +89,62 @@ export default function ProfileDialog({
       isRequired: f.isRequired,
     })) || [],
   );
+  const [menuOptions, setMenuOptions] = useState<MenuOptionForm[]>(
+    profile?.menuOptions?.map((m) => ({
+      id: m.id,
+      optionValue: m.optionValue,
+      optionLabel: m.optionLabel,
+      optionDescription: m.optionDescription,
+      keywords: m.keywords,
+      priority: m.priority,
+      isExitOption: m.isExitOption,
+    })) || [],
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset form when profile or open state changes
+  useEffect(() => {
+    if (open) {
+      setContactName(profile?.contactName || preselectedContact?.name || "");
+      setContactNickname(profile?.contactNickname || "");
+      setSelectedContact(
+        profile
+          ? {
+              remoteJid: profile.remoteJid,
+              name: profile.contactName,
+              profilePicUrl: profile.profilePicUrl,
+            }
+          : preselectedContact || null,
+      );
+      setDescription(profile?.description || "");
+      setBotType(profile?.botType || "menu");
+      setFields(
+        profile?.fields?.map((f) => ({
+          id: f.id,
+          fieldName: f.fieldName,
+          fieldLabel: f.fieldLabel,
+          fieldValue: f.fieldValue,
+          botPromptPatterns: f.botPromptPatterns,
+          fieldType: f.fieldType,
+          priority: f.priority,
+          isRequired: f.isRequired,
+        })) || [],
+      );
+      setMenuOptions(
+        profile?.menuOptions?.map((m) => ({
+          id: m.id,
+          optionValue: m.optionValue,
+          optionLabel: m.optionLabel,
+          optionDescription: m.optionDescription,
+          keywords: m.keywords,
+          priority: m.priority,
+          isExitOption: m.isExitOption,
+        })) || [],
+      );
+      setError(null);
+    }
+  }, [open, profile, preselectedContact]);
 
   const handleAddField = () => {
     setFields([
@@ -125,6 +186,35 @@ export default function ProfileDialog({
     setFields(newFields);
   };
 
+  // Menu Options handlers
+  const handleAddMenuOption = () => {
+    setMenuOptions([
+      ...menuOptions,
+      {
+        optionValue: "",
+        optionLabel: "",
+        optionDescription: "",
+        keywords: [],
+        priority: menuOptions.length,
+        isExitOption: false,
+      },
+    ]);
+  };
+
+  const handleRemoveMenuOption = (index: number) => {
+    setMenuOptions(menuOptions.filter((_, i) => i !== index));
+  };
+
+  const handleMenuOptionChange = (
+    index: number,
+    key: keyof MenuOptionForm,
+    value: any,
+  ) => {
+    const newOptions = [...menuOptions];
+    newOptions[index] = { ...newOptions[index], [key]: value };
+    setMenuOptions(newOptions);
+  };
+
   const handleSave = async () => {
     setError(null);
 
@@ -146,6 +236,14 @@ export default function ProfileDialog({
       }
     }
 
+    // Validate menu options
+    for (const option of menuOptions) {
+      if (!option.optionValue.trim() || !option.optionLabel.trim()) {
+        setError("Todas as opções de menu devem ter valor e descrição preenchidos");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await onSave({
@@ -163,6 +261,14 @@ export default function ProfileDialog({
           fieldType: f.fieldType,
           priority: index,
           isRequired: f.isRequired,
+        })),
+        menuOptions: menuOptions.map((m, index) => ({
+          optionValue: m.optionValue,
+          optionLabel: m.optionLabel,
+          optionDescription: m.optionDescription || undefined,
+          keywords: m.keywords || [],
+          priority: index,
+          isExitOption: m.isExitOption || false,
         })),
       });
       onClose();
@@ -390,6 +496,139 @@ export default function ProfileDialog({
                     helperText="Como o bot pede este dado? Separe por vírgula (ex: digite seu cpf, informe o cpf)"
                     placeholder="digite seu cpf, informe o cpf, qual seu cpf"
                   />
+                </Grid>
+              </Grid>
+            </Box>
+          ))}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Menu Options Section */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight="medium">
+              Opções de Menu
+            </Typography>
+            <Button
+              startIcon={<AddIcon />}
+              onClick={handleAddMenuOption}
+              size="small"
+            >
+              Adicionar Opção
+            </Button>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Configure as opções do menu do bot. A IA usará as palavras-chave para selecionar a opção correta automaticamente.
+          </Typography>
+
+          {menuOptions.length === 0 && (
+            <Alert severity="info">
+              Adicione opções como "1 - Segunda via de conta", "2 - Consultar saldo", etc.
+            </Alert>
+          )}
+
+          {menuOptions.map((option, index) => (
+            <Box
+              key={index}
+              sx={{
+                p: 2,
+                border: 1,
+                borderColor: option.isExitOption ? "warning.main" : "divider",
+                borderRadius: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                bgcolor: option.isExitOption ? "warning.50" : "transparent",
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="subtitle2">
+                  Opção {index + 1}
+                  {option.isExitOption && (
+                    <Chip label="Saída" size="small" color="warning" sx={{ ml: 1 }} />
+                  )}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => handleRemoveMenuOption(index)}
+                  color="error"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    label="Valor da Opção"
+                    value={option.optionValue}
+                    onChange={(e) =>
+                      handleMenuOptionChange(index, "optionValue", e.target.value)
+                    }
+                    fullWidth
+                    required
+                    placeholder="Ex: 1, 2, #"
+                    helperText="O que digitar para selecionar"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 8 }}>
+                  <TextField
+                    label="Descrição da Opção"
+                    value={option.optionLabel}
+                    onChange={(e) =>
+                      handleMenuOptionChange(index, "optionLabel", e.target.value)
+                    }
+                    fullWidth
+                    required
+                    placeholder="Ex: Segunda via de contas"
+                    helperText="O que esta opção faz"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    label="Palavras-chave para IA"
+                    value={(option.keywords || []).join(", ")}
+                    onChange={(e) =>
+                      handleMenuOptionChange(
+                        index,
+                        "keywords",
+                        e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      )
+                    }
+                    fullWidth
+                    helperText="Separe por vírgula. A IA usará essas palavras para escolher a opção correta"
+                    placeholder="fatura, boleto, segunda via, conta, débito"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Opção de Saída?</InputLabel>
+                    <Select
+                      value={option.isExitOption ? "yes" : "no"}
+                      label="Opção de Saída?"
+                      onChange={(e) =>
+                        handleMenuOptionChange(index, "isExitOption", e.target.value === "yes")
+                      }
+                    >
+                      <MenuItem value="no">Não - Continua a navegação</MenuItem>
+                      <MenuItem value="yes">Sim - Finaliza a conversa</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
               </Grid>
             </Box>

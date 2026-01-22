@@ -55,8 +55,8 @@ export class AIService {
   /**
    * Facade para construir prompt de assistente pessoal
    */
-  buildPersonalAssistantPrompt(aiConfig: any): string {
-    return this.promptsService.buildPersonalAssistantPrompt(aiConfig);
+  buildPersonalAssistantPrompt(aiConfig: any, automationProfiles?: any[]): string {
+    return this.promptsService.buildPersonalAssistantPrompt(aiConfig, automationProfiles);
   }
 
   /**
@@ -394,6 +394,28 @@ O produto já está disponível no seu inventário! 🎉`;
   }
 
   /**
+   * Analisa a resposta da IA para ver se é um comando de automação
+   */
+  parseAutomationCommand(response: string): { profileName: string; query: string } | null {
+    try {
+      // Verificar se a resposta contém JSON de automação
+      const jsonMatch = response.match(/\{[\s\S]*"action"\s*:\s*"start_automation"[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.action === 'start_automation' && parsed.profileName && parsed.query) {
+          return {
+            profileName: parsed.profileName,
+            query: parsed.query,
+          };
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Processa mensagem completa com lógica de secretária
    */
   async processSecretaryMessage(
@@ -408,6 +430,8 @@ O produto já está disponível no seu inventário! 🎉`;
     response?: string;
     shouldNotifyOwner: boolean;
     notificationReason?: string;
+    automationSessionId?: string;
+    automationProfile?: any;
   }> {
     // Buscar configuração da secretária
     const aiConfig = await this.prisma.aISecretary.findUnique({
@@ -452,6 +476,17 @@ O produto já está disponível no seu inventário! 🎉`;
       this.prisma.product.findMany({
         where: { companyId, isActive: true },
       }),
+      // Buscar perfis de automação ativos
+      this.prisma.contactAutomationProfile.findMany({
+        where: { companyId, isActive: true },
+        select: {
+          id: true,
+          contactName: true,
+          contactNickname: true,
+          description: true,
+          remoteJid: true,
+        },
+      }),
     ]);
 
     const context: MessageContext = {
@@ -463,10 +498,61 @@ O produto já está disponível no seu inventário! 🎉`;
 
     // Se é modo assistente pessoal (dono), responde diretamente como assistente
     if (isPersonalAssistantMode) {
+      // Buscar automações disponíveis
+      const automationProfiles = await this.prisma.contactAutomationProfile.findMany({
+        where: { companyId, isActive: true },
+      });
+
       const response = await this.generateResponse(messageContent, context, {
         ...aiConfig,
-        systemPrompt: this.buildPersonalAssistantPrompt(aiConfig),
+        systemPrompt: this.buildPersonalAssistantPrompt(aiConfig, automationProfiles),
       });
+
+      // Verificar se a resposta é um comando de automação
+      const automationCommand = this.parseAutomationCommand(response);
+      if (automationCommand) {
+        // Encontrar o perfil de automação
+        const profile = automationProfiles.find(p =>
+          p.contactName.toLowerCase().includes(automationCommand.profileName.toLowerCase()) ||
+          (p.contactNickname && p.contactNickname.toLowerCase().includes(automationCommand.profileName.toLowerCase()))
+        );
+
+        if (profile) {
+          // Iniciar sessão de automação
+          try {
+            const session = await this.prisma.contactAutomationSession.create({
+              data: {
+                profileId: profile.id,
+                companyId,
+                requestedBy: 'assistant',
+                requestedFrom: 'personal_assistant',
+                originalQuery: automationCommand.query,
+                objective: automationCommand.query,
+                status: 'pending',
+                expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutos
+              },
+            });
+
+            this.logger.log(`Started automation session ${session.id} for ${profile.contactName} via personal assistant`);
+
+            return {
+              shouldRespond: true,
+              response: `Perfeito! 🔍 Vou consultar o ${profile.contactName} sobre "${automationCommand.query}". Te aviso assim que tiver a resposta!`,
+              shouldNotifyOwner: false,
+              automationSessionId: session.id,
+              automationProfile: profile,
+            };
+          } catch (error) {
+            this.logger.error(`Failed to start automation session: ${error.message}`);
+            return {
+              shouldRespond: true,
+              response: `Opa, tive um probleminha pra iniciar a consulta no ${profile.contactName}. Tenta de novo? 😅`,
+              shouldNotifyOwner: false,
+            };
+          }
+        }
+      }
+
       return {
         shouldRespond: true,
         response,

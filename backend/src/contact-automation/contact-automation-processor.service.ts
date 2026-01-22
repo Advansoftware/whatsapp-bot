@@ -54,6 +54,7 @@ export class ContactAutomationProcessorService {
         profile: {
           include: {
             fields: true,
+            menuOptions: true,
           },
         },
       },
@@ -202,12 +203,64 @@ Responda APENAS com a mensagem, sem explicações.`;
   private async decideNextAction(session: any, botMessage: string): Promise<NavigationDecision> {
     const profile = session.profile;
     const fields = profile.fields as ContactAutomationField[];
+    const menuOptions = profile.menuOptions || [];
     const navigationLog = (session.navigationLog as any[]) || [];
+
+    // Detectar se é um menu com opções numéricas
+    const isMenuMessage = this.detectMenuMessage(botMessage);
+
+    // Se tem opções de menu configuradas E a mensagem do bot é um menu
+    if (isMenuMessage && menuOptions.length > 0) {
+      const selectedOption = this.selectMenuOptionByObjective(
+        session.originalQuery,
+        menuOptions,
+        botMessage,
+      );
+
+      if (selectedOption) {
+        this.logger.log(`Menu detected! Selecting option: ${selectedOption.optionValue} (${selectedOption.optionLabel})`);
+        return {
+          action: 'respond',
+          response: selectedOption.optionValue, // Só o número!
+          reason: `Selecionando opção ${selectedOption.optionValue}: ${selectedOption.optionLabel}`,
+        };
+      }
+    }
+
+    // Verificar se o bot está pedindo algum dado que temos
+    const requestedField = this.detectRequestedField(botMessage, fields);
+    if (requestedField) {
+      this.logger.log(`Bot requesting field: ${requestedField.fieldName}, responding with: ${requestedField.fieldValue}`);
+      return {
+        action: 'respond',
+        response: requestedField.fieldValue,
+        reason: `Bot pediu ${requestedField.fieldLabel}, fornecendo valor configurado`,
+      };
+    }
+
+    // Se tem opções de menu configuradas, usar IA para decidir qual opção
+    if (isMenuMessage && menuOptions.length > 0) {
+      const optionByAI = await this.askAIForMenuOption(session.originalQuery, menuOptions, botMessage);
+      if (optionByAI) {
+        return {
+          action: 'respond',
+          response: optionByAI,
+          reason: 'IA selecionou opção do menu',
+        };
+      }
+    }
 
     // Criar contexto dos campos disponíveis
     const fieldsContext = fields
       .map((f: ContactAutomationField) => `- ${f.fieldLabel} (${f.fieldName}): ${f.fieldValue}\n  Bot costuma pedir: ${f.botPromptPatterns?.join(', ') || 'não definido'}`)
       .join('\n');
+
+    // Contexto das opções de menu
+    const menuContext = menuOptions.length > 0
+      ? `\n\nOPÇÕES DE MENU CONFIGURADAS:\n${menuOptions.map((m: any) =>
+        `- Digitar "${m.optionValue}" para: ${m.optionLabel} (keywords: ${m.keywords?.join(', ') || 'nenhuma'})`
+      ).join('\n')}`
+      : '';
 
     // Histórico da navegação
     const historyContext = navigationLog
@@ -217,11 +270,13 @@ Responda APENAS com a mensagem, sem explicações.`;
 
     const prompt = `Você está navegando pelo atendimento automático de "${profile.contactName}" para atingir um objetivo.
 
+REGRA CRÍTICA: Se o bot mostrar um MENU com opções numeradas (1, 2, 3...), você DEVE responder APENAS com o NÚMERO da opção. NÃO escreva texto, NÃO converse, APENAS o número.
+
 OBJETIVO:
 ${session.originalQuery}
 
 DADOS DISPONÍVEIS:
-${fieldsContext}
+${fieldsContext}${menuContext}
 
 HISTÓRICO DA CONVERSA:
 ${historyContext}
@@ -233,8 +288,8 @@ NÚMERO DE MENSAGENS TROCADAS: ${session.messagesSent + session.messagesReceived
 
 Analise a última mensagem do bot e decida:
 
-1. Se o bot está pedindo algum dado que temos (CPF, identificador, etc), responda com o dado correto
-2. Se o bot está mostrando um menu com opções, escolha a opção mais adequada para o objetivo
+1. Se é um MENU com opções (1, 2, 3...), responda APENAS com o número da opção mais adequada
+2. Se o bot está pedindo algum dado que temos (CPF, identificador, etc), responda APENAS com o dado
 3. Se o bot deu uma resposta final/conclusiva relacionada ao objetivo, marque como "complete"
 4. Se algo deu errado ou não conseguimos prosseguir, marque como "fail"
 5. Se a mensagem parece incompleta ou precisamos esperar mais, marque como "wait"
@@ -242,7 +297,7 @@ Analise a última mensagem do bot e decida:
 Responda APENAS em JSON válido:
 {
   "action": "respond" | "complete" | "fail" | "wait",
-  "response": "texto da resposta se action=respond",
+  "response": "APENAS número ou dado solicitado, NUNCA texto conversacional",
   "reason": "breve explicação da decisão",
   "isComplete": true/false,
   "extractedResult": "se complete, extraia a informação relevante da resposta do bot"
@@ -285,6 +340,133 @@ Responda APENAS em JSON válido:
         action: 'wait',
         reason: 'Erro ao processar decisão',
       };
+    }
+  }
+
+  /**
+   * Detecta se a mensagem do bot é um menu com opções
+   */
+  private detectMenuMessage(message: string): boolean {
+    // Padrões comuns de menu: *1* -, 1 -, 1., 1), [1]
+    const menuPatterns = [
+      /\*\d+\*\s*[-–—]/g,  // *1* -
+      /^\d+\s*[-–—]/gm,    // 1 -
+      /^\d+\.\s/gm,        // 1.
+      /^\d+\)\s/gm,        // 1)
+      /\[\d+\]\s/g,        // [1]
+    ];
+
+    return menuPatterns.some(pattern => pattern.test(message));
+  }
+
+  /**
+   * Seleciona a opção de menu baseada no objetivo e keywords
+   */
+  private selectMenuOptionByObjective(
+    objective: string,
+    menuOptions: any[],
+    botMessage: string,
+  ): any | null {
+    const lowerObjective = objective.toLowerCase();
+
+    // Primeiro, tentar match por keywords
+    for (const option of menuOptions) {
+      const keywords = option.keywords || [];
+      const hasMatch = keywords.some((keyword: string) =>
+        lowerObjective.includes(keyword.toLowerCase())
+      );
+      if (hasMatch) {
+        return option;
+      }
+    }
+
+    // Se não encontrou por keywords, tentar match pelo label
+    for (const option of menuOptions) {
+      const label = option.optionLabel.toLowerCase();
+      const labelWords = label.split(/\s+/).filter((w: string) => w.length > 3);
+      const hasMatch = labelWords.some((word: string) =>
+        lowerObjective.includes(word)
+      );
+      if (hasMatch) {
+        return option;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Detecta se o bot está pedindo algum campo que temos configurado
+   */
+  private detectRequestedField(botMessage: string, fields: ContactAutomationField[]): ContactAutomationField | null {
+    const lowerMessage = botMessage.toLowerCase();
+
+    for (const field of fields) {
+      // Verificar pelos padrões configurados
+      const patterns = field.botPromptPatterns || [];
+      const hasPatternMatch = patterns.some(pattern =>
+        lowerMessage.includes(pattern.toLowerCase())
+      );
+
+      // Verificar pelo nome do campo
+      const hasNameMatch = lowerMessage.includes(field.fieldName.toLowerCase()) ||
+        lowerMessage.includes(field.fieldLabel.toLowerCase());
+
+      if (hasPatternMatch || hasNameMatch) {
+        return field;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Usa IA para escolher opção do menu quando não há match por keywords
+   */
+  private async askAIForMenuOption(
+    objective: string,
+    menuOptions: any[],
+    botMessage: string,
+  ): Promise<string | null> {
+    const optionsList = menuOptions
+      .map((m: any) => `${m.optionValue}: ${m.optionLabel}`)
+      .join('\n');
+
+    const prompt = `O usuário quer: "${objective}"
+
+O bot mostrou estas opções:
+${optionsList}
+
+Mensagem do bot:
+${botMessage}
+
+Qual número devo digitar para atender o objetivo do usuário?
+Responda APENAS com o número, nada mais.`;
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.MODEL_NAME,
+        generationConfig: { temperature: 0.1 },
+      });
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+
+      // Verificar se é um número válido das opções
+      const validOptions = menuOptions.map((m: any) => m.optionValue);
+      if (validOptions.includes(text)) {
+        return text;
+      }
+
+      // Tentar extrair número da resposta
+      const numberMatch = text.match(/\d+/);
+      if (numberMatch && validOptions.includes(numberMatch[0])) {
+        return numberMatch[0];
+      }
+
+      return null;
+    } catch {
+      return null;
     }
   }
 
@@ -387,14 +569,29 @@ Responda de forma direta e informativa para o usuário.`;
 
   /**
    * Detecta se uma mensagem do usuário é um pedido de automação
-   * Ex: "pergunte na copasa se estou sem água"
+   * Ex: "pergunte na copasa se estou sem água" ou "quantas faturas tenho na copasa?"
    */
   async detectAutomationRequest(
     companyId: string,
     message: string,
   ): Promise<{ isAutomation: boolean; profileId?: string; objective?: string }> {
-    // Palavras-chave que indicam pedido de automação
-    const automationKeywords = [
+    // Buscar perfis ativos primeiro
+    const profiles = await this.prisma.contactAutomationProfile.findMany({
+      where: {
+        companyId,
+        isActive: true,
+      },
+      include: { fields: true },
+    });
+
+    if (profiles.length === 0) {
+      return { isAutomation: false };
+    }
+
+    const lowerMessage = message.toLowerCase();
+
+    // Palavras-chave que indicam pedido EXPLÍCITO de automação
+    const explicitKeywords = [
       'pergunte',
       'pergunta',
       'consulte',
@@ -412,48 +609,54 @@ Responda de forma direta e informativa para o usuário.`;
       'check',
     ];
 
-    const lowerMessage = message.toLowerCase();
-    const hasKeyword = automationKeywords.some((k) => lowerMessage.includes(k));
+    const hasExplicitKeyword = explicitKeywords.some((k) => lowerMessage.includes(k));
 
-    if (!hasKeyword) {
-      return { isAutomation: false };
-    }
+    // Verificar se menciona algum contato/serviço cadastrado
+    // Usa os dados do próprio cadastro: nome, apelido e descrição
+    const mentionedProfile = profiles.find((p) => {
+      const name = p.contactName.toLowerCase();
+      const nickname = p.contactNickname?.toLowerCase() || '';
+      const description = p.description?.toLowerCase() || '';
 
-    // Buscar perfis ativos
-    const profiles = await this.prisma.contactAutomationProfile.findMany({
-      where: {
-        companyId,
-        isActive: true,
-      },
-      include: { fields: true },
+      // Extrair palavras-chave da descrição do serviço (palavras com 4+ caracteres)
+      const descriptionWords = description
+        .split(/[\s,\.]+/)
+        .filter(w => w.length >= 4)
+        .filter(w => !['para', 'como', 'mais', 'tudo', 'coisas', 'serviços', 'sobre', 'relacionadas', 'relacionado'].includes(w));
+
+      return lowerMessage.includes(name) ||
+        (nickname && lowerMessage.includes(nickname)) ||
+        descriptionWords.some(w => lowerMessage.includes(w));
     });
 
-    if (profiles.length === 0) {
+    // Se não tem keyword explícita E não menciona nenhum serviço, não é automação
+    if (!hasExplicitKeyword && !mentionedProfile) {
       return { isAutomation: false };
     }
 
-    // Usar IA para identificar qual perfil o usuário quer
+    // Usar IA para confirmar e extrair objetivo
     const profilesList = profiles
       .map((p) => `- ${p.contactName} (${p.contactNickname || 'sem apelido'}): ${p.description || 'sem descrição'}`)
       .join('\n');
 
-    const prompt = `Analise esta mensagem do usuário e identifique se ele quer que você interaja automaticamente com algum destes contatos:
+    const prompt = `Analise esta mensagem e identifique se o usuário está perguntando algo que pode ser respondido consultando um destes serviços automatizados:
 
 MENSAGEM: "${message}"
 
-CONTATOS DISPONÍVEIS:
+SERVIÇOS DISPONÍVEIS PARA CONSULTA AUTOMÁTICA:
 ${profilesList}
 
-Se for um pedido de automação, responda em JSON:
-{
-  "isAutomation": true,
-  "contactName": "nome exato do contato identificado",
-  "objective": "o que o usuário quer saber/fazer"
-}
+REGRAS:
+1. Se a mensagem menciona ou é sobre algum desses serviços (ex: "fatura de água" = Copasa, "conta de luz" = Cemig)
+2. Ou se o usuário está pedindo explicitamente para consultar/perguntar algo
+3. Identifique qual serviço pode responder a pergunta
 
-Se NÃO for um pedido de automação ou o contato não foi identificado:
+Responda em JSON:
 {
-  "isAutomation": false
+  "isAutomation": true/false,
+  "contactName": "nome exato do serviço (se aplicável)",
+  "objective": "o que consultar no serviço",
+  "reasoning": "breve explicação"
 }`;
 
     try {
@@ -472,6 +675,7 @@ Se NÃO for um pedido de automação ou o contato não foi identificado:
       }
 
       const result = JSON.parse(jsonMatch[0]);
+      this.logger.log(`Automation detection result: ${JSON.stringify(result)}`);
 
       if (result.isAutomation && result.contactName) {
         // Encontrar o perfil pelo nome
@@ -491,7 +695,8 @@ Se NÃO for um pedido de automação ou o contato não foi identificado:
       }
 
       return { isAutomation: false };
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Automation detection AI error: ${error.message}`);
       return { isAutomation: false };
     }
   }

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
@@ -30,7 +31,7 @@ export class ExternalWebhookService {
           companyId,
           source,
           payload,
-          headers: headers || null,
+          headers: headers ?? Prisma.JsonNull,
           status: 'received',
         },
       });
