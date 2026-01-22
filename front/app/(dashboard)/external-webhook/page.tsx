@@ -1,7 +1,7 @@
 "use client";
 
-import { ExternalWebhookView } from "@/components/external-webhook";
+import { WebhooksListView } from "@/components/external-webhook";
 
 export default function ExternalWebhookPage() {
-  return <ExternalWebhookView />;
+  return <WebhooksListView />;
 }

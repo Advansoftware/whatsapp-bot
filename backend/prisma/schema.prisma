@@ -730,21 +730,124 @@ model ContactAutomationSession {
 }
 
 // ================================
-// WEBHOOKS EXTERNOS (Coolify, etc)
+// WEBHOOKS EXTERNOS (Coolify, GitHub, Jellyfin, etc)
 // ================================
 
-// Configuração do webhook externo (template de mensagem, etc)
+// Aplicação de webhook (cada app externa tem sua própria URL)
+model WebhookApplication {
+  id          String  @id @default(cuid())
+  companyId   String  @map("company_id")
+  
+  name        String  // "Coolify", "Jellyfin", "GitHub", etc.
+  slug        String  // usado na URL: /webhook/app/{slug}
+  description String? @db.Text
+  icon        String? // emoji ou URL do ícone
+  color       String? // cor para identificar no UI
+  
+  isActive    Boolean @default(true) @map("is_active")
+  
+  // Segurança - URLs permitidas (validação de origem)
+  allowedOrigins String[] @default([]) @map("allowed_origins") // URLs que podem enviar webhooks
+  secretToken    String?  @map("secret_token") // Token secreto para validação (header)
+  
+  // Configurações gerais
+  logEnabled  Boolean @default(true) @map("log_enabled")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  events      WebhookEvent[]
+  logs        WebhookApplicationLog[]
+  
+  @@unique([companyId, slug])
+  @@index([companyId, isActive])
+  @@map("webhook_applications")
+}
+
+// Evento configurável de webhook (ex: deployment_failed, backup_success)
+model WebhookEvent {
+  id              String  @id @default(cuid())
+  applicationId   String  @map("application_id")
+  
+  name            String  // "Deploy Falhou", "Backup Concluído"
+  description     String? @db.Text
+  
+  // Identificação do evento no payload
+  // Campo que identifica o evento (suporta nested: "data.type", "event", etc)
+  eventField      String  @map("event_field")  // ex: "event", "type", "action"
+  eventValue      String  @map("event_value")  // ex: "deployment_failed", "push"
+  
+  // Template da mensagem com placeholders {{campo}} ou {{campo.subcampo}}
+  messageTemplate String  @map("message_template") @db.Text
+  
+  // Contatos que recebem este evento específico (IDs separados por vírgula ou JSON)
+  contactIds      String[] @default([]) @map("contact_ids")
+  
+  isActive        Boolean @default(true) @map("is_active")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relação
+  application     WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId, isActive])
+  @@map("webhook_events")
+}
+
+// Log de webhooks recebidos por aplicação
+model WebhookApplicationLog {
+  id            String  @id @default(cuid())
+  applicationId String  @map("application_id")
+  
+  // Dados do webhook
+  payload       Json    // Payload completo recebido
+  headers       Json?   // Headers da requisição
+  
+  // Matching
+  matchedEventId   String? @map("matched_event_id")   // ID do evento que matchou
+  matchedEventName String? @map("matched_event_name") // Nome do evento para referência
+  
+  // Status do processamento
+  status        String  @default("received") // 'received' | 'matched' | 'sent' | 'no_match' | 'failed'
+  error         String? @db.Text
+  messagesSent  Int     @default(0) @map("messages_sent")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  // Relação
+  application   WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId, createdAt])
+  @@index([applicationId, status])
+  @@map("webhook_application_logs")
+}
+
+// Contatos globais para webhooks (pode ser vinculado a eventos específicos)
+model WebhookContact {
+  id        String  @id @default(cuid())
+  companyId String  @map("company_id")
+
+  name      String  // Nome amigável (ex: "Bruno - Admin")
+  remoteJid String  @map("remote_jid") // WhatsApp JID
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, remoteJid])
+  @@index([companyId, isActive])
+  @@map("webhook_contacts")
+}
+
+// Manter compatibilidade temporária - pode remover depois
 model WebhookConfig {
   id        String  @id @default(cuid())
   companyId String  @unique @map("company_id")
 
-  // Template da mensagem (com placeholders como {{project}}, {{status}}, etc)
   messageTemplate String @default("🔔 *Webhook Recebido*\n\n{{payload}}") @map("message_template") @db.Text
-
-  // Se deve salvar logs dos webhooks recebidos
   logEnabled Boolean @default(true) @map("log_enabled")
-
-  // Prefixo opcional para a URL do webhook (para segurança adicional)
   secretToken String? @map("secret_token")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -753,21 +856,15 @@ model WebhookConfig {
   @@map("webhook_configs")
 }
 
-// Log de webhooks recebidos (para debug e visualização)
 model WebhookLog {
   id        String @id @default(cuid())
   companyId String @map("company_id")
 
-  // Dados do webhook
-  source     String?  // 'coolify', 'github', etc (opcional, detectado automaticamente)
-  payload    Json     // Payload completo recebido
-  headers    Json?    // Headers da requisição (opcional)
-
-  // Status do processamento
-  status     String   @default("received") // 'received' | 'processed' | 'failed'
+  source     String?
+  payload    Json
+  headers    Json?
+  status     String   @default("received")
   error      String?  @db.Text
-  
-  // Mensagens enviadas a partir deste webhook
   messagesSent Int @default(0) @map("messages_sent")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -776,18 +873,14 @@ model WebhookLog {
   @@map("webhook_logs")
 }
 
-// Contatos para receber notificações de webhooks externos (Coolify, etc)
 model WebhookNotificationContact {
   id        String  @id @default(cuid())
   companyId String  @map("company_id")
 
-  // Identificação
-  name      String  // Nome amigável (ex: "Felipe - DevOps")
-  remoteJid String  @map("remote_jid") // WhatsApp JID
-
-  // Configuração
+  name      String
+  remoteJid String  @map("remote_jid")
   isActive   Boolean  @default(true) @map("is_active")
-  categories String[] @default([]) // Filtrar por categoria (vazio = todas)
+  categories String[] @default([])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -796,3 +889,4 @@ model WebhookNotificationContact {
   @@index([companyId, isActive])
   @@map("webhook_notification_contacts")
 }
+
