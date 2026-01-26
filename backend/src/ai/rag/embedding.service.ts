@@ -5,12 +5,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 /**
  * Serviço para gerar embeddings usando Gemini
  * Embeddings são vetores numéricos que representam o significado semântico do texto
+ * Dimensão: 768 (compatível com text-embedding-004)
  */
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
   private genAI: GoogleGenerativeAI;
   private readonly EMBEDDING_MODEL = 'text-embedding-004';
+  public readonly VECTOR_DIMENSIONS = 768;
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
@@ -55,6 +57,7 @@ export class EmbeddingService {
 
   /**
    * Calcula similaridade de cosseno entre dois vetores
+   * Usado como fallback quando não pode usar pgvector
    */
   cosineSimilarity(vecA: number[], vecB: number[]): number {
     if (vecA.length !== vecB.length) {
@@ -77,40 +80,46 @@ export class EmbeddingService {
   }
 
   /**
-   * Encontra os N chunks mais similares a uma query
+   * Formata embedding como string para pgvector
+   * Formato: '[0.123, -0.456, 0.789, ...]'
    */
-  findMostSimilar(
-    queryEmbedding: number[],
-    chunks: Array<{ id: string; content: string; embedding: number[] }>,
-    topK: number = 5,
-    minSimilarity: number = 0.5,
-  ): Array<{ id: string; content: string; similarity: number }> {
-    const results = chunks
-      .map(chunk => ({
-        id: chunk.id,
-        content: chunk.content,
-        similarity: this.cosineSimilarity(queryEmbedding, chunk.embedding),
-      }))
-      .filter(r => r.similarity >= minSimilarity)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topK);
-
-    return results;
+  formatForPgVector(embedding: number[]): string {
+    return `[${embedding.join(',')}]`;
   }
 
   /**
-   * Serializa embedding para armazenamento no banco
+   * Parse string pgvector para array de números
+   */
+  parseFromPgVector(vectorStr: string): number[] {
+    try {
+      // Remove brackets e faz parse
+      const cleaned = vectorStr.replace(/^\[|\]$/g, '');
+      return cleaned.split(',').map(n => parseFloat(n.trim()));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Serializa embedding para armazenamento (formato JSON - compatibilidade)
+   * @deprecated Use formatForPgVector para novos dados
    */
   serializeEmbedding(embedding: number[]): string {
     return JSON.stringify(embedding);
   }
 
   /**
-   * Deserializa embedding do banco
+   * Deserializa embedding do banco (formato JSON - compatibilidade)
+   * @deprecated Novos dados usam pgvector nativo
    */
   deserializeEmbedding(serialized: string): number[] {
     try {
-      return JSON.parse(serialized);
+      // Tenta primeiro como JSON array
+      if (serialized.startsWith('[') && serialized.includes(',')) {
+        const parsed = JSON.parse(serialized);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      return [];
     } catch {
       return [];
     }

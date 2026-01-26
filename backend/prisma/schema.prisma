@@ -200,7 +200,7 @@ model TrainingDocument {
   @@map("training_documents")
 }
 
-// Chunks de documento com embeddings para RAG
+// Chunks de documento com embeddings para RAG (usando pgvector)
 model TrainingChunk {
   id         String @id @default(cuid())
   documentId String @map("document_id")
@@ -210,9 +210,10 @@ model TrainingChunk {
   content    String @db.Text
   chunkIndex Int    @map("chunk_index") // Ordem no documento original
 
-  // Embedding para busca semântica (armazenado como array de floats serializado)
-  // Usamos JSON porque Postgres não tem tipo nativo de vector sem extensão
-  embedding String? @db.Text // JSON array de floats
+  // Embedding para busca semântica usando pgvector
+  // O tipo vector(768) é nativo do pgvector - 768 dimensões (Gemini text-embedding-004)
+  // Prisma não suporta nativamente, usamos Unsupported
+  embedding Unsupported("vector(768)")?
 
   // Metadados para filtragem
   category String @default("general")
@@ -247,8 +248,8 @@ model ConversationSummary {
   // Sentimento geral e status
   overallSentiment String? @map("overall_sentiment") // 'positive' | 'neutral' | 'negative'
 
-  // Embedding do resumo para busca semântica
-  embedding String? @db.Text
+  // Embedding do resumo para busca semântica (pgvector)
+  embedding Unsupported("vector(768)")?
 
   messageCount Int      @default(0) @map("message_count")
   createdAt    DateTime @default(now()) @map("created_at")

@@ -16,7 +16,7 @@ export { BuiltContext };
 
 /**
  * Serviço principal de RAG (Retrieval-Augmented Generation)
- * Coordena busca semântica, processamento de documentos e construção de contexto
+ * Usa pgvector para busca semântica de alta performance
  */
 @Injectable()
 export class RAGService {
@@ -31,49 +31,150 @@ export class RAGService {
   ) { }
 
   /**
-   * Busca conhecimento relevante para uma query
+   * Busca conhecimento relevante para uma query usando pgvector
+   * Usa operador <=> para distância de cosseno (mais eficiente que carregar tudo na memória)
    */
-  async search(companyId: string, query: string, limit: number = 5): Promise<SearchResult[]> {
+  async search(companyId: string, query: string, limit: number = 5, minSimilarity: number = 0.5): Promise<SearchResult[]> {
     try {
       // Gerar embedding da query
       const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+      const vectorStr = this.embeddingService.formatForPgVector(queryEmbedding);
 
-      // Buscar chunks
-      const chunks = await this.prisma.trainingChunk.findMany({
-        where: { companyId },
-        include: {
-          document: {
-            select: { name: true },
-          },
-        },
-      });
+      // Busca usando pgvector com operador de distância de cosseno
+      // 1 - distância = similaridade (distância 0 = similaridade 1)
+      const results = await this.prisma.$queryRaw<Array<{
+        id: string;
+        content: string;
+        category: string;
+        document_name: string;
+        similarity: number;
+      }>>`
+        SELECT 
+          tc.id,
+          tc.content,
+          tc.category,
+          td.name as document_name,
+          (1 - (tc.embedding <=> ${vectorStr}::vector))::float as similarity
+        FROM training_chunks tc
+        LEFT JOIN training_documents td ON tc.document_id = td.id
+        WHERE tc.company_id = ${companyId}
+        AND tc.embedding IS NOT NULL
+        AND (1 - (tc.embedding <=> ${vectorStr}::vector)) >= ${minSimilarity}
+        ORDER BY tc.embedding <=> ${vectorStr}::vector
+        LIMIT ${limit}
+      `;
 
-      if (chunks.length === 0) {
-        this.logger.debug('No training chunks found for company');
-        return [];
-      }
+      this.logger.debug(`pgvector search returned ${results.length} results`);
 
-      // Calcular similaridade
+      return results.map(r => ({
+        content: r.content,
+        similarity: r.similarity,
+        source: r.document_name || 'Desconhecido',
+        category: r.category,
+      }));
+    } catch (error) {
+      this.logger.error(`RAG search failed: ${error.message}`);
+
+      // Fallback para busca em memória se pgvector falhar
+      return this.searchFallback(companyId, query, limit, minSimilarity);
+    }
+  }
+
+  /**
+   * Fallback: busca em memória quando pgvector não está disponível
+   */
+  private async searchFallback(companyId: string, query: string, limit: number, minSimilarity: number): Promise<SearchResult[]> {
+    try {
+      this.logger.warn('Using fallback in-memory search');
+
+      const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+
+      // Buscar todos os chunks (abordagem antiga)
+      const chunks = await this.prisma.$queryRaw<Array<{
+        id: string;
+        content: string;
+        category: string;
+        embedding: string;
+        document_name: string;
+      }>>`
+        SELECT 
+          tc.id,
+          tc.content,
+          tc.category,
+          tc.embedding::text as embedding,
+          td.name as document_name
+        FROM training_chunks tc
+        LEFT JOIN training_documents td ON tc.document_id = td.id
+        WHERE tc.company_id = ${companyId}
+        AND tc.embedding IS NOT NULL
+      `;
+
+      if (chunks.length === 0) return [];
+
+      // Calcular similaridade em memória
       const results = chunks
-        .filter(c => c.embedding)
         .map(chunk => {
-          const chunkEmbedding = this.embeddingService.deserializeEmbedding(chunk.embedding!);
-          const similarity = this.embeddingService.cosineSimilarity(queryEmbedding, chunkEmbedding);
+          const chunkEmbedding = this.embeddingService.parseFromPgVector(chunk.embedding);
+          if (chunkEmbedding.length === 0) return null;
 
+          const similarity = this.embeddingService.cosineSimilarity(queryEmbedding, chunkEmbedding);
           return {
             content: chunk.content,
             similarity,
-            source: chunk.document?.name || 'Desconhecido',
+            source: chunk.document_name || 'Desconhecido',
             category: chunk.category,
           };
         })
-        .filter(r => r.similarity >= 0.5) // Mínimo 50% similaridade
+        .filter((r): r is SearchResult => r !== null && r.similarity >= minSimilarity)
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);
 
       return results;
     } catch (error) {
-      this.logger.error(`RAG search failed: ${error.message}`);
+      this.logger.error(`Fallback search also failed: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Busca resumos de conversa similares usando pgvector
+   */
+  async searchSummaries(
+    companyId: string,
+    contactId: string | null,
+    query: string,
+    limit: number = 3
+  ): Promise<Array<{ summary: string; keyTopics: string[]; similarity: number }>> {
+    try {
+      const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+      const vectorStr = this.embeddingService.formatForPgVector(queryEmbedding);
+
+      const contactFilter = contactId ? `AND cs.contact_id = '${contactId}'` : '';
+
+      const results = await this.prisma.$queryRawUnsafe<Array<{
+        summary: string;
+        key_topics: string[];
+        similarity: number;
+      }>>(`
+        SELECT 
+          cs.summary,
+          cs.key_topics,
+          (1 - (cs.embedding <=> '${vectorStr}'::vector))::float as similarity
+        FROM conversation_summaries cs
+        WHERE cs.company_id = '${companyId}'
+        ${contactFilter}
+        AND cs.embedding IS NOT NULL
+        ORDER BY cs.embedding <=> '${vectorStr}'::vector
+        LIMIT ${limit}
+      `);
+
+      return results.map(r => ({
+        summary: r.summary,
+        keyTopics: r.key_topics || [],
+        similarity: r.similarity,
+      }));
+    } catch (error) {
+      this.logger.error(`Summary search failed: ${error.message}`);
       return [];
     }
   }
@@ -213,22 +314,29 @@ export class RAGService {
       },
     });
 
-    // Processar como chunk único
+    // Processar como chunk único com pgvector
     try {
       const embedding = await this.embeddingService.generateEmbedding(
         `${params.question} ${params.answer}`,
       );
+      const vectorStr = this.embeddingService.formatForPgVector(embedding);
+      const content = `Pergunta: ${params.question}\nResposta: ${params.answer}`;
 
-      await this.prisma.trainingChunk.create({
-        data: {
-          documentId: doc.id,
-          companyId: params.companyId,
-          content: `Pergunta: ${params.question}\nResposta: ${params.answer}`,
-          chunkIndex: 0,
-          embedding: this.embeddingService.serializeEmbedding(embedding),
-          category: 'faq',
-        },
-      });
+      // Usar raw query para inserir com pgvector
+      await this.prisma.$executeRaw`
+        INSERT INTO training_chunks (id, document_id, company_id, content, chunk_index, embedding, category, metadata, created_at)
+        VALUES (
+          ${`tc_${Date.now()}_0`},
+          ${doc.id},
+          ${params.companyId},
+          ${content},
+          0,
+          ${vectorStr}::vector,
+          'faq',
+          '{}',
+          NOW()
+        )
+      `;
 
       await this.prisma.trainingDocument.update({
         where: { id: doc.id },

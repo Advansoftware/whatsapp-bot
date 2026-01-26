@@ -131,47 +131,42 @@ export class ContextBuilderService {
   }
 
   /**
-   * Busca conhecimento relevante usando RAG (busca semântica)
+   * Busca conhecimento relevante usando RAG (busca semântica com pgvector)
    */
   private async getRelevantKnowledge(companyId: string, query: string): Promise<string> {
     try {
       // 1. Gerar embedding da query
       const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+      const vectorStr = this.embeddingService.formatForPgVector(queryEmbedding);
 
-      // 2. Buscar chunks com embeddings
-      const chunks = await this.prisma.trainingChunk.findMany({
-        where: { companyId },
-        select: { id: true, content: true, embedding: true, category: true },
-      });
+      // 2. Busca vetorial nativa com pgvector usando operador de distância cosseno
+      const results = await this.prisma.$queryRaw<Array<{
+        id: string;
+        content: string;
+        category: string;
+        similarity: number;
+      }>>`
+        SELECT 
+          tc.id,
+          tc.content,
+          tc.category,
+          (1 - (tc.embedding <=> ${vectorStr}::vector))::float as similarity
+        FROM training_chunks tc
+        WHERE tc.company_id = ${companyId}
+          AND tc.embedding IS NOT NULL
+        ORDER BY tc.embedding <=> ${vectorStr}::vector
+        LIMIT 5
+      `;
 
-      if (chunks.length === 0) {
+      // Filtrar por similaridade mínima de 50%
+      const similar = results.filter(r => r.similarity >= 0.5);
+
+      if (similar.length === 0) {
         // Fallback: buscar conhecimento por keywords
         return this.getKeywordKnowledge(companyId, query);
       }
 
-      // 3. Filtrar chunks sem embedding e converter
-      const validChunks = chunks
-        .filter(c => c.embedding)
-        .map(c => ({
-          id: c.id,
-          content: c.content,
-          embedding: this.embeddingService.deserializeEmbedding(c.embedding!),
-          category: c.category,
-        }));
-
-      // 4. Encontrar chunks mais similares
-      const similar = this.embeddingService.findMostSimilar(
-        queryEmbedding,
-        validChunks,
-        5, // Top 5
-        0.5, // Mínimo 50% similaridade
-      );
-
-      if (similar.length === 0) {
-        return this.getKeywordKnowledge(companyId, query);
-      }
-
-      // 5. Formatar conhecimento encontrado
+      // 3. Formatar conhecimento encontrado
       let knowledge = '📚 CONHECIMENTO RELEVANTE:\n';
       for (const item of similar) {
         knowledge += `[Similaridade: ${(item.similarity * 100).toFixed(0)}%]\n${item.content}\n\n`;

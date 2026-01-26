@@ -160,34 +160,61 @@ export class ConversationMemoryService {
     const summary = await this.generateSummary(messages);
 
     // 4. Gerar embedding do resumo
-    let embedding: string | null = null;
+    let embeddingVector: number[] | null = null;
     try {
-      const embeddingVec = await this.embeddingService.generateEmbedding(summary.summary);
-      embedding = this.embeddingService.serializeEmbedding(embeddingVec);
+      embeddingVector = await this.embeddingService.generateEmbedding(summary.summary);
     } catch (error) {
       this.logger.warn(`Failed to generate summary embedding: ${error.message}`);
     }
 
-    // 5. Salvar resumo
+    // 5. Salvar resumo (usando SQL raw para suporte a pgvector)
     const startDate = messages[0].createdAt;
     const endDate = messages[messages.length - 1].createdAt;
+    const summaryId = `summary_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    await this.prisma.conversationSummary.create({
-      data: {
-        companyId,
-        contactId,
-        startDate,
-        endDate,
-        summary: summary.summary,
-        keyTopics: summary.keyTopics,
-        keyFacts: summary.keyFacts,
-        decisions: summary.decisions,
-        pendingItems: summary.pendingItems,
-        overallSentiment: summary.sentiment,
-        messageCount: messages.length,
-        embedding,
-      },
-    });
+    if (embeddingVector) {
+      const vectorStr = this.embeddingService.formatForPgVector(embeddingVector);
+
+      await this.prisma.$executeRaw`
+        INSERT INTO conversation_summaries (
+          id, company_id, contact_id, start_date, end_date,
+          summary, key_topics, key_facts, decisions, pending_items,
+          overall_sentiment, message_count, embedding, created_at
+        ) VALUES (
+          ${summaryId},
+          ${companyId},
+          ${contactId},
+          ${startDate},
+          ${endDate},
+          ${summary.summary},
+          ${summary.keyTopics},
+          ${summary.keyFacts},
+          ${summary.decisions},
+          ${summary.pendingItems},
+          ${summary.sentiment},
+          ${messages.length},
+          ${vectorStr}::vector,
+          NOW()
+        )
+      `;
+    } else {
+      // Sem embedding (fallback)
+      await this.prisma.conversationSummary.create({
+        data: {
+          companyId,
+          contactId,
+          startDate,
+          endDate,
+          summary: summary.summary,
+          keyTopics: summary.keyTopics,
+          keyFacts: summary.keyFacts,
+          decisions: summary.decisions,
+          pendingItems: summary.pendingItems,
+          overallSentiment: summary.sentiment,
+          messageCount: messages.length,
+        },
+      });
+    }
 
     this.logger.log(`Created conversation summary for contact ${contactId}: ${messages.length} messages`);
     return summary.summary;
@@ -262,7 +289,7 @@ FOQUE em:
   }
 
   /**
-   * Busca resumos relevantes para uma query usando similaridade semântica
+   * Busca resumos relevantes para uma query usando similaridade semântica com pgvector
    */
   async findRelevantSummaries(
     companyId: string,
@@ -273,28 +300,22 @@ FOQUE em:
     try {
       // Gerar embedding da query
       const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+      const vectorStr = this.embeddingService.formatForPgVector(queryEmbedding);
 
-      // Buscar resumos com embeddings
-      const summaries = await this.prisma.conversationSummary.findMany({
-        where: { companyId, contactId, embedding: { not: null } },
-        select: { id: true, summary: true, embedding: true },
-      });
+      // Busca vetorial nativa com pgvector usando operador de distância cosseno
+      const results = await this.prisma.$queryRaw<Array<{ summary: string; similarity: number }>>`
+        SELECT 
+          cs.summary,
+          (1 - (cs.embedding <=> ${vectorStr}::vector))::float as similarity
+        FROM conversation_summaries cs
+        WHERE cs.company_id = ${companyId}
+          AND cs.contact_id = ${contactId}
+          AND cs.embedding IS NOT NULL
+        ORDER BY cs.embedding <=> ${vectorStr}::vector
+        LIMIT ${topK}
+      `;
 
-      if (summaries.length === 0) return [];
-
-      // Calcular similaridade e ordenar
-      const withSimilarity = summaries
-        .map(s => ({
-          summary: s.summary,
-          similarity: this.embeddingService.cosineSimilarity(
-            queryEmbedding,
-            this.embeddingService.deserializeEmbedding(s.embedding!),
-          ),
-        }))
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, topK);
-
-      return withSimilarity.map(s => s.summary);
+      return results.map(r => r.summary);
     } catch (error) {
       this.logger.error(`Failed to find relevant summaries: ${error.message}`);
       return [];

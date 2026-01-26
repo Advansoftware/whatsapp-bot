@@ -82,18 +82,24 @@ export class DocumentProcessorService {
 
         try {
           const embedding = await this.embeddingService.generateEmbedding(chunk.content);
+          const vectorStr = this.embeddingService.formatForPgVector(embedding);
+          const chunkId = `chunk_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
 
-          await this.prisma.trainingChunk.create({
-            data: {
-              documentId: document.id,
-              companyId,
-              content: chunk.content,
-              chunkIndex: i,
-              embedding: this.embeddingService.serializeEmbedding(embedding),
-              category: category || 'general',
-              metadata: chunk.metadata,
-            },
-          });
+          // Usar SQL raw para inserir com tipo vector do pgvector
+          await this.prisma.$executeRaw`
+            INSERT INTO training_chunks (id, document_id, company_id, content, chunk_index, embedding, category, metadata, created_at)
+            VALUES (
+              ${chunkId},
+              ${document.id},
+              ${companyId},
+              ${chunk.content},
+              ${i},
+              ${vectorStr}::vector,
+              ${category || 'general'},
+              ${JSON.stringify(chunk.metadata)}::jsonb,
+              NOW()
+            )
+          `;
 
           processedCount++;
         } catch (error) {
