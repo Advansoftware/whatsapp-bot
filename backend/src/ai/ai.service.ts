@@ -205,9 +205,14 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
   }
 
   /**
-   * Envia mensagem via Evolution API
+   * Envia mensagem via Evolution API e salva no banco com senderType
    */
-  async sendWhatsAppMessage(instanceKey: string, remoteJid: string, message: string): Promise<void> {
+  async sendWhatsAppMessage(
+    instanceKey: string,
+    remoteJid: string,
+    message: string,
+    senderType: 'ai' | 'chatbot' | 'campaign' | 'automation' = 'ai'
+  ): Promise<{ messageId?: string }> {
     try {
       // Formatar número se necessário (sem espaço antes do @)
       const formattedJid = remoteJid.includes('@') ? remoteJid : `${remoteJid}@s.whatsapp.net`;
@@ -229,7 +234,39 @@ _Responda diretamente ao cliente pelo número acima ou acesse o painel._`;
         throw new Error(`Evolution API error: ${response.status} - ${errorData} `);
       }
 
-      this.logger.log(`Message sent to ${formattedJid} `);
+      const responseData = await response.json();
+      const messageId = responseData?.key?.id;
+
+      // Salvar mensagem imediatamente com senderType correto
+      if (messageId) {
+        const instance = await this.prisma.instance.findUnique({
+          where: { instanceKey },
+          select: { id: true, companyId: true }
+        });
+
+        if (instance) {
+          await this.prisma.message.upsert({
+            where: { messageId },
+            create: {
+              messageId,
+              remoteJid: formattedJid,
+              content: message,
+              direction: 'outgoing',
+              status: 'sent',
+              senderType,
+              companyId: instance.companyId,
+              instanceId: instance.id,
+            },
+            update: {
+              status: 'sent',
+              senderType, // Garantir que o senderType seja atualizado
+            },
+          });
+        }
+      }
+
+      this.logger.log(`Message sent to ${formattedJid} (senderType: ${senderType})`);
+      return { messageId };
     } catch (error) {
       this.logger.error(`Failed to send WhatsApp message: ${error.message} `);
       throw error;

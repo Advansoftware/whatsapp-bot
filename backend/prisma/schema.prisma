@@ -339,6 +339,9 @@ model Message {
   instanceId  String    @map("instance_id")
   createdAt   DateTime  @default(now()) @map("created_at")
 
+  // Campo para identificar origem da mensagem enviada
+  senderType  String    @default("manual") @map("sender_type") // 'manual' | 'ai' | 'quick_reply' | 'campaign'
+
   // Campos para suporte a grupos
   isGroup         Boolean @default(false) @map("is_group") // Se a mensagem é de um grupo
   participant     String? @map("participant") // JID do remetente dentro do grupo (ex: 5535999999999@s.whatsapp.net)
@@ -988,4 +991,26 @@ model WebhookNotificationContact {
   @@unique([companyId, remoteJid])
   @@index([companyId, isActive])
   @@map("webhook_notification_contacts")
+}
+
+// Respostas rápidas pré-programadas para o chat ao vivo
+model QuickReply {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  title    String // Nome curto para identificar (ex: "Chave PIX", "Horário", "Endereço")
+  shortcut String? // Atalho de teclado (ex: "/pix", "/horario")
+  content  String  @db.Text // Conteúdo completo da mensagem
+  category String  @default("geral") // 'geral' | 'vendas' | 'suporte' | 'pagamento' | 'informacoes'
+  icon     String? // Emoji ou ícone para identificar visualmente
+  order    Int     @default(0) // Ordem de exibição
+  isActive Boolean @default(true) @map("is_active")
+  usageCount Int   @default(0) @map("usage_count") // Contador de uso para ordenar por popularidade
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, isActive])
+  @@index([companyId, shortcut])
+  @@map("quick_replies")
 }

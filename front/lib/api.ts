@@ -385,6 +385,60 @@ export const secretaryTasksApi = {
   },
 };
 
+// Quick Replies endpoints
+export interface QuickReply {
+  id: string;
+  title: string;
+  shortcut?: string;
+  content: string;
+  category: string;
+  icon?: string;
+  order: number;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const quickRepliesApi = {
+  getAll: async (): Promise<QuickReply[]> => {
+    const response = await axiosClient.get('/api/quick-replies');
+    return response.data;
+  },
+
+  getActive: async (): Promise<QuickReply[]> => {
+    const response = await axiosClient.get('/api/quick-replies/active');
+    return response.data;
+  },
+
+  getCategories: async () => {
+    const response = await axiosClient.get('/api/quick-replies/categories');
+    return response.data;
+  },
+
+  create: async (data: { title: string; shortcut?: string; content: string; category?: string; icon?: string }) => {
+    const response = await axiosClient.post<QuickReply>('/api/quick-replies', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: Partial<QuickReply>) => {
+    const response = await axiosClient.put<QuickReply>(`/api/quick-replies/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    await axiosClient.delete(`/api/quick-replies/${id}`);
+  },
+
+  incrementUsage: async (id: string) => {
+    await axiosClient.post(`/api/quick-replies/${id}/use`);
+  },
+
+  reorder: async (ids: string[]) => {
+    await axiosClient.post('/api/quick-replies/reorder', { ids });
+  },
+};
+
 // Training/RAG endpoints
 export const trainingApi = {
   getDocuments: async () => {
@@ -807,6 +861,7 @@ const defaultClient = {
   integrations: integrationsApi,
   notifications: notificationsApi,
   team: teamApi,
+  quickReplies: quickRepliesApi,
 
   // Support calls like api.get(...) directly
   get: axiosClient.get,

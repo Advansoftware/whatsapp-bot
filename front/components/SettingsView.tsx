@@ -21,6 +21,7 @@ import {
   Key, 
   Api 
 } from '@mui/icons-material';
+import QuickRepliesSettings from './settings/QuickRepliesSettings';
 
 const SettingsView: React.FC = () => {
   const theme = useTheme();
@@ -223,6 +224,13 @@ const SettingsView: React.FC = () => {
               />
             </Box>
 
+          </Box>
+        </Paper>
+
+        {/* Quick Replies Section */}
+        <Paper elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+          <Box p={3}>
+            <QuickRepliesSettings />
           </Box>
         </Paper>
 

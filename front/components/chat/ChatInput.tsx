@@ -25,6 +25,7 @@ import {
 } from "@mui/icons-material";
 import { StickerPicker } from "./media";
 import { ReplyQuote } from "./message";
+import QuickReplyPicker from "./QuickReplyPicker";
 
 interface ChatInputProps {
   newMessage: string;
@@ -182,6 +183,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <EmojiEmotions />
         </IconButton>
 
+        <QuickReplyPicker
+          onSelect={(content) => {
+            setNewMessage(content);
+          }}
+          isDark={isDark}
+          colors={colors}
+        />
         <IconButton
           onClick={handleAttachClick}
           sx={{ color: colors.iconColor }}

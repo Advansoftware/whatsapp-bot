@@ -14,6 +14,8 @@ import {
   Schedule,
   ErrorOutline,
   Mic,
+  SmartToy as AIIcon,
+  Person as ManualIcon,
 } from "@mui/icons-material";
 
 interface MessageBubbleProps {
@@ -29,6 +31,8 @@ interface MessageBubbleProps {
     isGroup?: boolean;
     participant?: string;
     participantName?: string;
+    // Tipo de remetente (apenas para outgoing)
+    senderType?: 'manual' | 'ai' | 'chatbot' | 'campaign' | 'automation' | 'quick_reply';
   };
   colors: {
     incomingBubble: string;
@@ -376,6 +380,42 @@ const MessageBubble = memo<MessageBubbleProps>(
             gap={0.5}
             mt="2px"
           >
+            {/* Indicador de IA/Manual para mensagens enviadas */}
+            {isSender && msg.senderType && msg.senderType !== 'manual' && (
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.3,
+                  bgcolor: msg.senderType === 'ai' ? 'rgba(156, 39, 176, 0.15)' : 'rgba(0, 168, 132, 0.15)',
+                  borderRadius: 1,
+                  px: 0.5,
+                  py: 0.1,
+                }}
+                title={
+                  msg.senderType === 'ai' ? 'Enviado pela IA' :
+                  msg.senderType === 'chatbot' ? 'Chatbot' :
+                  msg.senderType === 'campaign' ? 'Campanha' :
+                  msg.senderType === 'automation' ? 'Automação' : 'Resposta Rápida'
+                }
+              >
+                <AIIcon sx={{ fontSize: 10, color: msg.senderType === 'ai' ? '#9c27b0' : '#00a884' }} />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "9px",
+                    color: msg.senderType === 'ai' ? '#9c27b0' : '#00a884',
+                    fontWeight: 600,
+                  }}
+                >
+                  {msg.senderType === 'ai' ? 'IA' :
+                   msg.senderType === 'chatbot' ? 'Bot' :
+                   msg.senderType === 'campaign' ? 'Camp' :
+                   msg.senderType === 'automation' ? 'Auto' : 'QR'}
+                </Typography>
+              </Box>
+            )}
             <Typography
               variant="caption"
               sx={{
@@ -399,6 +439,7 @@ const MessageBubble = memo<MessageBubbleProps>(
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.status === nextProps.message.status &&
       prevProps.message.content === nextProps.message.content &&
+      prevProps.message.senderType === nextProps.message.senderType &&
       prevProps.colors.timeText === nextProps.colors.timeText &&
       prevProps.colors.incomingBubble === nextProps.colors.incomingBubble &&
       prevProps.colors.outgoingBubble === nextProps.colors.outgoingBubble

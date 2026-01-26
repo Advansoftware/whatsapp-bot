@@ -73,6 +73,7 @@ export class MessagesController {
         response: msg.response,
         direction: msg.direction,
         status: msg.status,
+        senderType: msg.senderType || 'manual',
         instanceName: msg.instance.name,
         createdAt: msg.createdAt,
         processedAt: msg.processedAt,
@@ -158,7 +159,7 @@ export class MessagesController {
 
   @Post('send')
   async sendMessage(
-    @Body() body: { instanceKey: string; remoteJid: string; content: string; options?: { quotedMessageId?: string; mediaUrl?: string; mediaType?: string } }
+    @Body() body: { instanceKey: string; remoteJid: string; content: string; options?: { quotedMessageId?: string; mediaUrl?: string; mediaType?: string; senderType?: string } }
   ) {
     const { instanceKey, remoteJid, content, options } = body;
 
@@ -242,6 +243,7 @@ export class MessagesController {
               content,
               direction: 'outgoing',
               status: 'sent',
+              senderType: options?.senderType || 'manual',
               companyId: instance.companyId,
               instanceId: instance.id,
               mediaUrl: options?.mediaUrl,
@@ -252,6 +254,7 @@ export class MessagesController {
               status: 'sent',
               mediaUrl: options?.mediaUrl,
               mediaType: options?.mediaType,
+              senderType: options?.senderType || 'manual',
             },
           });
 
@@ -279,6 +282,7 @@ export class MessagesController {
             content,
             direction: 'outgoing',
             status: 'sent',
+            senderType: options?.senderType || 'manual',
             mediaUrl: options?.mediaUrl,
             mediaType: options?.mediaType,
             quotedMessageId: options?.quotedMessageId,
