@@ -150,7 +150,7 @@ export default function TrainingDocumentsTab() {
       ) : (
         <Grid container spacing={2}>
           {documents?.map((doc: TrainingDocument) => (
-            <Grid item xs={12} md={6} lg={4} key={doc.id}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={doc.id}>
               <Card variant="outlined">
                 <CardContent>
                   <Box

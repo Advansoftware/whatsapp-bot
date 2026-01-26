@@ -125,7 +125,7 @@ export default function TrainingView() {
             <TrainingTestTab />
           </TabPanel>
           <TabPanel value={tabValue} index={3}>
-            <TrainingStatsTab stats={stats} />
+            <TrainingStatsTab />
           </TabPanel>
         </Box>
       </Paper>

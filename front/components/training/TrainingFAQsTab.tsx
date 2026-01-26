@@ -117,7 +117,7 @@ export default function TrainingFAQsTab() {
             const question = parts[0] || faq.name;
 
             return (
-              <Grid item xs={12} md={6} key={faq.id}>
+              <Grid size={{ xs: 12, md: 6 }} key={faq.id}>
                 <Card variant="outlined">
                   <CardContent>
                     <Box

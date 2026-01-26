@@ -101,7 +101,7 @@ export default function TrainingStatsTab() {
       </Typography>
 
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Documentos"
             value={stats?.totalDocuments || 0}
@@ -109,7 +109,7 @@ export default function TrainingStatsTab() {
             color="#1976d2"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Chunks (Trechos)"
             value={stats?.totalChunks || 0}
@@ -117,7 +117,7 @@ export default function TrainingStatsTab() {
             color="#9c27b0"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="FAQs"
             value={stats?.totalFAQs || 0}
@@ -125,7 +125,7 @@ export default function TrainingStatsTab() {
             color="#2e7d32"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Memórias"
             value={stats?.totalMemories || 0}
@@ -147,7 +147,7 @@ export default function TrainingStatsTab() {
                 <Grid container spacing={2}>
                   {Object.entries(stats.documentsByCategory).map(
                     ([category, count]) => (
-                      <Grid item xs={6} sm={4} md={3} key={category}>
+                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={category}>
                         <Box
                           sx={{
                             p: 2,
