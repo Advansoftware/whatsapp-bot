@@ -156,11 +156,17 @@ FAÇA UMA ANÁLISE PROFUNDA SOBRE O CONTATO "${contact.pushName || 'CONTATO'}" E
   /**
    * OTIMIZADO: Analisa E gera resposta em uma única chamada ao Gemini
    * Economiza 50% das chamadas de API em modo ativo
+   * MELHORADO: Usa mais contexto de conversa para manter coerência
    */
   async analyzeAndRespond(
     messageContent: string,
     context: any,
     aiConfig: any,
+    enrichedContext?: {
+      relevantKnowledge?: string;
+      memoryContext?: string;
+      pendingItems?: string;
+    },
   ): Promise<{
     analysis: AIAnalysis;
     response: string;
@@ -174,46 +180,72 @@ FAÇA UMA ANÁLISE PROFUNDA SOBRE O CONTATO "${contact.pushName || 'CONTATO'}" E
       });
 
       const ownerName = aiConfig.ownerName || 'o responsável';
+
+      // Contexto de produtos
       const productContext = context.products?.length > 0
         ? `PRODUTOS DISPONÍVEIS:\n${context.products.map((p: any) => `- ${p.name}: R$${p.price}${p.quantity > 0 ? '' : ' (esgotado)'}`).join('\n')}`
         : '';
 
-      const conversationHistory = context.conversationHistory?.slice(-5)
-        ?.map((m: any) => `${m.direction === 'incoming' ? 'Cliente' : 'Você'}: ${m.content}`)
-        ?.join('\n') || '';
+      // Formatar histórico de conversa de forma mais detalhada (mais mensagens)
+      const conversationHistory = this.formatConversationHistory(context.conversationHistory, 15);
+
+      // Montar seções de contexto enriquecido
+      let extraContext = '';
+      if (enrichedContext?.relevantKnowledge) {
+        extraContext += `\n${enrichedContext.relevantKnowledge}\n`;
+      }
+      if (enrichedContext?.memoryContext) {
+        extraContext += `\n${enrichedContext.memoryContext}\n`;
+      }
+      if (enrichedContext?.pendingItems) {
+        extraContext += `\n${enrichedContext.pendingItems}\n`;
+      }
 
       const prompt = `Você é Sofia, secretária virtual simpática do ${ownerName}. Analise a mensagem e responda.
 
-MENSAGEM DO CLIENTE: "${messageContent}"
+IMPORTANTE: Leia ATENTAMENTE todo o histórico da conversa antes de responder. Mantenha coerência com o que já foi discutido.
+Se o cliente está respondendo a uma pergunta sua, USE essa resposta no seu raciocínio.
+NUNCA "esqueça" o que já foi conversado. Mantenha o fluxo natural da conversa.
+
+---
+
+MENSAGEM DO CLIENTE AGORA: "${messageContent}"
 NOME DO CLIENTE: ${context.contactName || 'Cliente'}
 
-HISTÓRICO RECENTE:
+HISTÓRICO DA CONVERSA (do mais antigo ao mais recente):
 ${conversationHistory || 'Início da conversa'}
 
 ${productContext}
 
+${extraContext}
+
 ${aiConfig.systemPrompt || ''}
 
-RESPONDA EM JSON:
+---
+
+ANALISE O CONTEXTO COMPLETO e responda em JSON:
 {
   "analysis": {
     "sentiment": "positive" | "neutral" | "negative",
     "urgency": "low" | "normal" | "high" | "urgent",
-    "intent": "question" | "complaint" | "purchase" | "support" | "greeting" | "other",
+    "intent": "question" | "complaint" | "purchase" | "support" | "greeting" | "other" | "followup",
     "confidence": 0.0 a 1.0,
-    "reasoning": "explicação breve",
+    "reasoning": "explicação de COMO você interpretou a mensagem no contexto da conversa",
     "shouldEscalate": boolean (true se precisar chamar ${ownerName}),
     "escalationReason": "motivo (se shouldEscalate true)"
   },
-  "response": "Sua resposta natural e simpática como Sofia para o cliente"
+  "response": "Sua resposta natural e COERENTE com o histórico da conversa"
 }
 
-REGRAS:
-- Se o cliente pedir para falar com humano -> shouldEscalate: true
-- Se reclamação séria ou cliente irritado -> shouldEscalate: true
-- Se não souber responder -> shouldEscalate: true
-- Seja simpática, use emojis com moderação
-- Respostas curtas e diretas (ideal para WhatsApp)`;
+REGRAS CRÍTICAS:
+1. Se o cliente está respondendo a algo que você perguntou → Use essa resposta
+2. Se já discutiram um assunto → Continue nesse assunto naturalmente
+3. Nunca repita perguntas que o cliente já respondeu
+4. Se o cliente pedir para falar com humano → shouldEscalate: true
+5. Se reclamação séria ou cliente irritado → shouldEscalate: true
+6. Se não souber responder → shouldEscalate: true
+7. Seja simpática, use emojis com moderação
+8. Respostas curtas e diretas (ideal para WhatsApp)`;
 
       const result = await model.generateContent(prompt);
       const responseText = result.response.text();
@@ -254,6 +286,31 @@ REGRAS:
         response: 'Oi! Desculpa, estou com um probleminha técnico. Pode tentar de novo? 😅',
       };
     }
+  }
+
+  /**
+   * Formata histórico de conversa de forma legível para a IA
+   */
+  private formatConversationHistory(messages: any[], limit: number = 10): string {
+    if (!messages || messages.length === 0) {
+      return 'Nenhuma mensagem anterior.';
+    }
+
+    const lastMessages = messages.slice(-limit);
+
+    return lastMessages.map((m: any, index: number) => {
+      const role = m.direction === 'incoming' ? 'CLIENTE' : 'VOCÊ (Sofia)';
+      const timestamp = m.createdAt
+        ? new Date(m.createdAt).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        : '';
+
+      return `[${index + 1}] ${role}${timestamp ? ` (${timestamp})` : ''}: ${m.content}`;
+    }).join('\n');
   }
 
   async parseProductConfirmation(

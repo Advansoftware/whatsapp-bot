@@ -385,6 +385,69 @@ export const secretaryTasksApi = {
   },
 };
 
+// Training/RAG endpoints
+export const trainingApi = {
+  getDocuments: async () => {
+    const response = await axiosClient.get('/api/training/documents');
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await axiosClient.get('/api/training/stats');
+    return response.data;
+  },
+
+  addDocument: async (data: { name: string; content: string; category?: string; tags?: string[] }) => {
+    const response = await axiosClient.post('/api/training/documents/text', data);
+    return response.data;
+  },
+
+  addFAQ: async (data: { question: string; answer: string; keywords?: string[] }) => {
+    const response = await axiosClient.post('/api/training/faqs', data);
+    return response.data;
+  },
+
+  getFAQs: async () => {
+    const response = await axiosClient.get('/api/training/faqs');
+    return response.data;
+  },
+
+  deleteDocument: async (id: string) => {
+    const response = await axiosClient.delete(`/api/training/documents/${id}`);
+    return response.data;
+  },
+
+  updateCategory: async (id: string, category: string) => {
+    const response = await axiosClient.put(`/api/training/documents/${id}/category`, { category });
+    return response.data;
+  },
+
+  toggleDocument: async (id: string, isActive: boolean) => {
+    const response = await axiosClient.put(`/api/training/documents/${id}/toggle`, { isActive });
+    return response.data;
+  },
+
+  search: async (query: string, limit?: number) => {
+    const response = await axiosClient.get('/api/training/search', { params: { query, limit } });
+    return response.data;
+  },
+
+  test: async (question: string) => {
+    const response = await axiosClient.post('/api/training/test', { question });
+    return response.data;
+  },
+
+  extractInfo: async (id: string) => {
+    const response = await axiosClient.post(`/api/training/documents/${id}/extract`);
+    return response.data;
+  },
+
+  reprocess: async (id: string) => {
+    const response = await axiosClient.post(`/api/training/documents/${id}/reprocess`);
+    return response.data;
+  },
+};
+
 // Campaigns endpoints
 export const campaignsApi = {
   getAll: async () => {
@@ -695,6 +758,16 @@ const defaultClient = {
   createProduct: productsApi.create,
   updateProduct: productsApi.update,
   deleteProduct: productsApi.delete,
+
+  // Training/RAG methods
+  training: trainingApi,
+  getTrainingDocuments: trainingApi.getDocuments,
+  getTrainingStats: trainingApi.getStats,
+  addTrainingDocument: trainingApi.addDocument,
+  addTrainingFAQ: trainingApi.addFAQ,
+  deleteTrainingDocument: trainingApi.deleteDocument,
+  searchTraining: trainingApi.search,
+  testTraining: trainingApi.test,
 
   // Message methods
   getMessages: messagesApi.getMessages,

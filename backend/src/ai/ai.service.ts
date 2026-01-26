@@ -466,34 +466,38 @@ O produto já está disponível no seu inventário! 🎉`;
       };
     }
 
-    // Buscar contexto
-    const [messages, products] = await Promise.all([
+    // Buscar contexto - MELHORADO: buscar mais mensagens para melhor contexto
+    const [messages, products, contact] = await Promise.all([
       this.prisma.message.findMany({
         where: { companyId, remoteJid },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 20, // Aumentado para 20 mensagens para melhor compreensão do contexto
       }),
       this.prisma.product.findMany({
         where: { companyId, isActive: true },
       }),
-      // Buscar perfis de automação ativos
-      this.prisma.contactAutomationProfile.findMany({
-        where: { companyId, isActive: true },
-        select: {
-          id: true,
-          contactName: true,
-          contactNickname: true,
-          description: true,
-          remoteJid: true,
-        },
+      // Buscar contato para obter ID (necessário para memória)
+      this.prisma.contact.findFirst({
+        where: { companyId, remoteJid },
+        select: { id: true },
       }),
     ]);
+
+    // Buscar contexto adicional de memória do contato
+    let memoryContext = '';
+    if (contact?.id) {
+      memoryContext = await this.getContactMemoryContext(contact.id);
+    }
+
+    // Buscar conhecimento relevante (base de conhecimento + RAG)
+    const knowledgeContext = await this.getRelevantKnowledge(companyId, messageContent);
 
     const context: MessageContext = {
       conversationHistory: messages.reverse(),
       contactName,
       products,
       ownerName: aiConfig.ownerName ?? undefined,
+      businessContext: [memoryContext, knowledgeContext].filter(Boolean).join('\n'),
     };
 
     // Se é modo assistente pessoal (dono), responde diretamente como assistente

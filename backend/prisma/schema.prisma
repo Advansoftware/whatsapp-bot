@@ -158,6 +158,106 @@ model CompanyKnowledge {
   @@map("company_knowledge")
 }
 
+// ================================
+// SISTEMA DE RAG - TREINAMENTO
+// ================================
+
+// Documento de treinamento (arquivos enviados pelo dono)
+model TrainingDocument {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  // Metadados do documento
+  name        String // Nome do arquivo/documento
+  description String? @db.Text // Descrição opcional
+  sourceType  String  @map("source_type") // 'file' | 'text' | 'url' | 'whatsapp'
+  mimeType    String? @map("mime_type") // 'application/pdf' | 'text/plain' | etc
+  fileUrl     String? @map("file_url") @db.Text // URL do arquivo (se for upload)
+
+  // Conteúdo original (para referência)
+  originalContent String? @map("original_content") @db.Text
+
+  // Status do processamento
+  status       String  @default("pending") // 'pending' | 'processing' | 'completed' | 'failed'
+  errorMessage String? @map("error_message") @db.Text
+
+  // Estatísticas
+  chunkCount Int @default(0) @map("chunk_count") // Quantidade de chunks gerados
+  tokenCount Int @default(0) @map("token_count") // Estimativa de tokens
+
+  // Categorização
+  category String   @default("general") // 'product' | 'faq' | 'policy' | 'script' | 'general'
+  tags     String[] @default([])
+
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  chunks TrainingChunk[]
+
+  @@index([companyId, status])
+  @@index([companyId, category])
+  @@map("training_documents")
+}
+
+// Chunks de documento com embeddings para RAG
+model TrainingChunk {
+  id         String @id @default(cuid())
+  documentId String @map("document_id")
+  companyId  String @map("company_id")
+
+  // Conteúdo do chunk
+  content    String @db.Text
+  chunkIndex Int    @map("chunk_index") // Ordem no documento original
+
+  // Embedding para busca semântica (armazenado como array de floats serializado)
+  // Usamos JSON porque Postgres não tem tipo nativo de vector sem extensão
+  embedding String? @db.Text // JSON array de floats
+
+  // Metadados para filtragem
+  category String @default("general")
+  metadata Json   @default("{}") // Metadados adicionais (página, seção, etc)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  document TrainingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, category])
+  @@index([documentId])
+  @@map("training_chunks")
+}
+
+// Histórico de conversas para memória de longo prazo
+model ConversationSummary {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+  contactId String @map("contact_id")
+
+  // Período da conversa resumida
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Resumo gerado pela IA
+  summary      String   @db.Text
+  keyTopics    String[] @default([]) @map("key_topics") // Tópicos principais
+  keyFacts     String[] @default([]) @map("key_facts") // Fatos importantes mencionados
+  decisions    String[] @default([]) // Decisões tomadas
+  pendingItems String[] @default([]) @map("pending_items") // Itens pendentes
+
+  // Sentimento geral e status
+  overallSentiment String? @map("overall_sentiment") // 'positive' | 'neutral' | 'negative'
+
+  // Embedding do resumo para busca semântica
+  embedding String? @db.Text
+
+  messageCount Int      @default(0) @map("message_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, contactId])
+  @@index([contactId, endDate])
+  @@map("conversation_summaries")
+}
+
 model Product {
   id        String   @id @default(cuid())
   name      String
@@ -657,7 +757,7 @@ model ContactAutomationMenuOption {
   optionValue String @map("option_value")
 
   // O que esta opção faz (para IA entender)
-  optionLabel       String @map("option_label") // "Segunda via de contas"
+  optionLabel       String  @map("option_label") // "Segunda via de contas"
   optionDescription String? @map("option_description") @db.Text // Descrição mais detalhada
 
   // Palavras-chave que indicam que esta opção deve ser escolhida
@@ -735,31 +835,31 @@ model ContactAutomationSession {
 
 // Aplicação de webhook (cada app externa tem sua própria URL)
 model WebhookApplication {
-  id          String  @id @default(cuid())
-  companyId   String  @map("company_id")
-  
-  name        String  // "Coolify", "Jellyfin", "GitHub", etc.
-  slug        String  // usado na URL: /webhook/app/{slug}
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+
+  name        String // "Coolify", "Jellyfin", "GitHub", etc.
+  slug        String // usado na URL: /webhook/app/{slug}
   description String? @db.Text
   icon        String? // emoji ou URL do ícone
   color       String? // cor para identificar no UI
-  
-  isActive    Boolean @default(true) @map("is_active")
-  
+
+  isActive Boolean @default(true) @map("is_active")
+
   // Segurança - URLs permitidas (validação de origem)
   allowedOrigins String[] @default([]) @map("allowed_origins") // URLs que podem enviar webhooks
   secretToken    String?  @map("secret_token") // Token secreto para validação (header)
-  
+
   // Configurações gerais
-  logEnabled  Boolean @default(true) @map("log_enabled")
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  logEnabled Boolean @default(true) @map("log_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relações
-  events      WebhookEvent[]
-  logs        WebhookApplicationLog[]
-  
+  events WebhookEvent[]
+  logs   WebhookApplicationLog[]
+
   @@unique([companyId, slug])
   @@index([companyId, isActive])
   @@map("webhook_applications")
@@ -767,58 +867,58 @@ model WebhookApplication {
 
 // Evento configurável de webhook (ex: deployment_failed, backup_success)
 model WebhookEvent {
-  id              String  @id @default(cuid())
-  applicationId   String  @map("application_id")
-  
-  name            String  // "Deploy Falhou", "Backup Concluído"
-  description     String? @db.Text
-  
+  id            String @id @default(cuid())
+  applicationId String @map("application_id")
+
+  name        String // "Deploy Falhou", "Backup Concluído"
+  description String? @db.Text
+
   // Identificação do evento no payload
   // Campo que identifica o evento (suporta nested: "data.type", "event", etc)
-  eventField      String  @map("event_field")  // ex: "event", "type", "action"
-  eventValue      String  @map("event_value")  // ex: "deployment_failed", "push"
-  
+  eventField String @map("event_field") // ex: "event", "type", "action"
+  eventValue String @map("event_value") // ex: "deployment_failed", "push"
+
   // Template da mensagem com placeholders {{campo}} ou {{campo.subcampo}}
-  messageTemplate String  @map("message_template") @db.Text
-  
+  messageTemplate String @map("message_template") @db.Text
+
   // Contatos que recebem este evento específico (IDs separados por vírgula ou JSON)
-  contactIds      String[] @default([]) @map("contact_ids")
-  
-  isActive        Boolean @default(true) @map("is_active")
-  
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
+  contactIds String[] @default([]) @map("contact_ids")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relação
-  application     WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+  application WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
   @@index([applicationId, isActive])
   @@map("webhook_events")
 }
 
 // Log de webhooks recebidos por aplicação
 model WebhookApplicationLog {
-  id            String  @id @default(cuid())
-  applicationId String  @map("application_id")
-  
+  id            String @id @default(cuid())
+  applicationId String @map("application_id")
+
   // Dados do webhook
-  payload       Json    // Payload completo recebido
-  headers       Json?   // Headers da requisição
-  
+  payload Json // Payload completo recebido
+  headers Json? // Headers da requisição
+
   // Matching
-  matchedEventId   String? @map("matched_event_id")   // ID do evento que matchou
+  matchedEventId   String? @map("matched_event_id") // ID do evento que matchou
   matchedEventName String? @map("matched_event_name") // Nome do evento para referência
-  
+
   // Status do processamento
-  status        String  @default("received") // 'received' | 'matched' | 'sent' | 'no_match' | 'failed'
-  error         String? @db.Text
-  messagesSent  Int     @default(0) @map("messages_sent")
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  
+  status       String  @default("received") // 'received' | 'matched' | 'sent' | 'no_match' | 'failed'
+  error        String? @db.Text
+  messagesSent Int     @default(0) @map("messages_sent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relação
-  application   WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+  application WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
   @@index([applicationId, createdAt])
   @@index([applicationId, status])
   @@map("webhook_application_logs")
@@ -826,10 +926,10 @@ model WebhookApplicationLog {
 
 // Contatos globais para webhooks (pode ser vinculado a eventos específicos)
 model WebhookContact {
-  id        String  @id @default(cuid())
-  companyId String  @map("company_id")
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
 
-  name      String  // Nome amigável (ex: "Bruno - Admin")
+  name      String // Nome amigável (ex: "Bruno - Admin")
   remoteJid String  @map("remote_jid") // WhatsApp JID
   isActive  Boolean @default(true) @map("is_active")
 
@@ -843,12 +943,12 @@ model WebhookContact {
 
 // Manter compatibilidade temporária - pode remover depois
 model WebhookConfig {
-  id        String  @id @default(cuid())
-  companyId String  @unique @map("company_id")
+  id        String @id @default(cuid())
+  companyId String @unique @map("company_id")
 
-  messageTemplate String @default("🔔 *Webhook Recebido*\n\n{{payload}}") @map("message_template") @db.Text
-  logEnabled Boolean @default(true) @map("log_enabled")
-  secretToken String? @map("secret_token")
+  messageTemplate String  @default("🔔 *Webhook Recebido*\n\n{{payload}}") @map("message_template") @db.Text
+  logEnabled      Boolean @default(true) @map("log_enabled")
+  secretToken     String? @map("secret_token")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -860,12 +960,12 @@ model WebhookLog {
   id        String @id @default(cuid())
   companyId String @map("company_id")
 
-  source     String?
-  payload    Json
-  headers    Json?
-  status     String   @default("received")
-  error      String?  @db.Text
-  messagesSent Int @default(0) @map("messages_sent")
+  source       String?
+  payload      Json
+  headers      Json?
+  status       String  @default("received")
+  error        String? @db.Text
+  messagesSent Int     @default(0) @map("messages_sent")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -874,11 +974,11 @@ model WebhookLog {
 }
 
 model WebhookNotificationContact {
-  id        String  @id @default(cuid())
-  companyId String  @map("company_id")
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
 
-  name      String
-  remoteJid String  @map("remote_jid")
+  name       String
+  remoteJid  String   @map("remote_jid")
   isActive   Boolean  @default(true) @map("is_active")
   categories String[] @default([])
 
@@ -889,4 +989,3 @@ model WebhookNotificationContact {
   @@index([companyId, isActive])
   @@map("webhook_notification_contacts")
 }
-

@@ -36,6 +36,7 @@ import {
   Groups,
   Person,
   Webhook,
+  School,
 } from "@mui/icons-material";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -59,6 +60,7 @@ const menuItems = [
   },
   { id: "ai-secretary", label: "Secretária IA", icon: <Psychology /> },
   { id: "secretary-tasks", label: "Tarefas", icon: <Checklist /> },
+  { id: "training", label: "Treinamento IA", icon: <School /> },
   {
     id: "group-automations" as View,
     label: "Automações de Grupo",

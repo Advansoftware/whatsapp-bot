@@ -16,8 +16,17 @@ import { IntegrationsModule } from '../integrations/integrations.module';
 import { AIResponseService } from './ai-response.service';
 import { AIAnalysisService } from './ai-analysis.service';
 
+// Importar módulo RAG
+import { RAGModule } from './rag/rag.module';
+
 @Module({
-  imports: [ConfigModule, PrismaModule, SecretaryTasksModule, forwardRef(() => IntegrationsModule)],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    SecretaryTasksModule,
+    forwardRef(() => IntegrationsModule),
+    RAGModule,
+  ],
   controllers: [AISecretaryController],
   providers: [
     AIService,
@@ -42,6 +51,7 @@ import { AIAnalysisService } from './ai-analysis.service';
     AIExpensesService,
     AIExpensesFlowService,
     AICalendarService,
+    RAGModule,
   ],
 })
 export class AIModule { }
