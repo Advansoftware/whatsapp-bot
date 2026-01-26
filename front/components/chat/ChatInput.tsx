@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -14,6 +14,10 @@ import {
   DialogActions,
   Button,
   Typography,
+  Paper,
+  Popper,
+  ClickAwayListener,
+  Chip,
 } from "@mui/material";
 import {
   Send,
@@ -25,7 +29,8 @@ import {
 } from "@mui/icons-material";
 import { StickerPicker } from "./media";
 import { ReplyQuote } from "./message";
-import QuickReplyPicker from "./QuickReplyPicker";
+import { useQuery } from "@tanstack/react-query";
+import { quickRepliesApi, QuickReply } from "@/lib/api";
 
 interface ChatInputProps {
   newMessage: string;
@@ -64,6 +69,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isDark,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [stickerAnchorEl, setStickerAnchorEl] = useState<null | HTMLElement>(null);
   const openMenu = Boolean(anchorEl);
@@ -74,6 +80,101 @@ const ChatInput: React.FC<ChatInputProps> = ({
     preview: string;
   } | null>(null);
   const [imageCaption, setImageCaption] = useState("");
+
+  // Estados para menu de comandos (/)
+  const [showCommands, setShowCommands] = useState(false);
+  const [commandSearch, setCommandSearch] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [commandAnchor, setCommandAnchor] = useState<HTMLElement | null>(null);
+
+  // Buscar quick replies
+  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
+    queryKey: ["quick-replies-active"],
+    queryFn: () => quickRepliesApi.getActive(),
+  });
+
+  // Filtrar comandos baseado na busca
+  const filteredCommands = quickReplies.filter((qr) => {
+    if (!commandSearch) return true;
+    const search = commandSearch.toLowerCase();
+    return (
+      qr.title.toLowerCase().includes(search) ||
+      qr.shortcut?.toLowerCase().includes(search) ||
+      qr.content.toLowerCase().includes(search)
+    );
+  });
+
+  // Reset selected index quando a lista muda
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [filteredCommands.length]);
+
+  // Detectar quando digita "/"
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNewMessage(value);
+
+    // Verificar se começa com "/" ou se tem "/" no início de uma palavra
+    const lastSlashIndex = value.lastIndexOf("/");
+    
+    if (lastSlashIndex === 0 || (lastSlashIndex > 0 && value[lastSlashIndex - 1] === " ")) {
+      // Texto após a barra
+      const searchText = value.slice(lastSlashIndex + 1);
+      
+      // Só mostra se não houver espaço após a busca (ainda está digitando o comando)
+      if (!searchText.includes(" ")) {
+        setCommandSearch(searchText);
+        setShowCommands(true);
+        setCommandAnchor(inputRef.current);
+      } else {
+        setShowCommands(false);
+      }
+    } else if (!value.includes("/")) {
+      setShowCommands(false);
+    }
+  };
+
+  // Selecionar um comando
+  const selectCommand = (quickReply: QuickReply) => {
+    // Remove o "/" e o texto de busca, substitui pelo conteúdo
+    const lastSlashIndex = newMessage.lastIndexOf("/");
+    const beforeSlash = lastSlashIndex > 0 ? newMessage.slice(0, lastSlashIndex) : "";
+    
+    setNewMessage(beforeSlash + quickReply.content);
+    setShowCommands(false);
+    setCommandSearch("");
+    
+    // Incrementar contador de uso
+    quickRepliesApi.incrementUsage(quickReply.id);
+    
+    // Focar no input
+    inputRef.current?.focus();
+  };
+
+  // Navegação por teclado
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showCommands && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => 
+          prev < filteredCommands.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => 
+          prev > 0 ? prev - 1 : filteredCommands.length - 1
+        );
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectCommand(filteredCommands[selectedIndex]);
+      } else if (e.key === "Escape") {
+        setShowCommands(false);
+      }
+    } else if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSendMessage();
+    }
+  };
 
   const handleAttachClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -183,13 +284,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <EmojiEmotions />
         </IconButton>
 
-        <QuickReplyPicker
-          onSelect={(content) => {
-            setNewMessage(content);
-          }}
-          isDark={isDark}
-          colors={colors}
-        />
         <IconButton
           onClick={handleAttachClick}
           sx={{ color: colors.iconColor }}
@@ -241,28 +335,194 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onChange={onFileChange}
         />
 
-        <TextField
-          fullWidth
-          placeholder="Digite uma mensagem"
-          variant="outlined"
-          size="small"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onPaste={handlePaste}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSendMessage();
-            }
-          }}
-          sx={{
-            bgcolor: colors.inputBg,
-            borderRadius: 2,
-            "& fieldset": { border: "none" },
-            "& input": { color: colors.inputText, padding: "10px 12px" },
-            "& .MuiInputBase-root": { height: "auto" },
-          }}
-        />
+        <Box sx={{ position: "relative", flex: 1 }}>
+          <TextField
+            fullWidth
+            inputRef={inputRef}
+            placeholder="Digite uma mensagem ou / para comandos"
+            variant="outlined"
+            size="small"
+            value={newMessage}
+            onChange={handleInputChange}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+            sx={{
+              bgcolor: colors.inputBg,
+              borderRadius: 2,
+              "& fieldset": { border: "none" },
+              "& input": { color: colors.inputText, padding: "10px 12px" },
+              "& .MuiInputBase-root": { height: "auto" },
+            }}
+          />
+
+          {/* Menu de comandos estilo WhatsApp */}
+          <Popper
+            open={showCommands && filteredCommands.length > 0}
+            anchorEl={commandAnchor}
+            placement="top-start"
+            style={{ zIndex: 1400, width: commandAnchor?.offsetWidth || 300 }}
+          >
+            <ClickAwayListener onClickAway={() => setShowCommands(false)}>
+              <Paper
+                elevation={8}
+                sx={{
+                  bgcolor: isDark ? "#233138" : "#ffffff",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  maxHeight: 300,
+                  overflowY: "auto",
+                  mb: 1,
+                  border: `1px solid ${isDark ? "#3b4a54" : "#e9edef"}`,
+                }}
+              >
+                {/* Header */}
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    borderBottom: `1px solid ${isDark ? "#3b4a54" : "#e9edef"}`,
+                    bgcolor: isDark ? "#1f2c33" : "#f0f2f5",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: isDark ? "#8696a0" : "#667781",
+                      fontWeight: 500,
+                    }}
+                  >
+                    RESPOSTAS RÁPIDAS
+                  </Typography>
+                </Box>
+
+                {/* Lista de comandos */}
+                {filteredCommands.map((qr, index) => (
+                  <Box
+                    key={qr.id}
+                    onClick={() => selectCommand(qr)}
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      cursor: "pointer",
+                      bgcolor: index === selectedIndex 
+                        ? (isDark ? "#2a3942" : "#f5f6f6") 
+                        : "transparent",
+                      "&:hover": {
+                        bgcolor: isDark ? "#2a3942" : "#f5f6f6",
+                      },
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 1.5,
+                      borderBottom: `1px solid ${isDark ? "#3b4a54" : "#f0f2f5"}`,
+                    }}
+                  >
+                    {/* Ícone/Emoji */}
+                    <Box
+                      sx={{
+                        fontSize: "1.3rem",
+                        width: 28,
+                        height: 28,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {qr.icon || "💬"}
+                    </Box>
+
+                    {/* Conteúdo */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 500,
+                            color: isDark ? "#e9edef" : "#111b21",
+                          }}
+                        >
+                          {qr.title}
+                        </Typography>
+                        {qr.shortcut && (
+                          <Chip
+                            label={`/${qr.shortcut}`}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: "0.65rem",
+                              bgcolor: isDark ? "#3b4a54" : "#e9edef",
+                              color: isDark ? "#8696a0" : "#667781",
+                              "& .MuiChip-label": { px: 0.8 },
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: isDark ? "#8696a0" : "#667781",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          lineHeight: 1.3,
+                          mt: 0.3,
+                        }}
+                      >
+                        {qr.content}
+                      </Typography>
+                    </Box>
+
+                    {/* Indicador de navegação */}
+                    {index === selectedIndex && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: isDark ? "#8696a0" : "#667781",
+                          fontSize: "0.65rem",
+                          alignSelf: "center",
+                        }}
+                      >
+                        Enter ↵
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+
+                {/* Dica de navegação */}
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    borderTop: `1px solid ${isDark ? "#3b4a54" : "#e9edef"}`,
+                    bgcolor: isDark ? "#1f2c33" : "#f0f2f5",
+                    display: "flex",
+                    gap: 2,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isDark ? "#8696a0" : "#667781" }}
+                  >
+                    ↑↓ navegar
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isDark ? "#8696a0" : "#667781" }}
+                  >
+                    Enter selecionar
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isDark ? "#8696a0" : "#667781" }}
+                  >
+                    Esc fechar
+                  </Typography>
+                </Box>
+              </Paper>
+            </ClickAwayListener>
+          </Popper>
+        </Box>
         <IconButton
           onClick={() => onSendMessage()}
           disabled={!newMessage.trim()}
