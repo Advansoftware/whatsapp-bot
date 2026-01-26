@@ -249,28 +249,47 @@ export class WebhookAppService {
   }
 
   // ========================================
-  // CONTATOS
+  // CONTATOS POR APLICAÇÃO
   // ========================================
 
-  async listContacts(companyId: string) {
+  async listContacts(companyId: string, appId: string) {
+    // Verificar se app pertence à empresa
+    const app = await this.prisma.webhookApplication.findFirst({
+      where: { id: appId, companyId },
+    });
+
+    if (!app) {
+      throw new NotFoundException('Aplicação não encontrada');
+    }
+
     return this.prisma.webhookContact.findMany({
-      where: { companyId },
+      where: { applicationId: appId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async createContact(companyId: string, dto: CreateWebhookContactDto) {
+  async createContact(companyId: string, appId: string, dto: CreateWebhookContactDto) {
+    // Verificar se app pertence à empresa
+    const app = await this.prisma.webhookApplication.findFirst({
+      where: { id: appId, companyId },
+    });
+
+    if (!app) {
+      throw new NotFoundException('Aplicação não encontrada');
+    }
+
     const existing = await this.prisma.webhookContact.findUnique({
-      where: { companyId_remoteJid: { companyId, remoteJid: dto.remoteJid } },
+      where: { applicationId_remoteJid: { applicationId: appId, remoteJid: dto.remoteJid } },
     });
 
     if (existing) {
-      throw new BadRequestException('Contato já existe');
+      throw new BadRequestException('Contato já existe nesta aplicação');
     }
 
     return this.prisma.webhookContact.create({
       data: {
         companyId,
+        applicationId: appId,
         name: dto.name,
         remoteJid: dto.remoteJid,
         isActive: dto.isActive ?? true,
@@ -278,12 +297,13 @@ export class WebhookAppService {
     });
   }
 
-  async updateContact(companyId: string, contactId: string, dto: UpdateWebhookContactDto) {
+  async updateContact(companyId: string, appId: string, contactId: string, dto: UpdateWebhookContactDto) {
     const contact = await this.prisma.webhookContact.findFirst({
-      where: { id: contactId, companyId },
+      where: { id: contactId, applicationId: appId },
+      include: { application: true },
     });
 
-    if (!contact) {
+    if (!contact || contact.application.companyId !== companyId) {
       throw new NotFoundException('Contato não encontrado');
     }
 
@@ -293,12 +313,13 @@ export class WebhookAppService {
     });
   }
 
-  async deleteContact(companyId: string, contactId: string) {
+  async deleteContact(companyId: string, appId: string, contactId: string) {
     const contact = await this.prisma.webhookContact.findFirst({
-      where: { id: contactId, companyId },
+      where: { id: contactId, applicationId: appId },
+      include: { application: true },
     });
 
-    if (!contact) {
+    if (!contact || contact.application.companyId !== companyId) {
       throw new NotFoundException('Contato não encontrado');
     }
 
@@ -400,8 +421,8 @@ export class WebhookAppService {
         };
       }
 
-      // Buscar contatos do evento (ou todos se vazio)
-      const contacts = await this.getEventContacts(app.companyId, matchedEvent.contactIds);
+      // Buscar contatos do evento (ou todos da aplicação se vazio)
+      const contacts = await this.getEventContacts(appId, matchedEvent.contactIds);
 
       if (contacts.length === 0) {
         if (log) {
@@ -501,17 +522,18 @@ export class WebhookAppService {
     });
   }
 
-  private async getEventContacts(companyId: string, contactIds: string[]) {
+  private async getEventContacts(appId: string, contactIds: string[]) {
     if (contactIds.length === 0) {
-      // Retorna todos os contatos ativos da empresa
+      // Retorna todos os contatos ativos da aplicação
       return this.prisma.webhookContact.findMany({
-        where: { companyId, isActive: true },
+        where: { applicationId: appId, isActive: true },
       });
     }
 
     return this.prisma.webhookContact.findMany({
       where: {
         id: { in: contactIds },
+        applicationId: appId,
         isActive: true,
       },
     });

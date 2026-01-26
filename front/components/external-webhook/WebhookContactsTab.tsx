@@ -24,7 +24,11 @@ import api from "../../lib/api";
 import ConfirmDialog from "../common/ConfirmDialog";
 import { WebhookContact, CreateWebhookContactDto } from "./types";
 
-const WebhookContactsTab: React.FC = () => {
+interface WebhookContactsTabProps {
+  appId: string;
+}
+
+const WebhookContactsTab: React.FC<WebhookContactsTabProps> = ({ appId }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +48,7 @@ const WebhookContactsTab: React.FC = () => {
   const loadContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/webhook-contacts-v2");
+      const res = await api.get(`/api/webhook-apps/${appId}/contacts`);
       setContacts(res.data);
     } catch (err) {
       setError("Erro ao carregar contatos");
@@ -52,7 +56,7 @@ const WebhookContactsTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [appId]);
 
   useEffect(() => {
     loadContacts();
@@ -75,9 +79,9 @@ const WebhookContactsTab: React.FC = () => {
     setSaving(true);
     try {
       if (editingContact) {
-        await api.patch(`/api/webhook-contacts-v2/${editingContact.id}`, { name });
+        await api.patch(`/api/webhook-apps/${appId}/contacts/${editingContact.id}`, { name });
       } else {
-        await api.post("/api/webhook-contacts-v2", { name, remoteJid });
+        await api.post(`/api/webhook-apps/${appId}/contacts`, { name, remoteJid });
       }
       setDialogOpen(false);
       loadContacts();
@@ -93,7 +97,7 @@ const WebhookContactsTab: React.FC = () => {
 
   const handleToggleActive = async (contact: WebhookContact) => {
     try {
-      await api.patch(`/api/webhook-contacts-v2/${contact.id}`, {
+      await api.patch(`/api/webhook-apps/${appId}/contacts/${contact.id}`, {
         isActive: !contact.isActive,
       });
       loadContacts();
@@ -110,7 +114,7 @@ const WebhookContactsTab: React.FC = () => {
     });
     setConfirmAction(() => async () => {
       try {
-        await api.delete(`/api/webhook-contacts-v2/${contact.id}`);
+        await api.delete(`/api/webhook-apps/${appId}/contacts/${contact.id}`);
         loadContacts();
         setSuccess("Contato removido!");
         setTimeout(() => setSuccess(null), 3000);

@@ -164,35 +164,44 @@ export class WebhookAppController {
   }
 
   // ========================================
-  // CONTATOS GLOBAIS
+  // CONTATOS POR APLICAÇÃO
   // ========================================
 
-  @Get('api/webhook-contacts-v2')
+  @Get('api/webhook-apps/:appId/contacts')
   @UseGuards(JwtAuthGuard)
-  async listContacts(@Request() req: any) {
-    return this.webhookService.listContacts(req.user.companyId);
+  async listContacts(@Request() req: any, @Param('appId') appId: string) {
+    return this.webhookService.listContacts(req.user.companyId, appId);
   }
 
-  @Post('api/webhook-contacts-v2')
+  @Post('api/webhook-apps/:appId/contacts')
   @UseGuards(JwtAuthGuard)
-  async createContact(@Request() req: any, @Body() dto: CreateWebhookContactDto) {
-    return this.webhookService.createContact(req.user.companyId, dto);
+  async createContact(
+    @Request() req: any,
+    @Param('appId') appId: string,
+    @Body() dto: CreateWebhookContactDto,
+  ) {
+    return this.webhookService.createContact(req.user.companyId, appId, dto);
   }
 
-  @Patch('api/webhook-contacts-v2/:contactId')
+  @Patch('api/webhook-apps/:appId/contacts/:contactId')
   @UseGuards(JwtAuthGuard)
   async updateContact(
     @Request() req: any,
+    @Param('appId') appId: string,
     @Param('contactId') contactId: string,
     @Body() dto: UpdateWebhookContactDto,
   ) {
-    return this.webhookService.updateContact(req.user.companyId, contactId, dto);
+    return this.webhookService.updateContact(req.user.companyId, appId, contactId, dto);
   }
 
-  @Delete('api/webhook-contacts-v2/:contactId')
+  @Delete('api/webhook-apps/:appId/contacts/:contactId')
   @UseGuards(JwtAuthGuard)
-  async deleteContact(@Request() req: any, @Param('contactId') contactId: string) {
-    return this.webhookService.deleteContact(req.user.companyId, contactId);
+  async deleteContact(
+    @Request() req: any,
+    @Param('appId') appId: string,
+    @Param('contactId') contactId: string,
+  ) {
+    return this.webhookService.deleteContact(req.user.companyId, appId, contactId);
   }
 
   // ========================================

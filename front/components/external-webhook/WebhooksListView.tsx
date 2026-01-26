@@ -10,8 +10,6 @@ import {
   Grid,
   Paper,
   IconButton,
-  Tabs,
-  Tab,
   useTheme,
   alpha,
 } from "@mui/material";
@@ -20,29 +18,13 @@ import { useRouter } from "next/navigation";
 import api from "../../lib/api";
 import WebhookAppCard from "./WebhookAppCard";
 import CreateAppDialog from "./CreateAppDialog";
-import WebhookContactsTab from "./WebhookContactsTab";
 import { WebhookApplication, CreateWebhookAppDto } from "./types";
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel({ children, value, index }: TabPanelProps) {
-  return (
-    <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box pt={3}>{children}</Box>}
-    </div>
-  );
-}
 
 const WebhooksListView: React.FC = () => {
   const theme = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tabValue, setTabValue] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -123,64 +105,52 @@ const WebhooksListView: React.FC = () => {
         </Alert>
       )}
 
-      {/* Tabs */}
-      <Paper sx={{ bgcolor: alpha(theme.palette.background.paper, 0.6) }}>
-        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-          <Tab label="Aplicações" icon={<Webhook fontSize="small" />} iconPosition="start" />
-          <Tab label="Contatos" />
-        </Tabs>
-
-        <Box p={3}>
-          {/* Tab Aplicações */}
-          <TabPanel value={tabValue} index={0}>
-            <Box display="flex" justifyContent="flex-end" mb={3}>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => setCreateDialogOpen(true)}
-              >
-                Nova Aplicação
-              </Button>
-            </Box>
-
-            {apps.length === 0 ? (
-              <Box
-                display="flex"
-                flexDirection="column"
-                alignItems="center"
-                py={8}
-              >
-                <Webhook sx={{ fontSize: 64, color: "text.secondary", mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" mb={1}>
-                  Nenhuma aplicação configurada
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mb={3}>
-                  Crie uma aplicação para começar a receber webhooks
-                </Typography>
-                <Button
-                  variant="outlined"
-                  startIcon={<Add />}
-                  onClick={() => setCreateDialogOpen(true)}
-                >
-                  Criar Primeira Aplicação
-                </Button>
-              </Box>
-            ) : (
-              <Grid container spacing={2}>
-                {apps.map((app) => (
-                  <Grid size={{ xs: 12, md: 6, lg: 4 }} key={app.id}>
-                    <WebhookAppCard app={app} onClick={() => handleAppClick(app)} />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </TabPanel>
-
-          {/* Tab Contatos */}
-          <TabPanel value={tabValue} index={1}>
-            <WebhookContactsTab />
-          </TabPanel>
+      {/* Aplicações */}
+      <Paper sx={{ bgcolor: alpha(theme.palette.background.paper, 0.6), p: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="subtitle1" fontWeight={600}>
+            Aplicações
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            Nova Aplicação
+          </Button>
         </Box>
+
+        {apps.length === 0 ? (
+          <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            py={8}
+          >
+            <Webhook sx={{ fontSize: 64, color: "text.secondary", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" mb={1}>
+              Nenhuma aplicação configurada
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+              Crie uma aplicação para começar a receber webhooks
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<Add />}
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              Criar Primeira Aplicação
+            </Button>
+          </Box>
+        ) : (
+          <Grid container spacing={2}>
+            {apps.map((app) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={app.id}>
+                <WebhookAppCard app={app} onClick={() => handleAppClick(app)} />
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Paper>
 
       {/* Create Dialog */}

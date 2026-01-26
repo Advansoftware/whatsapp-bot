@@ -860,8 +860,9 @@ model WebhookApplication {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relações
-  events WebhookEvent[]
-  logs   WebhookApplicationLog[]
+  events   WebhookEvent[]
+  logs     WebhookApplicationLog[]
+  contacts WebhookContact[]
 
   @@unique([companyId, slug])
   @@index([companyId, isActive])
@@ -927,10 +928,11 @@ model WebhookApplicationLog {
   @@map("webhook_application_logs")
 }
 
-// Contatos globais para webhooks (pode ser vinculado a eventos específicos)
+// Contatos de webhook - vinculados a cada aplicação
 model WebhookContact {
-  id        String @id @default(cuid())
-  companyId String @map("company_id")
+  id            String @id @default(cuid())
+  companyId     String @map("company_id")
+  applicationId String @map("application_id")
 
   name      String // Nome amigável (ex: "Bruno - Admin")
   remoteJid String  @map("remote_jid") // WhatsApp JID
@@ -939,8 +941,12 @@ model WebhookContact {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([companyId, remoteJid])
-  @@index([companyId, isActive])
+  // Relação
+  application WebhookApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, remoteJid])
+  @@index([applicationId, isActive])
+  @@index([companyId])
   @@map("webhook_contacts")
 }
 

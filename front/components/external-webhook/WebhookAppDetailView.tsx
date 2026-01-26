@@ -29,12 +29,14 @@ import {
   Settings,
   Code,
   Visibility,
+  People,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
 import ConfirmDialog from "../common/ConfirmDialog";
 import WebhookEventEditor from "./WebhookEventEditor";
 import WebhookLogViewer from "./WebhookLogViewer";
+import WebhookContactsTab from "./WebhookContactsTab";
 import {
   WebhookApplication,
   WebhookEvent,
@@ -318,6 +320,7 @@ const WebhookAppDetailView: React.FC<WebhookAppDetailViewProps> = ({ appId }) =>
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
           <Tab label="Logs" icon={<Code fontSize="small" />} iconPosition="start" />
           <Tab label="Eventos" />
+          <Tab label="Contatos" icon={<People fontSize="small" />} iconPosition="start" />
           <Tab label="Configurações" icon={<Settings fontSize="small" />} iconPosition="start" />
         </Tabs>
 
@@ -414,8 +417,13 @@ const WebhookAppDetailView: React.FC<WebhookAppDetailViewProps> = ({ appId }) =>
             )}
           </TabPanel>
 
-          {/* Tab Configurações */}
+          {/* Tab Contatos */}
           <TabPanel value={tabValue} index={2}>
+            <WebhookContactsTab appId={appId} />
+          </TabPanel>
+
+          {/* Tab Configurações */}
+          <TabPanel value={tabValue} index={3}>
             <Box display="flex" flexDirection="column" gap={4} maxWidth={600}>
               {/* URLs Permitidas */}
               <Box>
