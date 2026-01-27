@@ -347,12 +347,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
             onPaste={handlePaste}
             onKeyDown={handleKeyDown}
             sx={{
-              "& .MuiOutlinedInput-root": {
-                bgcolor: "action.hover",
-                borderRadius: 2,
-                "& fieldset": { border: "none" },
-              },
-              "& input": { color: colors.inputText, padding: "10px 12px" },
               "& .MuiInputBase-root": { height: "auto" },
             }}
           />
