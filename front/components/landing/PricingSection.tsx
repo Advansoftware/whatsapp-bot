@@ -44,10 +44,10 @@ const PricingSection = ({ plans, onLoginClick }: PricingSectionProps) => {
               <Paper
                 sx={{
                   p: 4,
-                  bgcolor: "#202c33",
+                  bgcolor: "#0f131a",
                   borderRadius: 3,
                   border: plan.popular
-                    ? "2px solid #00a884"
+                    ? "2px solid #00fe9b"
                     : "1px solid #2a3942",
                   position: "relative",
                   height: "100%",
@@ -64,8 +64,8 @@ const PricingSection = ({ plans, onLoginClick }: PricingSectionProps) => {
                       top: -12,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      bgcolor: "#00a884",
-                      color: "#111b21",
+                      bgcolor: "#00fe9b",
+                      color: "#090b11",
                       fontWeight: "bold",
                       fontSize: "0.75rem",
                     }}
@@ -88,7 +88,7 @@ const PricingSection = ({ plans, onLoginClick }: PricingSectionProps) => {
                   {plan.features.map((feature, fIdx) => (
                     <ListItem key={fIdx} sx={{ px: 0, py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
-                        <CheckCircle sx={{ color: "#00a884", fontSize: 20 }} />
+                        <CheckCircle sx={{ color: "#00fe9b", fontSize: 20 }} />
                       </ListItemIcon>
                       <ListItemText
                         primary={feature}
@@ -110,8 +110,8 @@ const PricingSection = ({ plans, onLoginClick }: PricingSectionProps) => {
                     fontWeight: "bold",
                     ...(plan.popular
                       ? {
-                          bgcolor: "#00a884",
-                          color: "#111b21",
+                          bgcolor: "#00fe9b",
+                          color: "#090b11",
                           "&:hover": { bgcolor: "#008f6f" },
                         }
                       : {

@@ -10,7 +10,7 @@ interface HowItWorksSectionProps {
 
 const HowItWorksSection = ({ steps }: HowItWorksSectionProps) => {
   return (
-    <Box component="section" sx={{ py: 12, bgcolor: "#202c33" }}>
+    <Box component="section" sx={{ py: 12, bgcolor: "#0f131a" }}>
       <Container maxWidth="lg">
         <Typography
           variant="h4"
@@ -34,7 +34,7 @@ const HowItWorksSection = ({ steps }: HowItWorksSectionProps) => {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    bgcolor: item.done ? "#00a884" : "rgba(0, 168, 132, 0.2)",
+                    bgcolor: item.done ? "#00fe9b" : "rgba(0, 168, 132, 0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -43,12 +43,12 @@ const HowItWorksSection = ({ steps }: HowItWorksSectionProps) => {
                   }}
                 >
                   {item.done ? (
-                    <Check sx={{ color: "#111b21", fontSize: 28 }} />
+                    <Check sx={{ color: "#090b11", fontSize: 28 }} />
                   ) : (
                     <Typography
                       variant="h5"
                       fontWeight="bold"
-                      sx={{ color: "#00a884" }}
+                      sx={{ color: "#00fe9b" }}
                     >
                       {item.step}
                     </Typography>

@@ -153,7 +153,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "#111b21",
+        bgcolor: "background.default",
         position: "relative",
         overflow: "hidden",
       }}
@@ -166,21 +166,21 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           left: "-5%",
           width: 500,
           height: 500,
-          bgcolor: "rgba(0, 168, 132, 0.1)",
+          background: "radial-gradient(circle, rgba(0, 254, 155, 0.1) 0%, rgba(0,0,0,0) 70%)",
           borderRadius: "50%",
-          filter: "blur(100px)",
+          filter: "blur(80px)",
         }}
       />
       <Box
         sx={{
           position: "absolute",
-          top: "20%",
+          bottom: "10%",
           right: "-5%",
           width: 400,
           height: 400,
-          bgcolor: "rgba(0, 168, 132, 0.05)",
+          background: "radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(0,0,0,0) 70%)",
           borderRadius: "50%",
-          filter: "blur(100px)",
+          filter: "blur(80px)",
         }}
       />
 
@@ -190,10 +190,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           maxWidth: 480,
           width: "100%",
           mx: 2,
-          bgcolor: "#202c33",
-          borderRadius: 3,
-          border: "1px solid #2a3942",
+          bgcolor: "rgba(255, 255, 255, 0.03)",
+          backdropFilter: "blur(20px)",
+          borderRadius: 4,
+          border: "1px solid rgba(255, 255, 255, 0.1)",
           overflow: "hidden",
+          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
         }}
       >
         {/* Header */}
@@ -202,25 +204,26 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             sx={{
               width: 64,
               height: 64,
-              bgcolor: "rgba(0, 168, 132, 0.1)",
+              background: "linear-gradient(135deg, rgba(0, 254, 155, 0.1) 0%, rgba(0, 204, 122, 0.1) 100%)",
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mx: "auto",
               mb: 3,
-              border: "1px solid rgba(0, 168, 132, 0.2)",
+              border: "1px solid rgba(0, 254, 155, 0.2)",
+              boxShadow: "0 0 15px rgba(0, 254, 155, 0.1)",
             }}
           >
-            <Chat sx={{ fontSize: 32, color: "#00a884" }} />
+            <Chat sx={{ fontSize: 32, color: "primary.main" }} />
           </Box>
           <Typography
             variant="h4"
-            sx={{ color: "#e9edef", fontWeight: "bold", mb: 1 }}
+            sx={{ color: "text.primary", fontWeight: "bold", mb: 1, letterSpacing: "-0.5px" }}
           >
             {isLogin ? "Bem-vindo de volta" : "Crie sua conta"}
           </Typography>
-          <Typography sx={{ color: "#8696a0", fontSize: 14 }}>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
             {isLogin
               ? "Faça login para acessar seu painel"
               : "Comece a automatizar seu WhatsApp hoje mesmo"}
@@ -236,7 +239,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           )}
 
           <form onSubmit={handleSubmit}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               {!isLogin && (
                 <TextField
                   fullWidth
@@ -249,8 +252,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       color: "#e9edef",
-                      "& fieldset": { borderColor: "#2a3942" },
-                      "&:hover fieldset": { borderColor: "#00a884" },
+                      bgcolor: "rgba(0, 0, 0, 0.2)",
+                      "& fieldset": { borderColor: "rgba(255, 255, 255, 0.1)" },
+                      "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
                     },
                     "& .MuiInputLabel-root": { color: "#8696a0" },
                   }}
@@ -269,8 +273,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     color: "#e9edef",
-                    "& fieldset": { borderColor: "#2a3942" },
-                    "&:hover fieldset": { borderColor: "#00a884" },
+                    bgcolor: "rgba(0, 0, 0, 0.2)",
+                    "& fieldset": { borderColor: "rgba(255, 255, 255, 0.1)" },
+                    "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
                   },
                   "& .MuiInputLabel-root": { color: "#8696a0" },
                 }}
@@ -291,7 +296,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
-                        sx={{ color: "#8696a0" }}
+                        sx={{ color: "text.secondary" }}
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
@@ -301,8 +306,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     color: "#e9edef",
-                    "& fieldset": { borderColor: "#2a3942" },
-                    "&:hover fieldset": { borderColor: "#00a884" },
+                    bgcolor: "rgba(0, 0, 0, 0.2)",
+                    "& fieldset": { borderColor: "rgba(255, 255, 255, 0.1)" },
+                    "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
                   },
                   "& .MuiInputLabel-root": { color: "#8696a0" },
                 }}
@@ -314,11 +320,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 variant="contained"
                 disabled={isLoading}
                 sx={{
-                  mt: 2,
-                  bgcolor: "#00a884",
-                  "&:hover": { bgcolor: "#008f6f" },
+                  mt: 1,
                   height: 48,
                   fontWeight: "bold",
+                  fontSize: "1rem",
                 }}
               >
                 {isLoading ? (
@@ -331,13 +336,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               </Button>
             </Box>
           </form>
-
+         
           <Box sx={{ my: 3, display: "flex", alignItems: "center" }}>
-            <Divider sx={{ flex: 1, borderColor: "#2a3942" }} />
-            <Typography sx={{ px: 2, color: "#8696a0", fontSize: 12 }}>
-              OU
-            </Typography>
-            <Divider sx={{ flex: 1, borderColor: "#2a3942" }} />
+             <Divider sx={{ flex: 1, borderColor: "rgba(255, 255, 255, 0.1)" }} />
+             <Typography sx={{ px: 2, color: "text.secondary", fontSize: 12 }}>
+               OU
+             </Typography>
+             <Divider sx={{ flex: 1, borderColor: "rgba(255, 255, 255, 0.1)" }} />
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -357,14 +362,14 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         {/* Footer */}
         <Box
           sx={{
-            bgcolor: "#182329",
-            py: 2,
+            bgcolor: "rgba(0, 0, 0, 0.2)",
+            py: 3,
             px: 4,
             textAlign: "center",
-            borderTop: "1px solid #2a3942",
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
-          <Typography sx={{ color: "#8696a0", fontSize: 14 }}>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
             {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}{" "}
             <Link
               component="button"
@@ -374,10 +379,11 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 setFormData({ name: "", email: "", password: "" });
               }}
               sx={{
-                color: "#00a884",
+                color: "primary.main",
                 fontWeight: 600,
                 textDecoration: "none",
                 verticalAlign: "baseline",
+                "&:hover": { color: "primary.light" },
               }}
             >
               {isLogin ? "Cadastre-se" : "Faça Login"}
@@ -414,13 +420,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             fontSize: "0.95rem",
             alignItems: "center",
             ...(toast.type === "success" && {
-              bgcolor: "#00a884",
+              bgcolor: "success.main",
+              color: "black",
             }),
             ...(toast.type === "warning" && {
-              bgcolor: "#f59e0b",
+              bgcolor: "warning.main",
+              color: "black",
             }),
             ...(toast.type === "error" && {
-              bgcolor: "#ef4444",
+              bgcolor: "error.main",
+              color: "white",
             }),
           }}
         >

@@ -49,14 +49,14 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      bgcolor: "#00a884",
+                      bgcolor: "primary.main",
                       animation: "pulse 2s infinite",
                     }}
                   />
                 }
                 label="Secretária IA Integrada"
                 sx={{
-                  bgcolor: "#202c33",
+                  bgcolor: "#0f131a",
                   border: "1px solid #2a3942",
                   color: "#8696a0",
                   fontSize: "0.75rem",
@@ -77,7 +77,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   color: "white",
                 }}
               >
-                Sua <span style={{ color: "#00a884" }}>Secretária IA</span> no
+                Sua <span style={{ color: "#00fe9b" }}>Secretária IA</span> no
                 WhatsApp
               </Typography>
 
@@ -109,8 +109,8 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   variant="contained"
                   size="large"
                   sx={{
-                    bgcolor: "#00a884",
-                    color: "#111b21",
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
                     fontWeight: "bold",
                     px: 4,
                     py: 1.5,
@@ -125,7 +125,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   onClick={() => scrollToSection("demo")}
                   variant="outlined"
                   size="large"
-                  startIcon={<PlayCircle sx={{ color: "#00a884" }} />}
+                  startIcon={<PlayCircle sx={{ color: "primary.main" }} />}
                   sx={{
                     borderColor: "#2a3942",
                     color: "#e9edef",
@@ -140,13 +140,13 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
 
               <Box sx={{ display: "flex", gap: 3, pt: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircle sx={{ fontSize: 16, color: "#00a884" }} />
+                  <CheckCircle sx={{ fontSize: 16, color: "primary.main" }} />
                   <Typography variant="caption" color="#8696a0">
                     Sem cartão de crédito
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircle sx={{ fontSize: 16, color: "#00a884" }} />
+                  <CheckCircle sx={{ fontSize: 16, color: "primary.main" }} />
                   <Typography variant="caption" color="#8696a0">
                     7 dias grátis
                   </Typography>
@@ -184,7 +184,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                 sx={{
                   width: 360,
                   height: 480,
-                  bgcolor: "#202c33",
+                  bgcolor: "#0f131a",
                   borderRadius: 3,
                   border: "1px solid #2a3942",
                   overflow: "hidden",
@@ -197,7 +197,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                 {/* Chat Header */}
                 <Box
                   sx={{
-                    bgcolor: "#202c33",
+                    bgcolor: "#0f131a",
                     px: 2,
                     py: 1.5,
                     display: "flex",
@@ -211,7 +211,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                       height: 40,
                       borderRadius: 2,
                       background:
-                        "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                        "linear-gradient(135deg, #00fe9b 0%, #00cc7a 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -235,11 +235,11 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          bgcolor: "#00a884",
+                          bgcolor: "primary.main",
                           animation: "pulse 2s infinite",
                         }}
                       />
-                      <Typography variant="caption" sx={{ color: "#00a884" }}>
+                      <Typography variant="caption" sx={{ color: "primary.main" }}>
                         Respondendo agora...
                       </Typography>
                     </Box>
@@ -250,7 +250,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                 <Box
                   sx={{
                     flex: 1,
-                    bgcolor: "#0b141a",
+                    bgcolor: "#090b11",
                     p: 1.5,
                     display: "flex",
                     flexDirection: "column",
@@ -295,7 +295,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   <Box sx={{ alignSelf: "flex-start", maxWidth: "80%" }}>
                     <Paper
                       sx={{
-                        bgcolor: "#202c33",
+                        bgcolor: "#0f131a",
                         p: 1.5,
                         borderRadius: 2,
                         borderTopLeftRadius: 0.5,
@@ -323,7 +323,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   <Box sx={{ alignSelf: "flex-start", maxWidth: "80%" }}>
                     <Paper
                       sx={{
-                        bgcolor: "#202c33",
+                        bgcolor: "#0f131a",
                         p: 1.5,
                         borderRadius: 2,
                         borderTopLeftRadius: 0.5,
@@ -349,7 +349,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                       >
                         <Typography
                           variant="body2"
-                          sx={{ color: "#00a884", fontWeight: 500 }}
+                          sx={{ color: "primary.main", fontWeight: 500 }}
                         >
                           📅 Amanhã, 15:00
                         </Typography>
@@ -385,7 +385,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                   <Box sx={{ alignSelf: "flex-start" }}>
                     <Paper
                       sx={{
-                        bgcolor: "#202c33",
+                        bgcolor: "#0f131a",
                         px: 2,
                         py: 1.5,
                         borderRadius: 2,
@@ -414,7 +414,7 @@ const HeroSection = ({ onLoginClick, scrollToSection }: HeroSectionProps) => {
                 {/* Chat Input */}
                 <Box
                   sx={{
-                    bgcolor: "#202c33",
+                    bgcolor: "#0f131a",
                     px: 1.5,
                     py: 1,
                     display: "flex",

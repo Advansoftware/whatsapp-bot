@@ -296,21 +296,18 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                     }
                     sx={{
                       py: 1.5,
+                      mx: 1,
+                      borderRadius: 2,
+                      mb: 0.5,
                       "&.Mui-selected": {
-                        bgcolor: isDark
-                          ? "rgba(0, 168, 132, 0.25)"
-                          : "rgba(0, 168, 132, 0.15)",
-                        borderLeft: `4px solid #00a884`,
+                        bgcolor: "action.selected",
+                        borderLeft: "none", // Remove border, use full highlight
                         "&:hover": {
-                          bgcolor: isDark
-                            ? "rgba(0, 168, 132, 0.35)"
-                            : "rgba(0, 168, 132, 0.2)",
+                          bgcolor: "action.selected",
                         },
                       },
                       "&:hover": {
-                        bgcolor: isDark
-                          ? "rgba(255,255,255,0.05)"
-                          : "rgba(0,0,0,0.04)",
+                        bgcolor: "action.hover",
                       },
                       transition: "background-color 0.2s ease",
                     }}
@@ -326,7 +323,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                           isGroup ? (
                             <Box
                               sx={{
-                                bgcolor: "#00a884",
+                                bgcolor: "primary.main",
                                 borderRadius: "50%",
                                 width: 16,
                                 height: 16,
@@ -336,7 +333,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                                 border: `2px solid ${theme.palette.background.paper}`,
                               }}
                             >
-                              <Group sx={{ fontSize: 9, color: "white" }} />
+                              <Group sx={{ fontSize: 9, color: "black" }} />
                             </Box>
                           ) : null
                         }
@@ -347,8 +344,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                             `https://ui-avatars.com/api/?name=${encodeURIComponent(
                               conv.contact
                             )}&background=${
-                              isGroup ? "5865F2" : "00a884"
-                            }&color=fff`
+                              isGroup ? "7c3aed" : "00fe9b"
+                            }&color=000`
                           }
                           sx={{ width: 48, height: 48 }}
                           imgProps={{
@@ -357,8 +354,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                               e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                 conv.contact
                               )}&background=${
-                                isGroup ? "5865F2" : "00a884"
-                              }&color=fff`;
+                                isGroup ? "7c3aed" : "00fe9b"
+                              }&color=000`;
                             },
                           }}
                         >
@@ -378,6 +375,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
                               variant="subtitle2"
                               noWrap
                               fontWeight={600}
+                              color="text.primary"
                             >
                               {conv.contact}
                             </Typography>
@@ -439,8 +437,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
               position: "absolute",
               bottom: 16,
               right: 16,
-              bgcolor: "#00a884",
-              "&:hover": { bgcolor: "#008f72" },
+              bgcolor: "primary.main",
+              "&:hover": { bgcolor: "primary.dark" },
             }}
           >
             <Edit />

@@ -13,7 +13,7 @@ const PainPointsSection = ({ painPoints }: PainPointsSectionProps) => {
       component="section"
       sx={{
         py: 10,
-        bgcolor: "#202c33",
+        bgcolor: "#0f131a",
         borderTop: "1px solid #2a3942",
         borderBottom: "1px solid #2a3942",
       }}
@@ -34,7 +34,7 @@ const PainPointsSection = ({ painPoints }: PainPointsSectionProps) => {
               <Paper
                 sx={{
                   p: 3,
-                  bgcolor: "#111b21",
+                  bgcolor: "#090b11",
                   borderRadius: 2,
                   border: "1px solid rgba(248, 113, 113, 0.3)",
                   height: "100%",
@@ -63,7 +63,7 @@ const PainPointsSection = ({ painPoints }: PainPointsSectionProps) => {
         <Box sx={{ textAlign: "center", mt: 6 }}>
           <Typography
             variant="h6"
-            sx={{ color: "#00a884", fontWeight: "bold", mb: 1 }}
+            sx={{ color: "#00fe9b", fontWeight: "bold", mb: 1 }}
           >
             ✨ E se existisse uma solução para tudo isso?
           </Typography>

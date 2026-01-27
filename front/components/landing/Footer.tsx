@@ -22,7 +22,7 @@ const Footer = () => {
                 width: 32,
                 height: 32,
                 borderRadius: 1.5,
-                background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                background: "linear-gradient(135deg, #00fe9b 0%, #00cc7a 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -32,7 +32,7 @@ const Footer = () => {
             </Box>
             <Typography variant="body2" fontWeight="bold">
               <span>Respond</span>
-              <span style={{ color: "#00a884" }}>IA</span>
+              <span style={{ color: "#00fe9b" }}>IA</span>
             </Typography>
           </Box>
           <Typography variant="caption" color="#8696a0">
@@ -44,7 +44,7 @@ const Footer = () => {
               sx={{
                 color: "#8696a0",
                 cursor: "pointer",
-                "&:hover": { color: "#00a884" },
+                "&:hover": { color: "#00fe9b" },
               }}
             >
               Termos de Uso
@@ -54,7 +54,7 @@ const Footer = () => {
               sx={{
                 color: "#8696a0",
                 cursor: "pointer",
-                "&:hover": { color: "#00a884" },
+                "&:hover": { color: "#00fe9b" },
               }}
             >
               Política de Privacidade

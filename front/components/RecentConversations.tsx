@@ -170,7 +170,7 @@ const RecentConversations: React.FC<RecentConversationsProps> = ({
                           conv.profilePicUrl ||
                           `https://ui-avatars.com/api/?name=${encodeURIComponent(
                             conv.contact
-                          )}&background=00a884&color=fff`
+                          )}&background=00fe9b&color=000`
                         }
                         sx={{
                           width: 36,

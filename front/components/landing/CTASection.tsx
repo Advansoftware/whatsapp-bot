@@ -10,7 +10,7 @@ const CTASection = ({ onLoginClick }: CTASectionProps) => {
   return (
     <Box
       component="section"
-      sx={{ py: 12, bgcolor: "#202c33", borderTop: "1px solid #2a3942" }}
+      sx={{ py: 12, bgcolor: "#0f131a", borderTop: "1px solid #2a3942" }}
     >
       <Container maxWidth="md">
         <Box sx={{ textAlign: "center" }}>
@@ -26,8 +26,8 @@ const CTASection = ({ onLoginClick }: CTASectionProps) => {
             variant="contained"
             size="large"
             sx={{
-              bgcolor: "#00a884",
-              color: "#111b21",
+              bgcolor: "#00fe9b",
+              color: "#090b11",
               fontWeight: "bold",
               px: 6,
               py: 1.5,

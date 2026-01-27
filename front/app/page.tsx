@@ -22,11 +22,11 @@ export default function HomePage() {
       <Box
         display="flex"
         minHeight="100vh"
-        bgcolor="#111b21"
+        bgcolor="#090b11" // Deep Navy
         alignItems="center"
         justifyContent="center"
       >
-        <CircularProgress sx={{ color: "#00a884" }} />
+        <CircularProgress sx={{ color: "#00fe9b" }} /> {/* Neon Mint */}
       </Box>
     );
   }
@@ -37,11 +37,11 @@ export default function HomePage() {
       <Box
         display="flex"
         minHeight="100vh"
-        bgcolor="#111b21"
+        bgcolor="#090b11"
         alignItems="center"
         justifyContent="center"
       >
-        <CircularProgress sx={{ color: "#00a884" }} />
+        <CircularProgress sx={{ color: "#00fe9b" }} />
       </Box>
     );
   }

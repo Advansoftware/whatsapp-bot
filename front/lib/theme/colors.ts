@@ -6,19 +6,27 @@
  */
 
 export const colors = {
-  // Cores primárias
+  // Cores primárias - Viver de IA (Green/Teal Variant)
   primary: {
-    main: '#00a884',
-    light: '#25d366',
-    dark: '#008f6d',
+    main: '#00fe9b', // Neon Mint/Green (Electric, matches the 'vibe' but is green)
+    light: '#69ffcc',
+    dark: '#00cc7a',
+    contrastText: '#090b11',
+  },
+
+  // Cores secundárias (Violet/Purple)
+  secondary: {
+    main: '#8b5cf6',
+    light: '#a78bfa',
+    dark: '#7c3aed',
     contrastText: '#ffffff',
   },
 
   // Cores de status
   success: {
-    main: '#00a884',
-    light: '#4cceac',
-    dark: '#007a5e',
+    main: '#00ff9d',
+    light: '#6effcf',
+    dark: '#00cc7d',
   },
   warning: {
     main: '#ffd279',
@@ -26,32 +34,32 @@ export const colors = {
     dark: '#e5b84d',
   },
   error: {
-    main: '#f15c6d',
-    light: '#f78c98',
-    dark: '#d93d4f',
+    main: '#ff4d4d', // More vibrant red
+    light: '#ff8080',
+    dark: '#cc0000',
   },
   info: {
-    main: '#53bdeb',
-    light: '#7dcdf1',
-    dark: '#2a9fd8',
+    main: '#00fe9b', // Keeping consistent with primary
+    light: '#69ffcc',
+    dark: '#00cc7a',
   },
 
-  // Cores de fundo - modo escuro
+  // Cores de fundo - modo escuro (Viver de IA theme)
   dark: {
     background: {
-      default: '#111b21',
-      paper: '#202c33',
-      elevated: '#2a3942',
+      default: '#090b11', // Deep Navy/Black
+      paper: '#0f131a', // Slightly lighter for simple surfaces
+      elevated: '#151b24',
     },
     text: {
-      primary: '#e9edef',
-      secondary: '#8696a0',
-      disabled: '#667781',
+      primary: '#f5ffff', // Off-white with slight cyan tint
+      secondary: '#94b8b8', // Muted cyan-grey
+      disabled: '#4a5568',
     },
-    divider: '#2a3942',
+    divider: 'rgba(255, 255, 255, 0.1)', // Subtle glass border
     action: {
-      hover: 'rgba(255, 255, 255, 0.08)',
-      selected: 'rgba(255, 255, 255, 0.16)',
+      hover: 'rgba(0, 254, 155, 0.08)', // Neon Green glow on hover
+      selected: 'rgba(0, 254, 155, 0.16)',
       disabled: 'rgba(255, 255, 255, 0.26)',
     },
   },
@@ -76,14 +84,14 @@ export const colors = {
     },
   },
 
-  // Cores do chat
+  // Cores do chat (Updated for new theme)
   chat: {
     outgoing: {
-      dark: '#005c4b',
+      dark: '#005c3e', // Darker neon green
       light: '#d9fdd3',
     },
     incoming: {
-      dark: '#202c33',
+      dark: '#151b24', // Matches elevated background
       light: '#ffffff',
     },
   },

@@ -38,7 +38,7 @@ const LandingPage = ({ onLoginClick }: LandingPageProps) => {
   };
 
   return (
-    <Box sx={{ bgcolor: "#111b21", color: "#e9edef", minHeight: "100vh" }}>
+    <Box sx={{ bgcolor: "background.default", color: "text.primary", minHeight: "100vh" }}>
       <Navbar onLoginClick={onLoginClick} scrollToSection={scrollToSection} />
 
       <HeroSection onLoginClick={onLoginClick} scrollToSection={scrollToSection} />

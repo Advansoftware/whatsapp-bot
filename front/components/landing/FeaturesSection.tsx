@@ -30,7 +30,7 @@ const FeaturesSection = ({ features }: FeaturesSectionProps) => {
               <Paper
                 sx={{
                   p: 4,
-                  bgcolor: "#202c33",
+                  bgcolor: "#0f131a",
                   borderRadius: 2,
                   border: "1px solid #2a3942",
                   height: "100%",
@@ -48,7 +48,7 @@ const FeaturesSection = ({ features }: FeaturesSectionProps) => {
                     alignItems: "center",
                     justifyContent: "center",
                     mb: 3,
-                    color: "#00a884",
+                    color: "#00fe9b",
                   }}
                 >
                   {feature.icon}

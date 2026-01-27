@@ -35,7 +35,7 @@ const Navbar = ({ onLoginClick, scrollToSection }: NavbarProps) => {
                 width: 40,
                 height: 40,
                 borderRadius: 2,
-                background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+                background: "linear-gradient(135deg, #00fe9b 0%, #00cc7a 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -46,7 +46,7 @@ const Navbar = ({ onLoginClick, scrollToSection }: NavbarProps) => {
             </Box>
             <Typography variant="h6" fontWeight="bold">
               <span>Respond</span>
-              <span style={{ color: "#00a884" }}>IA</span>
+              <span style={{ color: "#00fe9b" }}>IA</span>
             </Typography>
           </Box>
 
@@ -55,20 +55,20 @@ const Navbar = ({ onLoginClick, scrollToSection }: NavbarProps) => {
             <Button
               color="inherit"
               onClick={() => scrollToSection("features")}
-              sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
+              sx={{ color: "#8696a0", "&:hover": { color: "#00fe9b" } }}
             >
               Funcionalidades
             </Button>
             <Button
               color="inherit"
               onClick={() => scrollToSection("pricing")}
-              sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
+              sx={{ color: "#8696a0", "&:hover": { color: "#00fe9b" } }}
             >
               Preços
             </Button>
             <Button
               color="inherit"
-              sx={{ color: "#8696a0", "&:hover": { color: "#00a884" } }}
+              sx={{ color: "#8696a0", "&:hover": { color: "#00fe9b" } }}
             >
               Documentação
             </Button>
@@ -90,8 +90,8 @@ const Navbar = ({ onLoginClick, scrollToSection }: NavbarProps) => {
               onClick={onLoginClick}
               variant="contained"
               sx={{
-                bgcolor: "#00a884",
-                color: "#111b21",
+                bgcolor: "#00fe9b",
+                color: "#090b11",
                 fontWeight: "bold",
                 "&:hover": { bgcolor: "#008f6f" },
                 boxShadow: "0 0 15px rgba(0, 168, 132, 0.2)",

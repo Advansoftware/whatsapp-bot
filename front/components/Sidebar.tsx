@@ -123,7 +123,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "background.paper",
+        bgcolor: "background.default", // Match global background
+        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
       }}
     >
       {/* Logo */}
@@ -133,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
             width: 40,
             height: 40,
             borderRadius: 2,
-            background: "linear-gradient(135deg, #00a884 0%, #059669 100%)",
+            background: "linear-gradient(135deg, #00fe9b 0%, #00cc7a 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -144,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
         </Box>
         <Typography variant="h6" fontWeight="bold">
           <span>Respond</span>
-          <span style={{ color: "#00a884" }}>IA</span>
+          <span style={{ color: "#00fe9b" }}>IA</span>
         </Typography>
       </Box>
 

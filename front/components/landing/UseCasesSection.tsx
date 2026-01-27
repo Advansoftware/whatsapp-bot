@@ -9,7 +9,7 @@ interface UseCasesSectionProps {
 
 const UseCasesSection = ({ useCases }: UseCasesSectionProps) => {
   return (
-    <Box component="section" sx={{ py: 12, bgcolor: "#202c33" }}>
+    <Box component="section" sx={{ py: 12, bgcolor: "#0f131a" }}>
       <Container maxWidth="lg">
         <Typography
           variant="h4"
@@ -29,7 +29,7 @@ const UseCasesSection = ({ useCases }: UseCasesSectionProps) => {
               <Paper
                 sx={{
                   p: 3,
-                  bgcolor: "#111b21",
+                  bgcolor: "#090b11",
                   borderRadius: 2,
                   border: "1px solid #2a3942",
                   height: "100%",
@@ -51,7 +51,7 @@ const UseCasesSection = ({ useCases }: UseCasesSectionProps) => {
                 <Typography variant="body2" color="#8696a0" mb={2}>
                   {useCase.description}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#00a884" }}>
+                <Typography variant="caption" sx={{ color: "#00fe9b" }}>
                   {useCase.tag}
                 </Typography>
               </Paper>

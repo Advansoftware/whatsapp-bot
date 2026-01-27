@@ -11,15 +11,15 @@ import {
 
 const IntegrationsSection = () => {
   const integrations = [
-    { icon: <AutoAwesome sx={{ color: "#00a884" }} />, label: "IA Avançada" },
+    { icon: <AutoAwesome sx={{ color: "#00fe9b" }} />, label: "IA Avançada" },
     {
-      icon: <CalendarMonth sx={{ color: "#00a884" }} />,
+      icon: <CalendarMonth sx={{ color: "#00fe9b" }} />,
       label: "Agenda Google",
     },
-    { icon: <Forum sx={{ color: "#00a884" }} />, label: "WhatsApp" },
+    { icon: <Forum sx={{ color: "#00fe9b" }} />, label: "WhatsApp" },
     { icon: <Psychology sx={{ color: "#8b5cf6" }} />, label: "Gastometria" },
     {
-      icon: <RecordVoiceOver sx={{ color: "#00a884" }} />,
+      icon: <RecordVoiceOver sx={{ color: "#00fe9b" }} />,
       label: "Transcrição",
     },
   ];
