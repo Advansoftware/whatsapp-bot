@@ -108,6 +108,7 @@ model Contact {
 
   company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   memories ContactMemory[]
+  deals    Deal[]
 
   @@unique([remoteJid, companyId])
   @@map("contacts")
@@ -1020,4 +1021,70 @@ model QuickReply {
   @@index([companyId, isActive])
   @@index([companyId, shortcut])
   @@map("quick_replies")
+}
+
+// ================================
+// CRM KANBAN - FUNIL DE VENDAS
+// ================================
+
+// Pipeline (Funil de Vendas)
+model Pipeline {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  name      String   // Ex: "Vendas Principal", "Suporte"
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stages PipelineStage[]
+
+  @@index([companyId])
+  @@map("pipelines")
+}
+
+// Estágio/Coluna do Pipeline
+model PipelineStage {
+  id         String  @id @default(cuid())
+  pipelineId String  @map("pipeline_id")
+  name       String  // Ex: "Novo", "Negociando", "Proposta", "Fechado"
+  color      String  @default("#3b82f6") // Cor hex da coluna
+  position   Int     @default(0) // Ordem da coluna
+  isActive   Boolean @default(true) @map("is_active")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals    Deal[]
+
+  @@index([pipelineId, position])
+  @@map("pipeline_stages")
+}
+
+// Deal (Card no Kanban)
+model Deal {
+  id        String   @id @default(cuid())
+  stageId   String   @map("stage_id")
+  contactId String?  @map("contact_id")
+  companyId String   @map("company_id")
+
+  // Dados do deal
+  title       String  // Título do deal (pode ser nome do contato)
+  value       Float   @default(0) // Valor monetário (R$)
+  priority    String  @default("medium") // 'low' | 'medium' | 'high' | 'urgent'
+  status      String  @default("open") // 'open' | 'won' | 'lost'
+  notes       String? @db.Text
+  position    Int     @default(0) // Ordem do card dentro da coluna
+
+  // Datas
+  expectedCloseDate DateTime? @map("expected_close_date")
+  closedAt          DateTime? @map("closed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  stage   PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  contact Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([stageId, position])
+  @@index([companyId])
+  @@index([contactId])
+  @@map("deals")
 }

@@ -37,6 +37,7 @@ import {
   Person,
   Webhook,
   School,
+  ViewColumn,
 } from "@mui/icons-material";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -74,6 +75,7 @@ const menuItems = [
   { id: "integrations" as View, label: "Integrações", icon: <Extension /> },
   { id: "external-webhook" as View, label: "Webhooks", icon: <Webhook /> },
   { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
+  { id: "pipeline" as View, label: "Funil de Vendas", icon: <ViewColumn /> },
   { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },
   { id: "analytics" as View, label: "Analytics", icon: <BarChart /> },
   { id: "team" as View, label: "Equipe", icon: <Groups /> },

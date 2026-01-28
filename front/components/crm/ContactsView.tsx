@@ -562,16 +562,18 @@ const ContactsView: React.FC<ContactsViewProps> = ({ onNavigateToChat }) => {
                               color="text.secondary"
                               noWrap
                               sx={{ maxWidth: 400 }}
+                              component="div"
                             >
                               💬 {contact.lastMessage.substring(0, 50)}...
                             </Typography>
                           )}
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" component="div">
                             {contact.messageCount} mensagens • Último contato:{" "}
                             {formatDate(contact.lastMessageAt)}
                           </Typography>
                         </Box>
                       }
+                      secondaryTypographyProps={{ component: "div" }}
                     />
                     <ListItemSecondaryAction>
                       <Tooltip title="Ver Detalhes">

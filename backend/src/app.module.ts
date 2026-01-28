@@ -16,6 +16,7 @@ import { GroupAutomationsModule } from './group-automations/group-automations.mo
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ContactAutomationModule } from './contact-automation/contact-automation.module';
 import { ExternalWebhookModule } from './external-webhook/external-webhook.module';
+import { CrmModule } from './crm/crm.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -50,6 +51,7 @@ import { HealthController } from './health.controller';
     SubscriptionModule,
     ContactAutomationModule,
     ExternalWebhookModule,
+    CrmModule,
   ],
   controllers: [HealthController],
 })

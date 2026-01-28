@@ -720,6 +720,69 @@ export const fetchAddressByCep = async (cep: string) => {
   }
 };
 
+// CRM Pipeline Endpoints
+export const pipelineApi = {
+  getPipelines: async () => {
+    const response = await axiosClient.get('/api/crm/pipelines');
+    return response.data;
+  },
+
+  getPipelineById: async (id: string) => {
+    const response = await axiosClient.get(`/api/crm/pipelines/${id}`);
+    return response.data;
+  },
+
+  createPipeline: async (data: { name: string; isDefault?: boolean }) => {
+    const response = await axiosClient.post('/api/crm/pipelines', data);
+    return response.data;
+  },
+
+  updatePipeline: async (id: string, data: { name?: string; isDefault?: boolean; isActive?: boolean }) => {
+    const response = await axiosClient.put(`/api/crm/pipelines/${id}`, data);
+    return response.data;
+  },
+
+  createStage: async (data: { pipelineId: string; name: string; color?: string; position?: number }) => {
+    const response = await axiosClient.post('/api/crm/stages', data);
+    return response.data;
+  },
+
+  updateStage: async (id: string, data: { name?: string; color?: string; isActive?: boolean }) => {
+    const response = await axiosClient.put(`/api/crm/stages/${id}`, data);
+    return response.data;
+  },
+
+  reorderStages: async (pipelineId: string, stageIds: string[]) => {
+    const response = await axiosClient.put('/api/crm/stages/reorder', { pipelineId, stageIds });
+    return response.data;
+  },
+
+  deleteStage: async (id: string) => {
+    const response = await axiosClient.delete(`/api/crm/stages/${id}`);
+    return response.data;
+  },
+
+  createDeal: async (data: { stageId: string; title: string; value?: number; priority?: string; contactId?: string; notes?: string; expectedCloseDate?: string }) => {
+    const response = await axiosClient.post('/api/crm/deals', data);
+    return response.data;
+  },
+
+  updateDeal: async (id: string, data: { title?: string; value?: number; priority?: string; status?: string; notes?: string; expectedCloseDate?: string }) => {
+    const response = await axiosClient.put(`/api/crm/deals/${id}`, data);
+    return response.data;
+  },
+
+  moveDeal: async (id: string, stageId: string, position: number) => {
+    const response = await axiosClient.put(`/api/crm/deals/${id}/move`, { stageId, position });
+    return response.data;
+  },
+
+  deleteDeal: async (id: string) => {
+    const response = await axiosClient.delete(`/api/crm/deals/${id}`);
+    return response.data;
+  }
+};
+
 /* ==========================================================================================
    DEFAULT EXPORT
    This object merges all API groups and axios instance methods for backward compatibility
@@ -804,6 +867,20 @@ const defaultClient = {
   updateGroupAutomation: groupAutomationsApi.updateGroupAutomation,
   deleteGroupAutomation: groupAutomationsApi.deleteGroupAutomation,
   toggleGroupAutomation: groupAutomationsApi.toggleGroupAutomation,
+
+  // CRM Pipeline
+  getPipelines: pipelineApi.getPipelines,
+  getPipelineById: pipelineApi.getPipelineById,
+  createPipeline: pipelineApi.createPipeline,
+  updatePipeline: pipelineApi.updatePipeline,
+  createPipelineStage: pipelineApi.createStage,
+  updatePipelineStage: pipelineApi.updateStage,
+  reorderPipelineStages: pipelineApi.reorderStages,
+  deletePipelineStage: pipelineApi.deleteStage,
+  createDeal: pipelineApi.createDeal,
+  updateDeal: pipelineApi.updateDeal,
+  moveDeal: pipelineApi.moveDeal,
+  deleteDeal: pipelineApi.deleteDeal,
 
   getTeamMembers: teamApi.getTeamMembers,
 
