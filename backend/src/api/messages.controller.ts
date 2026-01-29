@@ -1,19 +1,23 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus, UseInterceptors, UploadedFile, Param, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpException, HttpStatus, UseInterceptors, UploadedFile, Param, Res, Logger } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { AITranscriptionService } from '../ai/ai-transcription.service';
+import { AIService } from '../ai/ai.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import * as FormData from 'form-data';
 
 @Controller('api/messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
+  private readonly logger = new Logger(MessagesController.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiTranscriptionService: AITranscriptionService,
+    private readonly aiService: AIService,
     private readonly chatGateway: ChatGateway,
   ) { }
 
@@ -293,6 +297,66 @@ export class MessagesController {
           });
         } catch (dbError) {
           console.error('Error saving sent message to DB:', dbError);
+        }
+
+        // Trigger AI Assistant if sending to owner (Self-Chat)
+        // This allows testing the AI by talking to yourself/bot number
+        try {
+          // Run in background
+          (async () => {
+            const aiConfig = await this.prisma.aISecretary.findUnique({
+              where: { companyId: instance.companyId },
+            });
+
+            if (aiConfig?.ownerPhone) {
+              const ownerPhone = aiConfig.ownerPhone.replace(/\D/g, '');
+              const targetPhone = remoteJid.replace(/\D/g, '');
+
+              // If sending TO the owner (which means we ARE the owner talking to our own bot)
+              // OR if sending TO the bot instance number (if that's how they test)
+              if (targetPhone === ownerPhone) {
+                this.logger.log(`Triggering AI Assistant for owner self-chat: ${remoteJid}`);
+
+                const aiResponse = await this.aiService.processSecretaryMessage(
+                  content,
+                  instance.companyId,
+                  instance.instanceKey,
+                  remoteJid,
+                  aiConfig.ownerName || undefined,
+                  true // isPersonalAssistantMode = true
+                );
+
+                if (aiResponse.shouldRespond && aiResponse.response) {
+                  // Save AI response as incoming message
+                  const aiMsg = await this.prisma.message.create({
+                    data: {
+                      messageId: `ai-${Date.now()}`,
+                      remoteJid,
+                      content: aiResponse.response,
+                      direction: 'incoming',
+                      status: 'delivered',
+                      senderType: 'ai', // Mark as AI
+                      companyId: instance.companyId,
+                      instanceId: instance.id,
+                    },
+                  });
+
+                  // Broadcast AI response
+                  this.chatGateway.broadcastMessage({
+                    id: aiMsg.id,
+                    remoteJid,
+                    content: aiMsg.content,
+                    direction: 'incoming',
+                    status: 'delivered',
+                    senderType: 'ai',
+                    createdAt: aiMsg.createdAt,
+                  });
+                }
+              }
+            }
+          })();
+        } catch (aiError) {
+          this.logger.error(`Error triggering AI assistant: ${aiError.message}`);
         }
       }
 

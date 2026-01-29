@@ -199,8 +199,32 @@ const MessageBubble = memo<MessageBubbleProps>(
             {isSender && (
               <MessageStatus status={msg.status} color={colors.timeText} />
             )}
-          </Box>
+            </Box>
         </Paper>
+        {/* AI Indicator */}
+        {msg?.senderType === "ai" && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: -8,
+              left: -8,
+              bgcolor: "#673ab7", // Deep Purple
+              color: "#fff",
+              borderRadius: "50%",
+              width: 20,
+              height: 20,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "12px",
+              zIndex: 1,
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+            }}
+            title="Respondido por IA"
+          >
+            🤖
+          </Box>
+        )}
       </Box>
     );
   },

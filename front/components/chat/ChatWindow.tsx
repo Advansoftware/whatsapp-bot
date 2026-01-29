@@ -369,6 +369,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             pushName: data.pushName,
             mediaUrl: data.mediaUrl,
             mediaType: data.mediaType,
+            senderType: data.senderType || "manual",
             quotedMessage: data.quotedMessage,
           };
           addMessage(newMsg);
@@ -460,6 +461,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         pushName: null,
         mediaUrl: null,
         mediaType: null,
+        senderType: "manual",
         quotedMessage: replyingTo ? {
           id: replyingTo.id,
           content: replyingTo.content,
