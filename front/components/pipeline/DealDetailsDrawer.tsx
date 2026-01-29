@@ -216,7 +216,17 @@ const DealDetailsDrawer: React.FC<DealDetailsDrawerProps> = ({
                 />
               )}
               <Chip
-                label={deal.priority || "normal"}
+                label={
+                  deal.priority === "urgent"
+                    ? "Urgente"
+                    : deal.priority === "high"
+                    ? "Alta"
+                    : deal.priority === "medium"
+                    ? "Média"
+                    : deal.priority === "low"
+                    ? "Baixa"
+                    : "Normal"
+                }
                 size="small"
                 variant="outlined"
                 color={

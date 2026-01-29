@@ -35,7 +35,9 @@ export class MessagesController {
       where.instanceId = instanceId;
     }
     if (remoteJid) {
-      where.remoteJid = remoteJid;
+      // Remove sufixo se existir para busca flexível
+      const cleanJid = remoteJid.replace(/@.*/, '');
+      where.remoteJid = { contains: cleanJid };
     }
 
     const [messages, total] = await Promise.all([
