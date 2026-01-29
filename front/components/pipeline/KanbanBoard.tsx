@@ -15,15 +15,19 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Box, Typography, Button, IconButton, CircularProgress } from "@mui/material";
-import { Add } from "@mui/icons-material";
+import { Box, Typography, Button, IconButton, CircularProgress, useMediaQuery, useTheme } from "@mui/material";
+import { Add, FilterList, ViewColumn } from "@mui/icons-material";
 import KanbanColumn from "./KanbanColumn";
 import DealCard from "./DealCard";
 import CreateDealModal from "./CreateDealModal";
+import DealDetailsDrawer from "./DealDetailsDrawer";
 import api from "../../lib/api";
 import io, { Socket } from "socket.io-client";
 
 const KanbanBoard: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [pipeline, setPipeline] = useState<any>(null);
   const [stages, setStages] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]); // Flat list of deals
@@ -33,6 +37,10 @@ const KanbanBoard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStageId, setModalStageId] = useState<string>("");
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
+  
+  // Drawer state
+  const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -212,6 +220,13 @@ const KanbanBoard: React.FC = () => {
       }
   };
 
+  const handleArchiveDeal = async (id: string, isCurrentlyArchived: boolean) => {
+      const newStatus = isCurrentlyArchived ? 'open' : 'archived';
+      await api.updateDeal(id, { status: newStatus });
+      // Update local state
+      setDeals((prev) => prev.map(d => d.id === id ? { ...d, status: newStatus } : d));
+  };
+
   if (loading && !pipeline) {
       return (
           <Box display="flex" justifyContent="center" alignItems="center" sx={{ height: "100vh" }}>
@@ -245,10 +260,11 @@ const KanbanBoard: React.FC = () => {
             flexGrow: 1,
             overflowX: "auto",
             display: "flex",
-            gap: 2,
-            px: 3,
+            gap: { xs: 1.5, md: 2 },
+            px: { xs: 1, md: 3 },
             pb: 3,
             alignItems: "flex-start", // Top align
+            minWidth: isMobile ? stages.length * 280 : 'auto',
           }}
         >
           {stages.map((stage) => (
@@ -263,13 +279,20 @@ const KanbanBoard: React.FC = () => {
                   setIsModalOpen(true);
               }}
               onDeleteDeal={handleDeleteDeal}
+              onDealClick={(deal) => {
+                // Add stage info to deal for drawer display
+                const dealWithStage = { ...deal, stage };
+                setSelectedDeal(dealWithStage);
+                setDrawerOpen(true);
+              }}
+              isMobile={isMobile}
             />
           ))}
         </Box>
         
         <DragOverlay>
             {activeDeal ? (
-               <DealCard deal={activeDeal} onEdit={() => {}} onDelete={() => {}} />
+               <DealCard deal={activeDeal} onEdit={() => {}} onDelete={() => {}} onClick={() => {}} />
             ) : null}
         </DragOverlay>
 
@@ -280,9 +303,36 @@ const KanbanBoard: React.FC = () => {
             initialStageId={modalStageId}
             dealToEdit={editingDeal}
         />
+
+        <DealDetailsDrawer
+          open={drawerOpen}
+          deal={selectedDeal}
+          onClose={() => {
+            setDrawerOpen(false);
+            setSelectedDeal(null);
+          }}
+          onEdit={(deal) => {
+            setDrawerOpen(false);
+            setEditingDeal(deal);
+            setModalStageId(deal.stageId);
+            setIsModalOpen(true);
+          }}
+          onDelete={async (id) => {
+            await handleDeleteDeal(id);
+            setDrawerOpen(false);
+            setSelectedDeal(null);
+          }}
+          onArchive={async (id, isArchived) => {
+            await handleArchiveDeal(id, isArchived);
+            setDrawerOpen(false);
+            setSelectedDeal(null);
+          }}
+          onRefresh={fetchData}
+        />
       </Box>
     </DndContext>
   );
 };
 
 export default KanbanBoard;
+

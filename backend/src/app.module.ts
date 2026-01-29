@@ -17,6 +17,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ContactAutomationModule } from './contact-automation/contact-automation.module';
 import { ExternalWebhookModule } from './external-webhook/external-webhook.module';
 import { CrmModule } from './crm/crm.module';
+import { DailyMessagingModule } from './daily-messaging/daily-messaging.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -52,6 +53,7 @@ import { HealthController } from './health.controller';
     ContactAutomationModule,
     ExternalWebhookModule,
     CrmModule,
+    DailyMessagingModule,
   ],
   controllers: [HealthController],
 })

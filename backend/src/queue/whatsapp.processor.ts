@@ -14,6 +14,7 @@ import { SecretaryTasksService } from '../secretary-tasks/secretary-tasks.servic
 import { NotificationsService } from '../notifications/notifications.service';
 import { GroupAutomationsService } from '../group-automations/group-automations.service';
 import { ContactAutomationProcessorService } from '../contact-automation/contact-automation-processor.service';
+import { DailyMessagingService } from '../daily-messaging/daily-messaging.service';
 import { WHATSAPP_QUEUE } from './constants';
 
 export interface WhatsappJobData {
@@ -57,6 +58,7 @@ export class WhatsappProcessor extends WorkerHost {
     private readonly notificationsService: NotificationsService,
     private readonly groupAutomationsService: GroupAutomationsService,
     private readonly contactAutomationProcessor: ContactAutomationProcessorService,
+    private readonly dailyMessagingService: DailyMessagingService,
   ) {
     super();
   }
@@ -369,6 +371,44 @@ export class WhatsappProcessor extends WorkerHost {
         } catch (automationError) {
           this.logger.warn(`Contact automation error: ${automationError.message}`);
           // Continuar processamento normal em caso de erro
+        }
+      }
+
+      // 3.4 MENSAGENS DIÁRIAS - Verificar opt-out do assinante
+      // Se o cliente responder "parar", "stop", etc., desinscrever automaticamente
+      if (!isGroup && !fromMe && this.dailyMessagingService.isOptOutMessage(processedContent)) {
+        try {
+          const subscriber = await this.dailyMessagingService.getActiveSubscriberByPhone(
+            instance.companyId,
+            remoteJid,
+          );
+
+          if (subscriber) {
+            await this.dailyMessagingService.optOutSubscriber(instance.companyId, subscriber.phone);
+            this.logger.log(`📭 Daily message subscriber opted out: ${subscriber.phone}`);
+
+            // Enviar confirmação de opt-out
+            const optOutMessage = '✅ Você foi removido da lista de mensagens diárias. Se mudar de ideia, entre em contato novamente.';
+            await this.aiService.sendWhatsAppMessage(instanceKey, remoteJid, optOutMessage);
+
+            await this.prisma.message.update({
+              where: { id: message.id },
+              data: {
+                response: optOutMessage,
+                status: 'processed',
+                processedAt: new Date(),
+              },
+            });
+
+            return {
+              status: 'daily_message_opted_out',
+              messageId: message.id,
+              subscriberId: subscriber.id,
+            };
+          }
+        } catch (optOutError: any) {
+          this.logger.warn(`Daily message opt-out error: ${optOutError.message}`);
+          // Continuar processamento normal
         }
       }
 

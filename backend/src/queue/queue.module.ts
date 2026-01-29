@@ -8,6 +8,7 @@ import { SecretaryTasksModule } from '../secretary-tasks/secretary-tasks.module'
 import { NotificationsModule } from '../notifications/notifications.module';
 import { GroupAutomationsModule } from '../group-automations/group-automations.module';
 import { ContactAutomationModule } from '../contact-automation/contact-automation.module';
+import { DailyMessagingModule } from '../daily-messaging/daily-messaging.module';
 
 export { WHATSAPP_QUEUE } from './constants';
 
@@ -31,6 +32,7 @@ export { WHATSAPP_QUEUE } from './constants';
     NotificationsModule,
     GroupAutomationsModule,
     ContactAutomationModule,
+    DailyMessagingModule,
   ],
   providers: [WhatsappProcessor],
   exports: [BullModule],

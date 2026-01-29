@@ -1082,9 +1082,105 @@ model Deal {
 
   stage   PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
   contact Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealNotes DealNote[]
 
   @@index([stageId, position])
   @@index([companyId])
   @@index([contactId])
   @@map("deals")
 }
+
+// Notas internas de um Deal
+model DealNote {
+  id        String   @id @default(cuid())
+  dealId    String   @map("deal_id")
+  content   String   @db.Text
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@map("deal_notes")
+}
+
+// ================================
+// MENSAGENS DIÁRIAS (365 DIAS)
+// ================================
+
+// Assinante do programa de mensagens diárias
+model DailyMessageSubscriber {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  
+  // Dados do comprador
+  name      String
+  email     String?
+  phone     String   // Formato E.164 (+5535999999999)
+  remoteJid String   @map("remote_jid") // JID do WhatsApp
+  
+  // Origem da compra
+  source        String  @default("manual") // 'manual' | 'hotmart' | 'kiwify' | 'webhook'
+  transactionId String? @map("transaction_id") // ID da transação na plataforma
+  productName   String? @map("product_name")
+  
+  // Status
+  status    String   @default("active") // 'active' | 'paused' | 'completed' | 'refunded' | 'opted_out'
+  
+  // Controle de envio
+  startDate   DateTime @map("start_date") // Data de início (dia da compra)
+  currentDay  Int      @default(1) @map("current_day") // Dia atual (1-365)
+  lastSentAt  DateTime? @map("last_sent_at") // Última mensagem enviada
+  completedAt DateTime? @map("completed_at") // Quando completou 365 dias
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  sendLogs DailyMessageSendLog[]
+  
+  @@unique([companyId, phone])
+  @@index([companyId, status])
+  @@index([companyId, currentDay])
+  @@map("daily_message_subscribers")
+}
+
+// Mensagem diária (365 mensagens por empresa)
+model DailyMessage {
+  id        String @id @default(cuid())
+  companyId String @map("company_id")
+  
+  dayNumber Int    @map("day_number") // 1-365
+  content   String @db.Text // Texto da mensagem
+  mediaUrl  String? @map("media_url") // URL de mídia opcional (imagem, vídeo)
+  mediaType String? @map("media_type") // 'image' | 'video' | 'document'
+  
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([companyId, dayNumber])
+  @@index([companyId, isActive])
+  @@map("daily_messages")
+}
+
+// Log de envio de mensagens
+model DailyMessageSendLog {
+  id           String @id @default(cuid())
+  subscriberId String @map("subscriber_id")
+  
+  dayNumber Int    @map("day_number")
+  status    String @default("pending") // 'pending' | 'sent' | 'failed' | 'retry'
+  error     String? @db.Text
+  attempts  Int    @default(0)
+  
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  subscriber DailyMessageSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  
+  @@index([subscriberId])
+  @@index([status, createdAt])
+  @@map("daily_message_send_logs")
+}
+

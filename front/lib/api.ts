@@ -780,7 +780,96 @@ export const pipelineApi = {
   deleteDeal: async (id: string) => {
     const response = await axiosClient.delete(`/api/crm/deals/${id}`);
     return response.data;
+  },
+
+  // Deal Notes
+  getDealNotes: async (dealId: string) => {
+    const response = await axiosClient.get(`/api/crm/deals/${dealId}/notes`);
+    return response.data;
+  },
+
+  createDealNote: async (dealId: string, data: { content: string }) => {
+    const response = await axiosClient.post(`/api/crm/deals/${dealId}/notes`, data);
+    return response.data;
+  },
+
+  deleteDealNote: async (dealId: string, noteId: string) => {
+    const response = await axiosClient.delete(`/api/crm/deals/${dealId}/notes/${noteId}`);
+    return response.data;
   }
+};
+
+// Daily Messaging API (365 daily messages)
+export const dailyMessagingApi = {
+  // Subscribers
+  getSubscribers: async (status?: string) => {
+    const response = await axiosClient.get('/api/daily-messaging/subscribers', { params: { status } });
+    return response.data;
+  },
+  getSubscriber: async (id: string) => {
+    const response = await axiosClient.get(`/api/daily-messaging/subscribers/${id}`);
+    return response.data;
+  },
+  createSubscriber: async (data: { name: string; email?: string; phone: string }) => {
+    const response = await axiosClient.post('/api/daily-messaging/subscribers', data);
+    return response.data;
+  },
+  updateSubscriber: async (id: string, data: { name?: string; email?: string; status?: string }) => {
+    const response = await axiosClient.put(`/api/daily-messaging/subscribers/${id}`, data);
+    return response.data;
+  },
+  deleteSubscriber: async (id: string) => {
+    const response = await axiosClient.delete(`/api/daily-messaging/subscribers/${id}`);
+    return response.data;
+  },
+
+  // Messages (365 days)
+  getMessages: async () => {
+    const response = await axiosClient.get('/api/daily-messaging/messages');
+    return response.data;
+  },
+  getMessage: async (day: number) => {
+    const response = await axiosClient.get(`/api/daily-messaging/messages/${day}`);
+    return response.data;
+  },
+  createOrUpdateMessage: async (data: { dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }) => {
+    const response = await axiosClient.post('/api/daily-messaging/messages', data);
+    return response.data;
+  },
+  updateMessage: async (day: number, data: { content?: string; mediaUrl?: string; mediaType?: string; isActive?: boolean }) => {
+    const response = await axiosClient.put(`/api/daily-messaging/messages/${day}`, data);
+    return response.data;
+  },
+  deleteMessage: async (day: number) => {
+    const response = await axiosClient.delete(`/api/daily-messaging/messages/${day}`);
+    return response.data;
+  },
+  importMessages: async (messages: { dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }[]) => {
+    const response = await axiosClient.post('/api/daily-messaging/messages/import', { messages });
+    return response.data;
+  },
+
+  // Logs
+  getLogs: async (params?: { subscriberId?: string; status?: string; limit?: number; offset?: number }) => {
+    const response = await axiosClient.get('/api/daily-messaging/logs', { params });
+    return response.data;
+  },
+
+  // Actions
+  sendTest: async (phone: string, dayNumber: number) => {
+    const response = await axiosClient.post('/api/daily-messaging/send-test', { phone, dayNumber });
+    return response.data;
+  },
+  triggerDaily: async () => {
+    const response = await axiosClient.post('/api/daily-messaging/trigger-daily');
+    return response.data;
+  },
+
+  // Stats
+  getStats: async () => {
+    const response = await axiosClient.get('/api/daily-messaging/stats');
+    return response.data;
+  },
 };
 
 /* ==========================================================================================
@@ -881,6 +970,9 @@ const defaultClient = {
   updateDeal: pipelineApi.updateDeal,
   moveDeal: pipelineApi.moveDeal,
   deleteDeal: pipelineApi.deleteDeal,
+  getDealNotes: pipelineApi.getDealNotes,
+  createDealNote: pipelineApi.createDealNote,
+  deleteDealNote: pipelineApi.deleteDealNote,
 
   getTeamMembers: teamApi.getTeamMembers,
 
@@ -939,6 +1031,7 @@ const defaultClient = {
   notifications: notificationsApi,
   team: teamApi,
   quickReplies: quickRepliesApi,
+  dailyMessaging: dailyMessagingApi,
 
   // Support calls like api.get(...) directly
   get: axiosClient.get,

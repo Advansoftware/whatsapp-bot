@@ -76,6 +76,7 @@ const menuItems = [
   { id: "external-webhook" as View, label: "Webhooks", icon: <Webhook /> },
   { id: "crm" as View, label: "Contatos (CRM)", icon: <Contacts /> },
   { id: "pipeline" as View, label: "Funil de Vendas", icon: <ViewColumn /> },
+  { id: "daily-messaging" as View, label: "Mensagens Diárias", icon: <Campaign /> },
   { id: "campaigns" as View, label: "Campanhas", icon: <Campaign /> },
   { id: "analytics" as View, label: "Analytics", icon: <BarChart /> },
   { id: "team" as View, label: "Equipe", icon: <Groups /> },

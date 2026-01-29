@@ -117,4 +117,31 @@ export class CrmController {
     // Let's rely on Optimistic UI for drag-drop and only broadcast to others.
     return { success: true };
   }
+
+  // ==========================================
+  // DEAL NOTES
+  // ==========================================
+  @Get('deals/:dealId/notes')
+  async getDealNotes(@Request() req: any, @Param('dealId') dealId: string) {
+    return this.crmService.getDealNotes(dealId, req.user.companyId);
+  }
+
+  @Post('deals/:dealId/notes')
+  async createDealNote(
+    @Request() req: any,
+    @Param('dealId') dealId: string,
+    @Body() body: { content: string }
+  ) {
+    return this.crmService.createDealNote(dealId, req.user.companyId, body.content, req.user.id);
+  }
+
+  @Delete('deals/:dealId/notes/:noteId')
+  async deleteDealNote(
+    @Request() req: any,
+    @Param('dealId') dealId: string,
+    @Param('noteId') noteId: string
+  ) {
+    return this.crmService.deleteDealNote(dealId, noteId, req.user.companyId);
+  }
 }
+

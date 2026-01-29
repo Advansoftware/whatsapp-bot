@@ -310,4 +310,48 @@ export class CrmService {
       return results.find(d => d.id === id);
     }
   }
+
+  // ==========================================
+  // DEAL NOTES
+  // ==========================================
+  async getDealNotes(dealId: string, companyId: string) {
+    // Verify deal belongs to company
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, companyId }
+    });
+    if (!deal) throw new NotFoundException('Deal not found');
+
+    return this.prisma.dealNote.findMany({
+      where: { dealId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async createDealNote(dealId: string, companyId: string, content: string, userId?: string) {
+    // Verify deal belongs to company
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, companyId }
+    });
+    if (!deal) throw new NotFoundException('Deal not found');
+
+    return this.prisma.dealNote.create({
+      data: {
+        dealId,
+        content,
+        createdBy: userId,
+      }
+    });
+  }
+
+  async deleteDealNote(dealId: string, noteId: string, companyId: string) {
+    // Verify deal belongs to company
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, companyId }
+    });
+    if (!deal) throw new NotFoundException('Deal not found');
+
+    return this.prisma.dealNote.delete({
+      where: { id: noteId }
+    });
+  }
 }

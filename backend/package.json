@@ -23,6 +23,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/platform-socket.io": "^10.4.20",
+    "@nestjs/schedule": "^6.1.0",
     "@nestjs/websockets": "^10.4.20",
     "@prisma/client": "^6.2.0",
     "@stripe/react-stripe-js": "^5.4.1",
