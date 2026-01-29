@@ -327,30 +327,66 @@ export class MessagesController {
                 );
 
                 if (aiResponse.shouldRespond && aiResponse.response) {
-                  // Save AI response as incoming message
-                  const aiMsg = await this.prisma.message.create({
-                    data: {
-                      messageId: `ai-${Date.now()}`,
-                      remoteJid,
-                      content: aiResponse.response,
-                      direction: 'incoming',
-                      status: 'delivered',
-                      senderType: 'ai', // Mark as AI
-                      companyId: instance.companyId,
-                      instanceId: instance.id,
-                    },
-                  });
+                  // Send AI response to owner via Evolution API (so it appears on phone)
+                  // Use sendText endpoint to physically send the message
+                  const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://evolution:8080';
+                  const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
-                  // Broadcast AI response
-                  this.chatGateway.broadcastMessage({
-                    id: aiMsg.id,
-                    remoteJid,
-                    content: aiMsg.content,
-                    direction: 'incoming',
-                    status: 'delivered',
-                    senderType: 'ai',
-                    createdAt: aiMsg.createdAt,
-                  });
+                  try {
+                    const aiSendResponse = await axios.post(
+                      `${evolutionUrl}/message/sendText/${instance.instanceKey}`,
+                      {
+                        number: ownerPhone,
+                        text: aiResponse.response,
+                      },
+                      { headers: { 'apikey': evolutionApiKey } }
+                    );
+
+                    const aiMessageId = aiSendResponse.data?.key?.id || `ai-${Date.now()}`;
+
+                    // Save AI response as incoming message (from Bot to Owner)
+                    // Note: When sending via API, it's outgoing from Bot perspective,
+                    // but for Owner (who is 'chatting' with the bot), it's incoming.
+                    // Wait, if Owner chats with Bot:
+                    // Owner (User) -> Bot (Instance)
+                    // Bot replies -> Owner
+                    // The reply is OUTGOING from Instance.
+                    // But if we want it to look like a reply in the chat:
+                    // If I am the Owner viewing the chat window of "Bot Contact":
+                    // My message is Outgoing. Bot message is Incoming.
+                    // Correct.
+
+                    const aiMsg = await this.prisma.message.upsert({
+                      where: { messageId: aiMessageId },
+                      create: {
+                        messageId: aiMessageId,
+                        remoteJid,
+                        content: aiResponse.response,
+                        direction: 'incoming', // Incoming relative to Owner's view of the chat
+                        status: 'sent',
+                        senderType: 'ai',
+                        companyId: instance.companyId,
+                        instanceId: instance.id,
+                      },
+                      update: {
+                        status: 'sent',
+                        senderType: 'ai'
+                      }
+                    });
+
+                    // Broadcast AI response
+                    this.chatGateway.broadcastMessage({
+                      id: aiMsg.id,
+                      remoteJid,
+                      content: aiMsg.content,
+                      direction: 'incoming',
+                      status: 'sent',
+                      senderType: 'ai',
+                      createdAt: aiMsg.createdAt,
+                    });
+                  } catch (sendError) {
+                    this.logger.error(`Error sending AI response to phone: ${sendError.message}`);
+                  }
                 }
               }
             }
