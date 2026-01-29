@@ -19,6 +19,7 @@ interface MessageData {
   createdAt: string;
   mediaUrl?: string;
   mediaType?: string;
+  senderType?: string;
   // Group fields
   isGroup?: boolean;
   participant?: string;
