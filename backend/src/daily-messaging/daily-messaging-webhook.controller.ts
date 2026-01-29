@@ -47,26 +47,29 @@ export class DailyMessagingWebhookController {
   ) { }
 
   // Generic purchase webhook (works with any platform)
-  @Post('purchase/:companyId')
+  @Post('purchase/:appId')
   @HttpCode(HttpStatus.OK)
   async handlePurchaseWebhook(
-    @Param('companyId') companyId: string,
+    @Param('appId') appId: string,
     @Body() payload: PurchaseWebhookPayload,
     @Headers() headers: Record<string, string>,
   ) {
-    this.logger.log(`Received purchase webhook for company ${companyId}`);
+    this.logger.log(`Received purchase webhook for app ${appId}`);
     this.logger.debug('Payload:', JSON.stringify(payload, null, 2));
 
     try {
-      // Verify company exists
-      const company = await this.prisma.company.findUnique({
-        where: { id: companyId },
+      // Verify app exists
+      const app = await this.prisma.dailyMessageApp.findUnique({
+        where: { id: appId },
+        include: { company: true },
       });
 
-      if (!company) {
-        this.logger.warn(`Company ${companyId} not found`);
-        return { success: false, error: 'Company not found' };
+      if (!app) {
+        this.logger.warn(`App ${appId} not found`);
+        return { success: false, error: 'App not found' };
       }
+
+      const companyId = app.companyId;
 
       // Extract customer data (handle different payload formats)
       const customer = this.extractCustomerData(payload);
@@ -80,7 +83,7 @@ export class DailyMessagingWebhookController {
 
       // Handle different events
       if (event === 'refund' || event === 'cancel') {
-        const result = await this.service.refundSubscriber(companyId, customer.phone);
+        const result = await this.service.refundSubscriber(companyId, customer.phone, appId);
         return {
           success: true,
           action: 'refunded',
@@ -90,6 +93,7 @@ export class DailyMessagingWebhookController {
 
       // Default: purchase/create subscriber
       const subscriber = await this.service.createSubscriber(companyId, {
+        appId,
         name: customer.name || 'Customer',
         email: customer.email,
         phone: customer.phone,
@@ -110,23 +114,27 @@ export class DailyMessagingWebhookController {
   }
 
   // Hotmart-specific webhook
-  @Post('hotmart/:companyId')
+  @Post('hotmart/:appId')
   @HttpCode(HttpStatus.OK)
   async handleHotmartWebhook(
-    @Param('companyId') companyId: string,
+    @Param('appId') appId: string,
     @Body() payload: any,
     @Headers() headers: Record<string, string>,
   ) {
-    this.logger.log(`Received Hotmart webhook for company ${companyId}`);
+    this.logger.log(`Received Hotmart webhook for app ${appId}`);
 
     try {
-      const company = await this.prisma.company.findUnique({
-        where: { id: companyId },
+      // Verify app exists
+      const app = await this.prisma.dailyMessageApp.findUnique({
+        where: { id: appId },
+        include: { company: true },
       });
 
-      if (!company) {
-        return { success: false, error: 'Company not found' };
+      if (!app) {
+        return { success: false, error: 'App not found' };
       }
+
+      const companyId = app.companyId;
 
       // Hotmart event types
       const event = payload.event || payload.status;
@@ -147,12 +155,13 @@ export class DailyMessagingWebhookController {
       }
 
       if (isRefund) {
-        const result = await this.service.refundSubscriber(companyId, phone);
+        const result = await this.service.refundSubscriber(companyId, phone, appId);
         return { success: true, action: 'refunded', subscriber: result?.id };
       }
 
       if (isApproved) {
         const subscriber = await this.service.createSubscriber(companyId, {
+          appId,
           name,
           email,
           phone,

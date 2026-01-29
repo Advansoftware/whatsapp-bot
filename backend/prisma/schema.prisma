@@ -66,6 +66,7 @@ model Company {
   secretaryTasks   SecretaryTask[]
   integrations     ExternalIntegration[]
   groupAutomations GroupAutomation[]
+  dailyMessageApps DailyMessageApp[]
 
   @@map("companies")
 }
@@ -1110,9 +1111,28 @@ model DealNote {
 // ================================
 
 // Assinante do programa de mensagens diárias
+// Aplicativo de mensagens diárias (ex: "Curso Inglês", "Mentoria")
+model DailyMessageApp {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  name      String   // Nome do produto/curso
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscribers DailyMessageSubscriber[]
+  messages    DailyMessage[]
+
+  @@index([companyId])
+  @@map("daily_message_apps")
+}
+
+// Assinante do programa de mensagens diárias
 model DailyMessageSubscriber {
   id        String   @id @default(cuid())
   companyId String   @map("company_id")
+  appId     String   @map("app_id")
   
   // Dados do comprador
   name      String
@@ -1138,10 +1158,12 @@ model DailyMessageSubscriber {
   updatedAt DateTime @updatedAt @map("updated_at")
   
   sendLogs DailyMessageSendLog[]
+  app      DailyMessageApp     @relation(fields: [appId], references: [id], onDelete: Cascade)
   
-  @@unique([companyId, phone])
+  @@unique([appId, phone])
   @@index([companyId, status])
-  @@index([companyId, currentDay])
+  @@index([appId, status])
+  @@index([appId, currentDay])
   @@map("daily_message_subscribers")
 }
 
@@ -1149,6 +1171,7 @@ model DailyMessageSubscriber {
 model DailyMessage {
   id        String @id @default(cuid())
   companyId String @map("company_id")
+  appId     String @map("app_id")
   
   dayNumber Int    @map("day_number") // 1-365
   content   String @db.Text // Texto da mensagem
@@ -1158,9 +1181,12 @@ model DailyMessage {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  app DailyMessageApp @relation(fields: [appId], references: [id], onDelete: Cascade)
   
-  @@unique([companyId, dayNumber])
+  @@unique([appId, dayNumber])
   @@index([companyId, isActive])
+  @@index([appId, isActive])
   @@map("daily_messages")
 }
 

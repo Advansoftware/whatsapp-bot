@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 function LiveChatContent() {
   const searchParams = useSearchParams();
-  const jid = searchParams.get("jid");
+  const jid = searchParams.get("jid") || searchParams.get("contact");
 
   const initialChat = jid
     ? {

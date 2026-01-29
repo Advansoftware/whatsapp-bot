@@ -122,6 +122,17 @@ export const useNotifications = () => {
     }
   }, [isAuthenticated, fetchNotifications]);
 
+  // Deletar todas as notificações
+  const deleteAllNotifications = useCallback(async () => {
+    try {
+      await api.deleteAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to delete all notifications:', error);
+    }
+  }, []);
+
   return {
     notifications,
     unreadCount,
@@ -131,6 +142,7 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    deleteAllNotifications,
   };
 };
 

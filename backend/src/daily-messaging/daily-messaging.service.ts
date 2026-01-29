@@ -55,11 +55,65 @@ export class DailyMessagingService {
   }
 
   // ================================
+  // APPS
+  // ================================
+
+  async listApps(companyId: string) {
+    return this.prisma.dailyMessageApp.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { subscribers: true, messages: true },
+        },
+      },
+    });
+  }
+
+  async getApp(id: string, companyId: string) {
+    const app = await this.prisma.dailyMessageApp.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!app) {
+      throw new NotFoundException('App not found');
+    }
+
+    return app;
+  }
+
+  async createApp(companyId: string, name: string) {
+    return this.prisma.dailyMessageApp.create({
+      data: {
+        companyId,
+        name,
+      },
+    });
+  }
+
+  async deleteApp(id: string, companyId: string) {
+    const app = await this.prisma.dailyMessageApp.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!app) {
+      throw new NotFoundException('App not found');
+    }
+
+    return this.prisma.dailyMessageApp.delete({
+      where: { id },
+    });
+  }
+
+  // ================================
   // SUBSCRIBERS
   // ================================
 
-  async listSubscribers(companyId: string, status?: string) {
-    const where: any = { companyId };
+  async listSubscribers(companyId: string, appId: string, status?: string) {
+    // Verify app exists and belongs to company
+    await this.getApp(appId, companyId);
+
+    const where: any = { companyId, appId };
     if (status) {
       where.status = status;
     }
@@ -83,6 +137,7 @@ export class DailyMessagingService {
           orderBy: { createdAt: 'desc' },
           take: 50,
         },
+        app: true,
       },
     });
 
@@ -93,14 +148,17 @@ export class DailyMessagingService {
     return subscriber;
   }
 
-  async createSubscriber(companyId: string, dto: CreateSubscriberDto) {
+  async createSubscriber(companyId: string, dto: CreateSubscriberDto & { appId: string }) {
+    // Verify app exists and belongs to company
+    await this.getApp(dto.appId, companyId);
+
     // Normalize phone to E.164
     const phone = this.normalizePhone(dto.phone);
     const remoteJid = this.phoneToJid(phone);
 
-    // Check if already exists
+    // Check if already exists in THIS app
     const existing = await this.prisma.dailyMessageSubscriber.findFirst({
-      where: { companyId, phone },
+      where: { companyId, appId: dto.appId, phone },
     });
 
     if (existing) {
@@ -110,7 +168,7 @@ export class DailyMessagingService {
           where: { id: existing.id },
           data: {
             status: 'active',
-            currentDay: 1,
+            currentDay: 0,
             startDate: new Date(),
             lastSentAt: null,
             completedAt: null,
@@ -126,6 +184,7 @@ export class DailyMessagingService {
     return this.prisma.dailyMessageSubscriber.create({
       data: {
         companyId,
+        appId: dto.appId,
         name: dto.name,
         email: dto.email,
         phone,
@@ -167,67 +226,95 @@ export class DailyMessagingService {
     });
   }
 
-  async optOutSubscriber(companyId: string, phone: string) {
+  async optOutSubscriber(companyId: string, phone: string, appId?: string) {
     const normalizedPhone = this.normalizePhone(phone);
 
-    const subscriber = await this.prisma.dailyMessageSubscriber.findFirst({
-      where: { companyId, phone: normalizedPhone, status: 'active' },
+    // Find ALL active subscriptions for this phone in this company
+    // If appId is provided, restrict to that app
+    const where: any = { companyId, phone: normalizedPhone, status: 'active' };
+    if (appId) where.appId = appId;
+
+    const subscribers = await this.prisma.dailyMessageSubscriber.findMany({
+      where,
     });
 
-    if (!subscriber) {
+    if (!subscribers.length) {
       return null;
     }
 
-    return this.prisma.dailyMessageSubscriber.update({
-      where: { id: subscriber.id },
-      data: { status: 'opted_out' },
-    });
+    // Opt-out all of them
+    const updates = subscribers.map(sub =>
+      this.prisma.dailyMessageSubscriber.update({
+        where: { id: sub.id },
+        data: { status: 'opted_out' },
+      })
+    );
+
+    await this.prisma.$transaction(updates);
+
+    return subscribers[0]; // Return one for reference
   }
 
-  async refundSubscriber(companyId: string, phone: string) {
+  async refundSubscriber(companyId: string, phone: string, appId?: string) {
     const normalizedPhone = this.normalizePhone(phone);
 
-    const subscriber = await this.prisma.dailyMessageSubscriber.findFirst({
-      where: { companyId, phone: normalizedPhone },
+    const where: any = { companyId, phone: normalizedPhone };
+    if (appId) where.appId = appId;
+
+    const subscribers = await this.prisma.dailyMessageSubscriber.findMany({
+      where,
     });
 
-    if (!subscriber) {
+    if (!subscribers.length) {
       return null;
     }
 
-    return this.prisma.dailyMessageSubscriber.update({
-      where: { id: subscriber.id },
-      data: { status: 'refunded' },
-    });
+    const updates = subscribers.map(sub =>
+      this.prisma.dailyMessageSubscriber.update({
+        where: { id: sub.id },
+        data: { status: 'refunded' },
+      })
+    );
+
+    await this.prisma.$transaction(updates);
+
+    return subscribers[0];
   }
 
   // ================================
   // MESSAGES
   // ================================
 
-  async listMessages(companyId: string) {
+  async listMessages(companyId: string, appId: string) {
+    // Verify app
+    await this.getApp(appId, companyId);
+
     return this.prisma.dailyMessage.findMany({
-      where: { companyId },
+      where: { companyId, appId },
       orderBy: { dayNumber: 'asc' },
     });
   }
 
-  async getMessage(companyId: string, dayNumber: number) {
+  async getMessage(companyId: string, appId: string, dayNumber: number) {
     return this.prisma.dailyMessage.findFirst({
-      where: { companyId, dayNumber },
+      where: { companyId, appId, dayNumber },
     });
   }
 
-  async createOrUpdateMessage(companyId: string, dto: CreateMessageDto) {
+  async createOrUpdateMessage(companyId: string, appId: string, dto: CreateMessageDto) {
+    // Verify app
+    await this.getApp(appId, companyId);
+
     return this.prisma.dailyMessage.upsert({
       where: {
-        companyId_dayNumber: {
-          companyId,
+        appId_dayNumber: { // Update unique constraint name
+          appId,
           dayNumber: dto.dayNumber,
         },
       },
       create: {
         companyId,
+        appId,
         dayNumber: dto.dayNumber,
         content: dto.content,
         mediaUrl: dto.mediaUrl,
@@ -241,9 +328,9 @@ export class DailyMessagingService {
     });
   }
 
-  async updateMessage(companyId: string, dayNumber: number, dto: UpdateMessageDto) {
+  async updateMessage(companyId: string, appId: string, dayNumber: number, dto: UpdateMessageDto) {
     const message = await this.prisma.dailyMessage.findFirst({
-      where: { companyId, dayNumber },
+      where: { companyId, appId, dayNumber },
     });
 
     if (!message) {
@@ -256,9 +343,9 @@ export class DailyMessagingService {
     });
   }
 
-  async deleteMessage(companyId: string, dayNumber: number) {
+  async deleteMessage(companyId: string, appId: string, dayNumber: number) {
     const message = await this.prisma.dailyMessage.findFirst({
-      where: { companyId, dayNumber },
+      where: { companyId, appId, dayNumber },
     });
 
     if (!message) {
@@ -270,7 +357,9 @@ export class DailyMessagingService {
     });
   }
 
-  async importMessages(companyId: string, messages: ImportMessageDto[]) {
+  async importMessages(companyId: string, appId: string, messages: ImportMessageDto[]) {
+    await this.getApp(appId, companyId);
+
     const results = {
       created: 0,
       updated: 0,
@@ -288,7 +377,7 @@ export class DailyMessagingService {
         }
 
         const existing = await this.prisma.dailyMessage.findFirst({
-          where: { companyId, dayNumber: msg.dayNumber },
+          where: { companyId, appId, dayNumber: msg.dayNumber },
         });
 
         if (existing) {
@@ -305,6 +394,7 @@ export class DailyMessagingService {
           await this.prisma.dailyMessage.create({
             data: {
               companyId,
+              appId,
               dayNumber: msg.dayNumber,
               content: msg.content,
               mediaUrl: msg.mediaUrl,
@@ -328,7 +418,7 @@ export class DailyMessagingService {
   // SEND LOGS
   // ================================
 
-  async listLogs(companyId: string, options: { subscriberId?: string; status?: string; limit?: number; offset?: number } = {}) {
+  async listLogs(companyId: string, appId: string, options: { subscriberId?: string; status?: string; limit?: number; offset?: number } = {}) {
     const { subscriberId, status, limit = 100, offset = 0 } = options;
 
     const where: any = {};
@@ -336,8 +426,8 @@ export class DailyMessagingService {
     if (subscriberId) {
       where.subscriberId = subscriberId;
     } else {
-      // Filter by company through subscriber
-      where.subscriber = { companyId };
+      // Filter by app and company
+      where.subscriber = { companyId, appId };
     }
 
     if (status) {
@@ -369,9 +459,15 @@ export class DailyMessagingService {
   async sendDailyMessages(companyId: string) {
     this.logger.log(`Starting daily message send for company ${companyId}`);
 
+    const now = new Date();
+    const oneDay = 1000 * 60 * 60 * 24;
+
     // Get all active subscribers
     const subscribers = await this.prisma.dailyMessageSubscriber.findMany({
       where: { companyId, status: 'active' },
+      include: {
+        app: true, // we need app info maybe?
+      },
     });
 
     this.logger.log(`Found ${subscribers.length} active subscribers`);
@@ -383,16 +479,23 @@ export class DailyMessagingService {
 
     if (!instance) {
       this.logger.warn(`No connected instance found for company ${companyId}`);
-      return { sent: 0, failed: 0, skipped: subscribers.length };
+      return { sent: 0, failed: 0, skipped: subscribers.length, completed: 0 };
     }
 
     let sent = 0;
     let failed = 0;
     let completed = 0;
+    let skipped = 0;
 
     for (const subscriber of subscribers) {
-      // Check if day > 365
-      if (subscriber.currentDay > 365) {
+      // Calculate the subscriber's journey day (days since purchase + 1)
+      const daysSinceStart = Math.floor((now.getTime() - subscriber.startDate.getTime()) / oneDay);
+      const journeyDay = daysSinceStart + 1; // +1 because day 1 is the purchase day
+
+      this.logger.debug(`Subscriber ${subscriber.phone} (App: ${subscriber.appId}): started ${subscriber.startDate.toISOString()}, journey day ${journeyDay}`);
+
+      // Check if subscriber has exceeded 365 days
+      if (journeyDay > 365) {
         await this.prisma.dailyMessageSubscriber.update({
           where: { id: subscriber.id },
           data: {
@@ -400,17 +503,40 @@ export class DailyMessagingService {
             completedAt: new Date(),
           },
         });
+        this.logger.log(`Subscriber ${subscriber.phone} completed 365 days`);
         completed++;
         continue;
       }
 
-      // Get message for current day
+      // Check if message was already sent today
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const alreadySentToday = await this.prisma.dailyMessageSendLog.findFirst({
+        where: {
+          subscriberId: subscriber.id,
+          status: 'sent',
+          createdAt: { gte: todayStart },
+        },
+      });
+
+      if (alreadySentToday) {
+        this.logger.debug(`Message already sent to ${subscriber.phone} today`);
+        skipped++;
+        continue;
+      }
+
+      // Get message for this subscriber's journey day AND APP
       const message = await this.prisma.dailyMessage.findFirst({
-        where: { companyId, dayNumber: subscriber.currentDay, isActive: true },
+        where: {
+          companyId,
+          appId: subscriber.appId,
+          dayNumber: journeyDay,
+          isActive: true
+        },
       });
 
       if (!message) {
-        this.logger.warn(`No message found for day ${subscriber.currentDay}`);
+        this.logger.warn(`No message found for journey day ${journeyDay} in App ${subscriber.appId}`);
+        skipped++;
         continue;
       }
 
@@ -418,7 +544,7 @@ export class DailyMessagingService {
       const log = await this.prisma.dailyMessageSendLog.create({
         data: {
           subscriberId: subscriber.id,
-          dayNumber: subscriber.currentDay,
+          dayNumber: journeyDay,
           status: 'pending',
         },
       });
@@ -439,16 +565,17 @@ export class DailyMessagingService {
           data: { status: 'sent', sentAt: new Date() },
         });
 
-        // Update subscriber
+        // Update subscriber current day
         await this.prisma.dailyMessageSubscriber.update({
           where: { id: subscriber.id },
           data: {
-            currentDay: subscriber.currentDay + 1,
+            currentDay: journeyDay,
             lastSentAt: new Date(),
           },
         });
 
         sent++;
+        this.logger.log(`Sent day ${journeyDay} message to ${subscriber.phone}`);
       } catch (error: any) {
         this.logger.error(`Failed to send message to ${subscriber.phone}: ${error.message}`);
 
@@ -465,14 +592,17 @@ export class DailyMessagingService {
       }
     }
 
-    this.logger.log(`Daily send complete: sent=${sent}, failed=${failed}, completed=${completed}`);
+    this.logger.log(`Daily send complete: sent=${sent}, failed=${failed}, completed=${completed}, skipped=${skipped}`);
 
-    return { sent, failed, completed };
+    return { sent, failed, completed, skipped };
   }
 
-  async sendTestMessage(companyId: string, phone: string, dayNumber: number) {
+  async sendTestMessage(companyId: string, phone: string, dayNumber: number, appId: string) {
+    // Verify app
+    await this.getApp(appId, companyId);
+
     const message = await this.prisma.dailyMessage.findFirst({
-      where: { companyId, dayNumber },
+      where: { companyId, appId, dayNumber },
     });
 
     if (!message) {
@@ -497,8 +627,37 @@ export class DailyMessagingService {
       message.mediaUrl,
       message.mediaType,
     );
-
     return { success: true, message: 'Test message sent' };
+  }
+
+  // ================================
+  // STATS
+  // ================================
+
+  async getStats(companyId: string, appId?: string) {
+    const whereClause: any = { companyId };
+    if (appId) {
+      whereClause.appId = appId;
+    }
+
+    const [totalSubscribers, activeSubscribers, messagesCount, todayLogs] = await Promise.all([
+      this.prisma.dailyMessageSubscriber.count({ where: whereClause }),
+      this.prisma.dailyMessageSubscriber.count({ where: { ...whereClause, status: 'active' } }),
+      this.prisma.dailyMessage.count({ where: { ...whereClause, isActive: true } }),
+      this.prisma.dailyMessageSendLog.count({
+        where: {
+          subscriber: whereClause,
+          createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        },
+      }),
+    ]);
+
+    return {
+      totalSubscribers,
+      activeSubscribers,
+      messagesCount,
+      todayLogs,
+    };
   }
 
   // ================================
@@ -583,7 +742,7 @@ export class DailyMessagingService {
     return optOutKeywords.some(keyword => lowerContent === keyword || lowerContent.includes(keyword));
   }
 
-  // Get subscriber by phone (for opt-out checking)
+  // Get subscriber by phone (for opt-out checking) - checks ALL APPS
   async getActiveSubscriberByPhone(companyId: string, remoteJid: string) {
     return this.prisma.dailyMessageSubscriber.findFirst({
       where: {
@@ -594,3 +753,4 @@ export class DailyMessagingService {
     });
   }
 }
+

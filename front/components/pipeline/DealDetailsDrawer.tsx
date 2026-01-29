@@ -168,7 +168,7 @@ const DealDetailsDrawer: React.FC<DealDetailsDrawerProps> = ({
 
   const handleGoToChat = () => {
     if (deal?.contact?.remoteJid) {
-      window.open(`/livechat?contact=${deal.contact.remoteJid}`, "_blank");
+      window.open(`/livechat?jid=${deal.contact.remoteJid}`, "_blank");
     }
   };
 

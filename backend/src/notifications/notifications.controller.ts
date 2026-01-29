@@ -75,4 +75,14 @@ export class NotificationsController {
     const companyId = req.user.companyId;
     return this.notificationsService.remove(id, companyId);
   }
+
+  /**
+   * Remove todas as notificações
+   * DELETE /api/notifications
+   */
+  @Delete()
+  async removeAll(@Req() req: any) {
+    const companyId = req.user.companyId;
+    return this.notificationsService.removeAll(companyId);
+  }
 }

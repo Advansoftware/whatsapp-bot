@@ -666,6 +666,10 @@ export const notificationsApi = {
   deleteNotification: async (id: string) => {
     const response = await axiosClient.delete(`/api/notifications/${id}`);
     return response.data;
+  },
+  deleteAllNotifications: async () => {
+    const response = await axiosClient.delete('/api/notifications');
+    return response.data;
   }
 }
 
@@ -800,17 +804,32 @@ export const pipelineApi = {
 };
 
 // Daily Messaging API (365 daily messages)
+// Daily Messaging API (365 daily messages)
 export const dailyMessagingApi = {
+  // Apps
+  getApps: async () => {
+    const response = await axiosClient.get('/api/daily-messaging/apps');
+    return response.data;
+  },
+  createApp: async (name: string) => {
+    const response = await axiosClient.post('/api/daily-messaging/apps', { name });
+    return response.data;
+  },
+  deleteApp: async (id: string) => {
+    const response = await axiosClient.delete(`/api/daily-messaging/apps/${id}`);
+    return response.data;
+  },
+
   // Subscribers
-  getSubscribers: async (status?: string) => {
-    const response = await axiosClient.get('/api/daily-messaging/subscribers', { params: { status } });
+  getSubscribers: async (appId: string, status?: string) => {
+    const response = await axiosClient.get('/api/daily-messaging/subscribers', { params: { appId, status } });
     return response.data;
   },
   getSubscriber: async (id: string) => {
     const response = await axiosClient.get(`/api/daily-messaging/subscribers/${id}`);
     return response.data;
   },
-  createSubscriber: async (data: { name: string; email?: string; phone: string }) => {
+  createSubscriber: async (data: { appId: string; name: string; email?: string; phone: string }) => {
     const response = await axiosClient.post('/api/daily-messaging/subscribers', data);
     return response.data;
   },
@@ -824,50 +843,53 @@ export const dailyMessagingApi = {
   },
 
   // Messages (365 days)
-  getMessages: async () => {
-    const response = await axiosClient.get('/api/daily-messaging/messages');
+  getMessages: async (appId: string) => {
+    const response = await axiosClient.get('/api/daily-messaging/messages', { params: { appId } });
     return response.data;
   },
-  getMessage: async (day: number) => {
-    const response = await axiosClient.get(`/api/daily-messaging/messages/${day}`);
+  getMessage: async (appId: string, day: number) => {
+    const response = await axiosClient.get(`/api/daily-messaging/messages/${day}`, { params: { appId } });
     return response.data;
   },
-  createOrUpdateMessage: async (data: { dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }) => {
+  createOrUpdateMessage: async (data: { appId: string; dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }) => {
     const response = await axiosClient.post('/api/daily-messaging/messages', data);
     return response.data;
   },
-  updateMessage: async (day: number, data: { content?: string; mediaUrl?: string; mediaType?: string; isActive?: boolean }) => {
-    const response = await axiosClient.put(`/api/daily-messaging/messages/${day}`, data);
+  updateMessage: async (appId: string, day: number, data: { content?: string; mediaUrl?: string; mediaType?: string; isActive?: boolean }) => {
+    const response = await axiosClient.put(`/api/daily-messaging/messages/${day}`, data, { params: { appId } });
     return response.data;
   },
-  deleteMessage: async (day: number) => {
-    const response = await axiosClient.delete(`/api/daily-messaging/messages/${day}`);
+  deleteMessage: async (appId: string, day: number) => {
+    const response = await axiosClient.delete(`/api/daily-messaging/messages/${day}`, { params: { appId } });
     return response.data;
   },
-  importMessages: async (messages: { dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }[]) => {
-    const response = await axiosClient.post('/api/daily-messaging/messages/import', { messages });
+  importMessages: async (appId: string, messages: { dayNumber: number; content: string; mediaUrl?: string; mediaType?: string }[]) => {
+    const response = await axiosClient.post('/api/daily-messaging/messages/import', { appId, messages });
     return response.data;
   },
 
   // Logs
-  getLogs: async (params?: { subscriberId?: string; status?: string; limit?: number; offset?: number }) => {
+  getLogs: async (params?: { appId?: string; subscriberId?: string; status?: string; limit?: number; offset?: number }) => {
     const response = await axiosClient.get('/api/daily-messaging/logs', { params });
     return response.data;
   },
 
   // Actions
-  sendTest: async (phone: string, dayNumber: number) => {
-    const response = await axiosClient.post('/api/daily-messaging/send-test', { phone, dayNumber });
+  sendTest: async (appId: string, phone: string, dayNumber: number) => {
+    const response = await axiosClient.post('/api/daily-messaging/send-test', { appId, phone, dayNumber });
     return response.data;
   },
   triggerDaily: async () => {
+    // This triggers for ALL apps of the company, so no appId needed ideally, 
+    // BUT check backend implementation. Backend does triggerManually(companyId) -> sends for all.
+    // So no change needed here.
     const response = await axiosClient.post('/api/daily-messaging/trigger-daily');
     return response.data;
   },
 
   // Stats
-  getStats: async () => {
-    const response = await axiosClient.get('/api/daily-messaging/stats');
+  getStats: async (appId: string) => {
+    const response = await axiosClient.get('/api/daily-messaging/stats', { params: { appId } });
     return response.data;
   },
 };
@@ -902,6 +924,7 @@ const defaultClient = {
   markNotificationAsRead: notificationsApi.markNotificationAsRead,
   markAllNotificationsAsRead: notificationsApi.markAllNotificationsAsRead,
   deleteNotification: notificationsApi.deleteNotification,
+  deleteAllNotifications: notificationsApi.deleteAllNotifications,
 
   getFlows: chatbotApi.getFlows,
   createFlow: chatbotApi.createFlow,

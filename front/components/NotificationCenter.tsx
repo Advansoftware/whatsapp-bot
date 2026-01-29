@@ -68,7 +68,12 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
 
     if (onNavigate) {
       if (notification.actionUrl) {
-        onNavigate(notification.actionUrl);
+        if (notification.actionUrl.startsWith('/chat/')) {
+          const jid = notification.actionUrl.replace('/chat/', '');
+          onNavigate(`/livechat?jid=${encodeURIComponent(jid)}`);
+        } else {
+          onNavigate(notification.actionUrl);
+        }
       } else if (notification.metadata?.remoteJid) {
         // Construct URL for chat navigation using query parameter
         onNavigate(
@@ -223,6 +228,7 @@ const NotificationCenter: React.FC<{ onNavigate?: (url: string) => void }> = ({
                         </ListItemIcon>
                       )}
                       <ListItemText
+                        secondaryTypographyProps={{ component: "div" }}
                         primary={
                           <Typography
                             variant="body2"

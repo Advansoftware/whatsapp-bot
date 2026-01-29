@@ -146,6 +146,15 @@ export class NotificationsService {
   }
 
   /**
+   * Remove todas as notificações da empresa
+   */
+  async removeAll(companyId: string) {
+    return this.prisma.notification.deleteMany({
+      where: { companyId },
+    });
+  }
+
+  /**
    * Limpa notificações antigas (mais de 30 dias)
    */
   async cleanupOld() {
@@ -192,7 +201,7 @@ export class NotificationsService {
       title: '🔥 Lead Quente Detectado!',
       message: `${contactName} demonstrou alto interesse: ${reason}`,
       metadata: { remoteJid, contactName },
-      actionUrl: `/chat/${remoteJid}`,
+      actionUrl: `/livechat?jid=${remoteJid}`,
       actionLabel: 'Ver conversa',
     });
   }
@@ -213,7 +222,7 @@ export class NotificationsService {
       title: '⚠️ Atenção Necessária',
       message: `${contactName} precisa de atendimento humano: ${reason}`,
       metadata: { remoteJid, contactName, reason },
-      actionUrl: `/chat/${remoteJid}`,
+      actionUrl: `/livechat?jid=${remoteJid}`,
       actionLabel: 'Assumir conversa',
     });
   }
@@ -290,7 +299,7 @@ export class NotificationsService {
       title: '👤 Novo Contato',
       message: `${contactName} iniciou uma conversa`,
       metadata: { remoteJid, contactName },
-      actionUrl: `/chat/${remoteJid}`,
+      actionUrl: `/livechat?jid=${remoteJid}`,
       actionLabel: 'Ver conversa',
     });
   }
