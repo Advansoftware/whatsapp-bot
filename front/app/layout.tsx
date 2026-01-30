@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -43,7 +44,7 @@ export const viewport: Viewport = {
   themeColor: '#00fe9b',
 };
 
-import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+
 
 // ... (existing imports)
 

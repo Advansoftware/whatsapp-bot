@@ -53,6 +53,7 @@ const menuItems = [
   { id: "dashboard" as View, label: "Dashboard", icon: <Dashboard /> },
   { id: "connections" as View, label: "Conexões", icon: <Cable /> },
   { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
+  {
     id: "livechat" as View,
     label: "Chat ao Vivo",
     icon: <Chat />,
@@ -110,13 +111,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   };
 
   // Filtrar itens do menu baseado no dispositivo
-  const filteredMenuItems = menuItems.filter((item) => {
-    // Se hideOnMobile é true e estamos em celular (xs), não mostrar
-    if (item.hideOnMobile && isMobile) {
-      return false;
-    }
-    return true;
-  });
+  const filteredMenuItems = menuItems;
 
   const drawerContent = (
     <Box
