@@ -2,8 +2,8 @@
   "name": "Respondia",
   "short_name": "Respondia",
   "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
+  "display": "fullscreen",
+  "background_color": "#0b141a",
   "theme_color": "#00fe9b",
   "icons": [
     {

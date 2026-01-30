@@ -41,7 +41,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#00fe9b',
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#00a884' }, // WhatsApp Green Light
+    { media: '(prefers-color-scheme: dark)', color: '#202c33' },  // WhatsApp Dark Header
+  ],
 };
 
 
