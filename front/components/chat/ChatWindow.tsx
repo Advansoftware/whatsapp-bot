@@ -34,6 +34,7 @@ interface ChatWindowProps {
   contactName: string;
   instanceKey: string;
   profilePicUrl?: string | null;
+  onBack?: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -41,6 +42,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   contactName,
   instanceKey,
   profilePicUrl,
+  onBack,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -796,6 +798,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         colors={colors}
         onClick={() => setShowContactDetails(!showContactDetails)}
         remoteJid={chatId}
+        onBack={onBack}
         onCreateAutomation={() => {
           // Navegar para a página de automação com o contato pré-selecionado
           const encodedJid = encodeURIComponent(chatId);

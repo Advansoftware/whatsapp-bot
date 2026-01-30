@@ -18,8 +18,21 @@ import {
   Fab,
   Zoom,
   Badge,
+  Dialog,
+  Slide,
+  useMediaQuery,
 } from "@mui/material";
+import { TransitionProps } from "@mui/material/transitions";
 import { Search, Edit, Close, Group } from "@mui/icons-material";
+
+const SlideIsUp = React.forwardRef(function Transition(
+  props: TransitionProps & {
+    children: React.ReactElement<any, any>;
+  },
+  ref: React.Ref<unknown>,
+) {
+  return <Slide direction="left" ref={ref} {...props} />;
+});
 import { useRecentConversations } from "../../hooks/useApi";
 import { useSocket } from "../../hooks/useSocket";
 import api from "../../lib/api";
@@ -185,9 +198,211 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
     setNewChatModalOpen(false);
   };
 
-  // Display list - search results or conversations
+    // Display list - search results or conversations
   const displayList = searchResults || conversations;
 
+  // Mobile detection
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Mobile View
+  if (isMobile) {
+    return (
+      <Box display="flex" height="calc(100vh - 145px)" flexDirection="column">
+         {/* Mobile Conversation List */}
+         <Paper
+          elevation={0}
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          {/* Header & Search */}
+          <Box p={2} borderBottom={`1px solid ${theme.palette.divider}`}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Mensagens
+            </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: "2px 4px",
+                display: "flex",
+                alignItems: "center",
+                bgcolor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <IconButton sx={{ p: "10px" }} aria-label="search">
+                <Search />
+              </IconButton>
+              <InputBase
+                sx={{ ml: 1, flex: 1 }}
+                placeholder="Buscar em todas conversas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <IconButton size="small" onClick={handleClearSearch}>
+                  <Close fontSize="small" />
+                </IconButton>
+              )}
+            </Paper>
+          </Box>
+          
+           {/* List Material */}
+          {isLoading || isSearching ? (
+             <Box display="flex" justifyContent="center" py={4}>
+               <CircularProgress sx={{ color: "#00a884" }} />
+             </Box>
+           ) : (
+             <List
+               ref={listRef}
+               onScroll={handleScroll}
+               sx={{
+                 flex: 1,
+                 overflowY: "auto",
+                 overflowX: "hidden",
+                 p: 0,
+               }}
+             >
+                {displayList.map((conv: any) => {
+                 const isGroup = conv.isGroup || conv.remoteJid?.endsWith("@g.us");
+                  return (
+                    <React.Fragment key={conv.id}>
+                      <ListItemButton
+                        selected={selectedChatId === conv.remoteJid}
+                        onClick={() =>
+                          onSelectChat(
+                            conv.remoteJid,
+                            conv.contact,
+                            conv.instanceKey || conv.instanceName,
+                            conv.profilePicUrl
+                          )
+                        }
+                        sx={{
+                           py: 1.5,
+                           mx: 0.5,
+                           borderRadius: 2,
+                           mb: 0.5
+                         }}
+                      >
+                         <ListItemAvatar sx={{ minWidth: 56 }}>
+                          <Badge
+                            overlap="circular"
+                            anchorOrigin={{
+                              vertical: "bottom",
+                              horizontal: "right",
+                            }}
+                            badgeContent={
+                              isGroup ? (
+                                <Box
+                                  sx={{
+                                    bgcolor: "primary.main",
+                                    borderRadius: "50%",
+                                    width: 16,
+                                    height: 16,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: `2px solid ${theme.palette.background.paper}`,
+                                  }}
+                                >
+                                  <Group sx={{ fontSize: 9, color: "black" }} />
+                                </Box>
+                              ) : null
+                            }
+                          >
+                           <Avatar
+                              src={
+                                conv.profilePicUrl ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  conv.contact
+                                )}&background=${
+                                  isGroup ? "7c3aed" : "00fe9b"
+                                }&color=000`
+                              }
+                            >
+                               {isGroup && !conv.profilePicUrl && <Group />}
+                            </Avatar>
+                          </Badge>
+                         </ListItemAvatar>
+                         <ListItemText
+                           primary={
+                            <Box
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                               <Typography variant="subtitle2" noWrap fontWeight={600}>
+                                 {conv.contact}
+                               </Typography>
+                               <Typography variant="caption" color="text.secondary">
+                                 {formatTime(conv.timestamp)}
+                               </Typography>
+                            </Box>
+                           }
+                           secondary={
+                            conv.lastMessage && (
+                              <Typography variant="body2" color="text.secondary" noWrap>
+                                 {conv.lastMessage}
+                              </Typography>
+                            )
+                           }
+                         />
+                      </ListItemButton>
+                      <Divider component="li" />
+                    </React.Fragment>
+                  );
+                })}
+             </List>
+           )}
+
+            {/* Fab */}
+            <Zoom in={!newChatModalOpen}>
+              <Fab
+                color="primary"
+                size="medium"
+                onClick={() => setNewChatModalOpen(true)}
+                sx={{
+                  position: "absolute",
+                  bottom: 16,
+                  right: 16,
+                }}
+              >
+                <Edit />
+              </Fab>
+            </Zoom>
+         </Paper>
+         
+         {/* Mobile Chat View Modal */}
+         <Dialog
+            fullScreen
+            open={!!selectedChatId}
+            onClose={() => onSelectChat(selectedChatId || "", "", "")} // This effectively won't be called directly usually, back button handles it
+            TransitionComponent={SlideIsUp}
+         >
+            {selectedChatId ? (
+                // We need to clone the child to inject onBack
+                React.cloneElement(children as React.ReactElement<any>, { 
+                    onBack: () => onSelectChat("", "", "", "") 
+                }) 
+            ) : null}
+         </Dialog>
+
+         <NewChatModal
+            open={newChatModalOpen}
+            onClose={() => setNewChatModalOpen(false)}
+            onSelectContact={handleNewChatSelect}
+            defaultInstanceKey={defaultInstanceKey}
+         />
+      </Box>
+    );
+  }
+
+  // Desktop View (Original)
   return (
     <Box display="flex" height="calc(100vh - 145px)" gap={2}>
       {/* Sidebar List */}

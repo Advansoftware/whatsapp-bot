@@ -53,11 +53,9 @@ const menuItems = [
   { id: "dashboard" as View, label: "Dashboard", icon: <Dashboard /> },
   { id: "connections" as View, label: "Conexões", icon: <Cable /> },
   { id: "chatbot" as View, label: "Chatbot", icon: <SmartToy /> },
-  {
     id: "livechat" as View,
     label: "Chat ao Vivo",
     icon: <Chat />,
-    hideOnMobile: true,
   },
   { id: "ai-secretary", label: "Secretária IA", icon: <Psychology /> },
   { id: "secretary-tasks", label: "Tarefas", icon: <Checklist /> },

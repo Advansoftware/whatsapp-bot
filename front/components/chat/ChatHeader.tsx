@@ -22,6 +22,7 @@ import {
   PersonAdd,
   AutoMode,
   AutoFixHigh as AutomationIcon,
+  ArrowBack,
 } from "@mui/icons-material";
 
 interface TeamMember {
@@ -47,6 +48,7 @@ interface ChatHeaderProps {
   onClick?: () => void;
   onCreateAutomation?: () => void;
   remoteJid?: string;
+  onBack?: () => void;
   colors: {
     headerBg: string;
     incomingText: string;
@@ -72,6 +74,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onClick,
   onCreateAutomation,
   remoteJid,
+  onBack,
   colors,
 }) => {
   const avatarBgColor = isGroup ? "#5865F2" : "#00a884";
@@ -107,10 +110,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       <Box 
         display="flex" 
         alignItems="center" 
-        gap={2} 
+        gap={1} 
         onClick={onClick}
         sx={{ cursor: onClick ? 'pointer' : 'default' }}
       >
+        {onBack && (
+          <IconButton onClick={(e) => { e.stopPropagation(); onBack(); }} sx={{ color: colors.iconColor, mr: -0.5 }}>
+            <ArrowBack />
+          </IconButton>
+        )}
         <Badge
           overlap="circular"
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}

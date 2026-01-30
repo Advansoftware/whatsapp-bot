@@ -29,6 +29,12 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'pt_BR',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Respondia',
+  },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +42,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: '#00fe9b',
 };
+
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+
+// ... (existing imports)
 
 export default function RootLayout({
   children,
@@ -50,6 +60,7 @@ export default function RootLayout({
             <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
               <AuthProvider>
                 <ThemeRegistry>
+                  <ServiceWorkerRegister />
                   {children}
                 </ThemeRegistry>
               </AuthProvider>
